@@ -7,7 +7,7 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { type Sport, type User, MatchType } from '@/lib/types';
 
 // Schema for report match form
-const reportMatchSchema = z.object({
+export const reportMatchSchema = z.object({
   matchType: z.enum(['Singles', 'Doubles']),
   opponent1: z.string().min(1, 'Please select an opponent.'),
   partner: z.string().optional(),

@@ -8,18 +8,20 @@ import { StatsCard } from '@/components/dashboard/stats-card';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
-import { MOCK_USER, MOCK_MATCHES, MOCK_ELO_HISTORY } from '@/lib/mock-data';
+import { MOCK_MATCHES, MOCK_ELO_HISTORY } from '@/lib/mock-data';
 import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { sport } = useSport();
 
-  // In a real app, this data would be fetched based on the logged-in user and selected sport
-  const currentUser = MOCK_USER;
-  const sportStats = currentUser.sports?.[sport];
-
   if (!user) return null;
+
+  const sportStats = user.sports?.[sport];
+  const winRate = sportStats && (sportStats.wins + sportStats.losses) > 0
+    ? `${Math.round((sportStats.wins / (sportStats.wins + sportStats.losses)) * 100)}%`
+    : '0%';
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -50,13 +52,19 @@ export default function DashboardPage() {
         }
       />
       <div className="grid gap-6">
-        {sportStats && (
+        {sportStats ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard title="RacktRank" value={sportStats.racktRank} icon={BarChart} />
-                <StatsCard title="Win Rate" value={`${Math.round((sportStats.wins / (sportStats.wins + sportStats.losses)) * 100)}%`} icon={BarChart} />
+                <StatsCard title="Win Rate" value={winRate} icon={BarChart} />
                 <StatsCard title="Wins" value={sportStats.wins} icon={BarChart} />
                 <StatsCard title="Streak" value={sportStats.streak} icon={BarChart} />
             </div>
+        ) : (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-center text-muted-foreground">No stats for {sport} yet. Report a match to get started!</p>
+            </CardContent>
+          </Card>
         )}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
