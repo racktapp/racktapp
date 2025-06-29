@@ -1,0 +1,146 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  runTransaction,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from './config';
+import { User, Sport, Match, SportStats, MatchType } from '@/lib/types';
+import { MOCK_FRIENDS } from '../mock-data'; // For friend selection
+import { calculateNewElo } from '../elo';
+
+// In a real app, this would fetch from Firestore based on the user's friend list.
+export async function getFriends(userId: string): Promise<User[]> {
+  // For the demo, we'll return mock friends. A full implementation needs a friends collection.
+  return Promise.resolve(MOCK_FRIENDS);
+}
+
+// Function to create a user document on signup or first login
+export const createUserDocument = async (user: {
+  uid: string;
+  email: string;
+  displayName: string;
+}) => {
+  const userRef = doc(db, 'users', user.uid);
+  const newUser: User = {
+    uid: user.uid,
+    email: user.email,
+    name: user.displayName,
+    username: user.displayName.toLowerCase().replace(/\s/g, ''),
+    avatar: `https://placehold.co/100x100.png?text=${user.displayName.charAt(0)}`,
+    friendIds: [],
+    preferredSports: ['Tennis'],
+    sports: {
+      Tennis: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
+      Padel: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
+      Badminton: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
+      'Table Tennis': { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
+    },
+  };
+  await runTransaction(db, async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists()) {
+        transaction.set(userRef, newUser);
+    }
+  });
+  return newUser;
+};
+
+
+interface PlayerData {
+    id: string;
+    score: number;
+}
+interface ReportMatchData {
+    sport: Sport;
+    matchType: MatchType;
+    team1: PlayerData[];
+    team2: PlayerData[];
+    score: string;
+}
+
+// The core logic for reporting a match and updating ranks
+export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<string> => {
+    return await runTransaction(db, async (transaction) => {
+        const allPlayerIds = [...data.team1.map(p => p.id), ...data.team2.map(p => p.id)];
+        const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
+        const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
+
+        const players = playerDocs.map(doc => {
+            if (!doc.exists()) throw new Error(`User document for ID ${doc.id} not found.`);
+            return doc.data() as User;
+        });
+
+        const getTeamAvgElo = (team: PlayerData[]): number => {
+            const totalElo = team.reduce((sum, p) => {
+                const player = players.find(pl => pl.uid === p.id);
+                const sportStats = player?.sports?.[data.sport] ?? { racktRank: 1200 };
+                return sum + sportStats.racktRank;
+            }, 0);
+            return totalElo / team.length;
+        };
+
+        const team1AvgElo = getTeamAvgElo(data.team1);
+        const team2AvgElo = getTeamAvgElo(data.team2);
+
+        const team1GameScore = data.team1[0].score > data.team2[0].score ? 1 : 0;
+        const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
+        
+        const team1EloChange = newTeam1Elo - team1AvgElo;
+        const team2EloChange = newTeam2Elo - team2AvgElo;
+
+        const rankChanges: Match['rankChange'] = [];
+        const matchRef = doc(collection(db, 'matches'));
+        
+        for (const player of players) {
+            const team = data.team1.some(p => p.id === player.uid) ? 'team1' : 'team2';
+            const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
+            const isWinner = (team === 'team1' && team1GameScore === 1) || (team === 'team2' && team1GameScore === 0);
+
+            const currentSportStats = player.sports?.[data.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [] };
+            
+            const oldRank = currentSportStats.racktRank;
+            const newRank = oldRank + eloChange;
+
+            const newWins = currentSportStats.wins + (isWinner ? 1 : 0);
+            const newLosses = currentSportStats.losses + (isWinner ? 0 : 1);
+            const newStreak = isWinner ? (currentSportStats.streak >= 0 ? currentSportStats.streak + 1 : 1) : (currentSportStats.streak <= 0 ? currentSportStats.streak - 1 : -1);
+
+            const updatedSportStats: SportStats = {
+                ...currentSportStats,
+                racktRank: newRank,
+                wins: newWins,
+                losses: newLosses,
+                streak: newStreak,
+                matchHistory: [matchRef.id, ...(currentSportStats.matchHistory || [])],
+            };
+
+            const playerRef = doc(db, 'users', player.uid);
+            transaction.update(playerRef, {
+                [`sports.${data.sport}`]: updatedSportStats
+            });
+
+            rankChanges.push({ userId: player.uid, before: oldRank, after: newRank });
+        }
+
+        const newMatch: Match = {
+            id: matchRef.id,
+            type: data.matchType,
+            sport: data.sport,
+            participants: allPlayerIds,
+            teams: {
+                team1: { players: players.filter(p => data.team1.some(d => d.id === p.uid)), score: data.team1[0].score },
+                team2: { players: players.filter(p => data.team2.some(d => d.id === p.uid)), score: data.team2[0].score },
+            },
+            winner: team1GameScore === 1 ? data.team1.map(p => p.id) : data.team2.map(p => p.id),
+            score: data.score,
+            date: Timestamp.now().toMillis(),
+            createdAt: Timestamp.now().toMillis(),
+            rankChange: rankChanges,
+        };
+        transaction.set(matchRef, newMatch);
+
+        return matchRef.id;
+    });
+};

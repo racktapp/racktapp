@@ -9,6 +9,7 @@ import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
 import { MOCK_USER, MOCK_MATCHES, MOCK_ELO_HISTORY } from '@/lib/mock-data';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -27,16 +28,24 @@ export default function DashboardPage() {
         description={`Here's your ${sport} dashboard.`}
         actions={
           <>
-            <Button variant="outline">
-              <History className="mr-2 h-4 w-4" />
-              History
+            <Button asChild variant="outline">
+              <Link href="/match-history">
+                <History className="mr-2 h-4 w-4" />
+                History
+              </Link>
             </Button>
             <MatchPredictorDialog>
-              <Button>
+              <Button variant="outline">
                 <Bot className="mr-2 h-4 w-4" />
                 AI Predictor
               </Button>
             </MatchPredictorDialog>
+             <Button asChild>
+              <Link href="/report-match">
+                <Plus className="mr-2 h-4 w-4" />
+                Report Match
+              </Link>
+            </Button>
           </>
         }
       />

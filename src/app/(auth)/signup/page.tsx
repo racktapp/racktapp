@@ -15,6 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { auth } from '@/lib/firebase/config';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { createUserDocument } from '@/lib/firebase/firestore';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -41,7 +42,13 @@ export default function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await updateProfile(userCredential.user, { displayName: values.name });
-      // In a real app, you would also create a user document in Firestore here.
+      
+      await createUserDocument({
+        uid: userCredential.user.uid,
+        email: values.email,
+        displayName: values.name,
+      });
+
       toast({
         title: 'Account Created',
         description: 'Welcome to Rackt! Redirecting you to the dashboard.',
