@@ -19,7 +19,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     async function fetchUser() {
-      if (!params.id) return;
+      if (!params.id || authLoading) return; // Wait for auth to complete
       setLoading(true);
       try {
         const userRef = doc(db, 'users', params.id);
@@ -39,7 +39,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       }
     }
     fetchUser();
-  }, [params.id]);
+  }, [params.id, authLoading]); // Add authLoading to dependencies
 
   useEffect(() => {
     if (authUser && profileUser) {
@@ -58,7 +58,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
   if (!profileUser) {
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
-        <PageHeader title="Profile Not Found" description="This user does not exist." />
+        <PageHeader title="Profile Not Found" description="This user does not exist or you may not have permission to view it." />
       </div>
     );
   }
