@@ -3,12 +3,11 @@
 import { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Flame, LogOut, Search, Settings, ChevronDown, Check } from 'lucide-react';
-import { User as FirebaseUser } from 'firebase/auth';
+import { Flame, LogOut, Search, Settings, ChevronDown, Check, User as UserIcon } from 'lucide-react';
+import { signOut } from 'firebase/auth';
 
 import { type User } from '@/lib/types';
 import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/constants';
-import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 
 import {
@@ -45,10 +44,10 @@ import { SPORTS } from '@/lib/constants';
 
 interface AppLayoutProps {
   children: ReactNode;
-  user: FirebaseUser & User;
+  user: User;
 }
 
-const AppSidebar = ({ user }: { user: FirebaseUser & User }) => {
+const AppSidebar = ({ user }: { user: User }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { sport, setSport } = useSport();
@@ -130,7 +129,7 @@ const AppSidebar = ({ user }: { user: FirebaseUser & User }) => {
             </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push('/profile')}>
-              <User size={16} className="mr-2" />
+              <UserIcon size={16} className="mr-2" />
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/settings')}>

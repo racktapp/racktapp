@@ -13,11 +13,11 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
-import { getFriends, reportMatchAndupdateRanks } from '@/lib/firebase/firestore';
+import { getFriends } from '@/lib/firebase/firestore';
 import { User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { revalidatePath } from 'next/cache';
+import { handleReportMatchAction } from '@/lib/actions';
 
 const reportMatchSchema = z.object({
   matchType: z.enum(['Singles', 'Doubles']),
@@ -36,28 +36,6 @@ const reportMatchSchema = z.object({
     message: "Scores cannot be the same.",
     path: ["myScore"],
 });
-
-async function handleReportMatch(values: z.infer<typeof reportMatchSchema>, sport: any, user: any) {
-    'use server';
-    const team1 = [{ id: user.uid, score: values.myScore }];
-    if (values.matchType === 'Doubles' && values.partner) {
-        team1.push({ id: values.partner, score: values.myScore });
-    }
-
-    const team2 = [{ id: values.opponent1, score: values.opponentScore }];
-    if (values.matchType === 'Doubles' && values.opponent2) {
-        team2.push({ id: values.opponent2, score: values.opponentScore });
-    }
-    
-    await reportMatchAndupdateRanks({
-        sport,
-        matchType: values.matchType,
-        team1,
-        team2,
-        score: `${values.myScore}-${values.opponentScore}`, // Simplified score string
-    });
-    revalidatePath('/dashboard');
-}
 
 export default function ReportMatchPage() {
   const router = useRouter();
@@ -93,7 +71,7 @@ export default function ReportMatchPage() {
     setIsLoading(true);
 
     try {
-        await handleReportMatch(values, sport, user);
+        await handleReportMatchAction(values, sport, user);
         toast({ title: "Success", description: "Match reported and ranks updated!" });
         router.push('/dashboard');
     } catch (error: any) {
