@@ -20,28 +20,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userRef);
-        
-        let userProfile: User;
+      try {
+        if (firebaseUser) {
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userRef);
+          
+          let userProfile: User;
 
-        if (userDoc.exists()) {
-          userProfile = userDoc.data() as User;
+          if (userDoc.exists()) {
+            userProfile = userDoc.data() as User;
+          } else {
+            // If user exists in Auth but not Firestore (e.g., first login, or data wiped),
+            // create their user document to ensure app functionality.
+            userProfile = await createUserDocument({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email!,
+              displayName: firebaseUser.displayName || 'New User',
+            });
+          }
+          setUser({ ...firebaseUser, ...userProfile });
         } else {
-          // If user exists in Auth but not Firestore (e.g., first login, or data wiped),
-          // create their user document to ensure app functionality.
-          userProfile = await createUserDocument({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email!,
-            displayName: firebaseUser.displayName || 'New User',
-          });
+          setUser(null);
         }
-        setUser({ ...firebaseUser, ...userProfile });
-      } else {
-        setUser(null);
+      } catch (error) {
+          console.error("Auth State Change Error:", error);
+          setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
