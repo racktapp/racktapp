@@ -8,9 +8,11 @@ import { Match, User } from '@/lib/types';
 import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
@@ -22,22 +24,26 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    try {
+      const [friendsData, matchResult] = await Promise.all([
+        getFriendsAction(user.uid),
+        getMatchHistoryAction(),
+      ]);
 
-    const [friendsData, matchResult] = await Promise.all([
-      getFriendsAction(user.uid),
-      getMatchHistoryAction(),
-    ]);
-
-    setFriends(friendsData);
-
-    if (matchResult.matches) {
-      // Sort the matches on the client-side
-      const sortedMatches = matchResult.matches.sort((a, b) => b.createdAt - a.createdAt);
-      setMatches(sortedMatches);
+      setFriends(friendsData);
+      setMatches(matchResult.matches || []);
+    } catch (error) {
+      console.error("Failed to fetch match data:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not load match history. Please try again later.'
+      });
+      setMatches([]);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => {
     fetchMatchData();

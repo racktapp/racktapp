@@ -420,11 +420,11 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<{ matches?: Match[] }> {
+export async function getMatchHistoryAction(): Promise<{ matches: Match[] }> {
     const user = auth.currentUser;
     if (!user) return { matches: [] };
     
-    // This action is now robust and does not require a complex index.
+    // This action relies on a Firestore index for optimal performance.
     const matches = await getMatchesForUser(user.uid);
     return { matches };
 }

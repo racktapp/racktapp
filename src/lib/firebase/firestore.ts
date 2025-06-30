@@ -255,8 +255,8 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
 };
 
 /**
- * Fetches all confirmed matches for a given user.
- * This query is simple and does not require a composite index. Sorting is done on the client.
+ * Fetches all confirmed matches for a given user, sorted by creation date.
+ * This query requires a composite index on (`participants`, `createdAt`).
  * @param userId The UID of the user.
  * @returns A promise that resolves to an array of Match objects.
  */
@@ -264,7 +264,8 @@ export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId)
+        where('participants', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
     const matches = snapshot.docs.map(doc => doc.data() as Match);
@@ -937,5 +938,3 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
         throw e;
     }
 }
-
-    
