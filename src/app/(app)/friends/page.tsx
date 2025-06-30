@@ -1,142 +1,254 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserPlus, Search, Loader2 } from 'lucide-react';
-import { User } from '@/lib/types';
-import { searchUsersAction, addFriendAction } from '@/lib/actions';
+import { UserPlus, Search, Loader2, UserMinus, UserCheck, UserX, Users, Mail, Send } from 'lucide-react';
+import { User, FriendRequest } from '@/lib/types';
+import { 
+    searchUsersAction, 
+    addFriendAction,
+    getFriendsAction,
+    getIncomingRequestsAction,
+    getSentRequestsAction,
+    acceptFriendRequestAction,
+    declineOrCancelFriendRequestAction,
+    removeFriendAction
+} from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { UserAvatar } from '@/components/user-avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
-const UserResultCard = ({ user, onAddFriend }: { user: User; onAddFriend: (userId: string, userName: string) => Promise<boolean> }) => {
-    const [isAdding, setIsAdding] = useState(false);
-    const [isAdded, setIsAdded] = useState(false);
+// --- Reusable Card Components ---
 
-    const handleAddClick = async () => {
-        setIsAdding(true);
-        const success = await onAddFriend(user.uid, user.name);
-        if (success) {
-            setIsAdded(true);
-        }
-        setIsAdding(false);
-    }
-
-    return (
-        <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <UserAvatar user={user} className="h-12 w-12" />
-                    <div>
-                        <p className="font-semibold">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">@{user.username}</p>
-                    </div>
+const UserCard = ({ user, children }: { user: Partial<User>, children: ReactNode }) => (
+    <Card>
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+            <Link href={`/profile/${user.uid}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                <UserAvatar user={user as User} className="h-12 w-12" />
+                <div>
+                    <p className="font-semibold">{user.name}</p>
+                    {user.username && <p className="text-sm text-muted-foreground">@{user.username}</p>}
                 </div>
-                <Button onClick={handleAddClick} disabled={isAdded || isAdding}>
-                    {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                    {isAdding ? 'Sending...' : isAdded ? 'Request Sent' : 'Add Friend'}
-                </Button>
-            </CardContent>
-        </Card>
-    );
-};
+            </Link>
+            <div className="flex gap-2">{children}</div>
+        </CardContent>
+    </Card>
+);
 
+const ActionButton = ({ onClick, isProcessing, idleIcon, processingText, buttonText, variant = 'default' }: any) => {
+    return (
+        <Button onClick={onClick} disabled={isProcessing} variant={variant} size="sm">
+            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : idleIcon}
+            {isProcessing ? processingText : buttonText}
+        </Button>
+    )
+}
+
+// --- Main Page Component ---
 
 export default function FriendsPage() {
     const { user: currentUser } = useAuth();
     const { toast } = useToast();
-    const [searchQuery, setSearchQuery] = useState('');
+
+    // State for all data
+    const [friends, setFriends] = useState<User[]>([]);
+    const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+    const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
     const [searchResults, setSearchResults] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    
+    // State for UI
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const [processingIds, setProcessingIds] = useState<string[]>([]);
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!searchQuery.trim() || !currentUser) return;
-
+    const fetchData = useCallback(async () => {
+        if (!currentUser) return;
         setIsLoading(true);
-        setHasSearched(true);
-        setSearchResults([]);
         try {
-            const results = await searchUsersAction(searchQuery, currentUser.uid);
-            setSearchResults(results);
+            const [friendsData, incomingData, sentData] = await Promise.all([
+                getFriendsAction(currentUser.uid),
+                getIncomingRequestsAction(currentUser.uid),
+                getSentRequestsAction(currentUser.uid)
+            ]);
+            setFriends(friendsData);
+            setIncomingRequests(incomingData);
+            setSentRequests(sentData);
         } catch (error) {
-            console.error(error);
-            toast({
-                variant: 'destructive',
-                title: 'Search Failed',
-                description: 'Could not perform the search. Please try again.',
-            });
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to load friends data.' });
         } finally {
             setIsLoading(false);
         }
+    }, [currentUser, toast]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleAction = async (action: () => Promise<{success: boolean, message: string}>, id: string) => {
+        setProcessingIds(prev => [...prev, id]);
+        const result = await action();
+        if (result.success) {
+            toast({ title: 'Success', description: result.message });
+            await fetchData(); // Refresh all data
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.message });
+        }
+        setProcessingIds(prev => prev.filter(pId => pId !== id));
     };
     
-    const handleAddFriend = async (friendId: string, friendName: string): Promise<boolean> => {
-        if (!currentUser) return false;
+    const handleSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!searchQuery.trim() || !currentUser) return;
+        setIsSearching(true);
+        setHasSearched(true);
+        const results = await searchUsersAction(searchQuery, currentUser.uid);
+        setSearchResults(results);
+        setIsSearching(false);
+    };
 
-        const result = await addFriendAction(currentUser, friendId);
-
-        if (result.success) {
-            toast({
-                title: "Friend Request Sent",
-                description: `Your friend request has been sent to ${friendName}.`,
-            });
-            return true;
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Failed to Add Friend',
-                description: result.message,
-            });
-            return false;
-        }
+    if (isLoading) {
+        return (
+            <div className="container mx-auto flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
     }
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
-        title="Find Friends"
-        description="Search for other players by their username to add them."
+        title="Friends"
+        description="Manage your connections and find new people."
       />
       
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-        <Input 
-            placeholder="Search by username..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <Button type="submit" disabled={isLoading || !searchQuery.trim()}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-            Search
-        </Button>
-      </form>
+      <Tabs defaultValue="friends" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="friends"><Users className="mr-2" /> Friends</TabsTrigger>
+            <TabsTrigger value="requests">
+                <Mail className="mr-2" /> Requests
+                {incomingRequests.length > 0 && <Badge className="ml-2">{incomingRequests.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="sent"><Send className="mr-2" /> Sent</TabsTrigger>
+            <TabsTrigger value="find"><Search className="mr-2" /> Find</TabsTrigger>
+        </TabsList>
 
-      <div className="space-y-4">
-        {isLoading ? (
-             <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             </div>
-        ) : hasSearched ? (
-            searchResults.length > 0 ? (
-                searchResults.map(user => (
-                    <UserResultCard key={user.uid} user={user} onAddFriend={handleAddFriend} />
+        <TabsContent value="friends" className="mt-4 space-y-4">
+            {friends.length > 0 ? (
+                friends.map(friend => (
+                    <UserCard key={friend.uid} user={friend}>
+                        <ActionButton
+                            onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid)}
+                            isProcessing={processingIds.includes(friend.uid)}
+                            idleIcon={<UserMinus className="mr-2 h-4 w-4" />}
+                            processingText="Removing..."
+                            buttonText="Remove"
+                            variant="outline"
+                        />
+                    </UserCard>
                 ))
             ) : (
                 <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                    <p className="text-muted-foreground">No users found for "{searchQuery}". Try another search.</p>
+                    <p className="text-muted-foreground">You haven't added any friends yet.</p>
                 </div>
-            )
-        ) : (
-             <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                <p className="text-muted-foreground">Use the search bar above to find and add friends.</p>
-             </div>
-        )}
-      </div>
+            )}
+        </TabsContent>
+        
+        <TabsContent value="requests" className="mt-4 space-y-4">
+             {incomingRequests.length > 0 ? (
+                incomingRequests.map(req => (
+                    <UserCard key={req.id} user={{ uid: req.fromId, name: req.fromName, avatar: req.fromAvatar }}>
+                        <ActionButton
+                            onClick={() => handleAction(() => acceptFriendRequestAction(req.id, req.fromId, currentUser!.uid), req.id + 'accept')}
+                            isProcessing={processingIds.includes(req.id + 'accept')}
+                            idleIcon={<UserCheck className="mr-2 h-4 w-4" />}
+                            processingText="Accepting..."
+                            buttonText="Accept"
+                        />
+                         <ActionButton
+                            onClick={() => handleAction(() => declineOrCancelFriendRequestAction(req.id), req.id + 'decline')}
+                            isProcessing={processingIds.includes(req.id + 'decline')}
+                            idleIcon={<UserX className="mr-2 h-4 w-4" />}
+                            processingText="Declining..."
+                            buttonText="Decline"
+                            variant="destructive"
+                        />
+                    </UserCard>
+                ))
+            ) : (
+                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">No incoming friend requests.</p>
+                </div>
+            )}
+        </TabsContent>
 
+        <TabsContent value="sent" className="mt-4 space-y-4">
+            {sentRequests.length > 0 ? (
+                sentRequests.map(req => (
+                     <UserCard key={req.id} user={{ uid: req.toId, name: 'Request Sent' }}>
+                        <ActionButton
+                            onClick={() => handleAction(() => declineOrCancelFriendRequestAction(req.id), req.id)}
+                            isProcessing={processingIds.includes(req.id)}
+                            idleIcon={<UserX className="mr-2 h-4 w-4" />}
+                            processingText="Canceling..."
+                            buttonText="Cancel"
+                            variant="outline"
+                        />
+                    </UserCard>
+                ))
+            ) : (
+                 <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">You have no pending sent requests.</p>
+                </div>
+            )}
+        </TabsContent>
+
+        <TabsContent value="find" className="mt-4">
+            <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+                <Input placeholder="Search by username..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
+                    {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                    Search
+                </Button>
+            </form>
+            <div className="space-y-4">
+                {isSearching ? (
+                    <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : hasSearched ? (
+                    searchResults.length > 0 ? (
+                        searchResults.map(user => (
+                            <UserCard key={user.uid} user={user}>
+                                <ActionButton
+                                    onClick={() => handleAction(() => addFriendAction(currentUser!, user.uid), user.uid)}
+                                    isProcessing={processingIds.includes(user.uid)}
+                                    idleIcon={<UserPlus className="mr-2 h-4 w-4" />}
+                                    processingText="Sending..."
+                                    buttonText="Add Friend"
+                                />
+                            </UserCard>
+                        ))
+                    ) : (
+                        <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                             <p className="text-muted-foreground">No users found for "{searchQuery}".</p>
+                        </div>
+                    )
+                ) : (
+                    <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                        <p className="text-muted-foreground">Search for users to add them as friends.</p>
+                    </div>
+                )}
+            </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

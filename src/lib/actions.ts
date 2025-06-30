@@ -2,7 +2,17 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { reportMatchAndupdateRanks, searchUsers, sendFriendRequest } from '@/lib/firebase/firestore';
+import { 
+    reportMatchAndupdateRanks, 
+    searchUsers, 
+    sendFriendRequest,
+    getFriends,
+    getIncomingFriendRequests,
+    getSentFriendRequests,
+    acceptFriendRequest,
+    deleteFriendRequest,
+    removeFriend
+} from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { type Sport, type User, MatchType, reportMatchSchema } from '@/lib/types';
 
@@ -70,5 +80,55 @@ export async function addFriendAction(fromUser: User, toId: string) {
         return { success: true, message: "Friend request sent." };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to send friend request." };
+    }
+}
+
+// --- New Friend Management Actions ---
+
+export async function getFriendsAction(userId: string): Promise<User[]> {
+    if (!userId) return [];
+    return getFriends(userId);
+}
+
+export async function getIncomingRequestsAction(userId: string): Promise<FriendRequest[]> {
+    if (!userId) return [];
+    return getIncomingFriendRequests(userId);
+}
+
+export async function getSentRequestsAction(userId: string): Promise<FriendRequest[]> {
+    if (!userId) return [];
+    return getSentFriendRequests(userId);
+}
+
+export async function acceptFriendRequestAction(requestId: string, fromId: string, toId: string) {
+    try {
+        await acceptFriendRequest(requestId, fromId, toId);
+        revalidatePath('/friends');
+        return { success: true, message: "Friend request accepted." };
+    } catch (error: any) {
+        console.error("Accept friend request action failed:", error);
+        return { success: false, message: "Failed to accept friend request." };
+    }
+}
+
+export async function declineOrCancelFriendRequestAction(requestId: string) {
+    try {
+        await deleteFriendRequest(requestId);
+        revalidatePath('/friends');
+        return { success: true, message: "Request removed." };
+    } catch (error: any) {
+        console.error("Decline/cancel friend request action failed:", error);
+        return { success: false, message: "Failed to remove friend request." };
+    }
+}
+
+export async function removeFriendAction(currentUserId: string, friendId: string) {
+    try {
+        await removeFriend(currentUserId, friendId);
+        revalidatePath('/friends');
+        return { success: true, message: "Friend removed." };
+    } catch (error: any) {
+        console.error("Remove friend action failed:", error);
+        return { success: false, message: "Failed to remove friend." };
     }
 }

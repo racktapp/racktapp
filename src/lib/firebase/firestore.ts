@@ -8,6 +8,9 @@ import {
   Timestamp,
   where,
   setDoc,
+  deleteDoc,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db } from './config';
 import { User, Sport, Match, SportStats, MatchType, FriendRequest } from '@/lib/types';
@@ -277,4 +280,53 @@ export async function sendFriendRequest(fromUser: User, toId: string) {
   };
 
   await setDoc(newRequestRef, newRequest);
+}
+
+// --- New Friend Management Functions ---
+
+export async function getIncomingFriendRequests(userId: string): Promise<FriendRequest[]> {
+  const requestsRef = collection(db, 'friendRequests');
+  const q = query(requestsRef, where('toId', '==', userId), where('status', '==', 'pending'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => doc.data() as FriendRequest);
+}
+
+export async function getSentFriendRequests(userId: string): Promise<FriendRequest[]> {
+    const requestsRef = collection(db, 'friendRequests');
+    const q = query(requestsRef, where('fromId', '==', userId), where('status', '==', 'pending'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as FriendRequest);
+}
+
+export async function acceptFriendRequest(requestId: string, fromId: string, toId: string) {
+  return runTransaction(db, async (transaction) => {
+    const fromUserRef = doc(db, 'users', fromId);
+    const toUserRef = doc(db, 'users', toId);
+    const requestRef = doc(db, 'friendRequests', requestId);
+
+    // Add each user to the other's friend list
+    transaction.update(fromUserRef, { friendIds: arrayUnion(toId) });
+    transaction.update(toUserRef, { friendIds: arrayUnion(fromId) });
+    
+    // Delete the friend request, as it has been handled
+    transaction.delete(requestRef);
+  });
+}
+
+export async function deleteFriendRequest(requestId: string) {
+  const requestRef = doc(db, 'friendRequests', requestId);
+  await deleteDoc(requestRef);
+}
+
+export async function removeFriend(userId: string, friendId: string) {
+  return runTransaction(db, async (transaction) => {
+    const userRef = doc(db, 'users', userId);
+    const friendRef = doc(db, 'users', friendId);
+
+    // Remove friendId from user's friend list
+    transaction.update(userRef, { friendIds: arrayRemove(friendId) });
+
+    // Remove userId from friend's friend list
+    transaction.update(friendRef, { friendIds: arrayRemove(userId) });
+  });
 }
