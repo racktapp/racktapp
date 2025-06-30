@@ -57,7 +57,7 @@ export default function FriendsPage() {
         setSearchResults([]);
         try {
             const results = await searchUsersAction(searchQuery, currentUser.uid);
-            setSearchResults(results.filter(u => u.uid !== currentUser.uid));
+            setSearchResults(results);
         } catch (error) {
             console.error(error);
             toast({

@@ -83,18 +83,19 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
         if (!lowerCaseQuery) return [];
 
         const usersRef = collection(db, 'users');
-        // This query performs a "starts with" search on the username field.
         const q = query(
             usersRef,
             where('username', '>=', lowerCaseQuery),
-            where('username', '<=', lowerCaseQuery + '\uf8ff'),
-            where('uid', '!=', currentUserId)
+            where('username', '<=', lowerCaseQuery + '\uf8ff')
         );
 
         const querySnapshot = await getDocs(q);
         const users: User[] = [];
         querySnapshot.forEach((doc) => {
-            users.push(doc.data() as User);
+            const user = doc.data() as User;
+            if (user.uid !== currentUserId) {
+                users.push(user);
+            }
         });
         return users;
     } catch (error) {
