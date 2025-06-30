@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { LegendGame, User } from '@/lib/types';
@@ -31,7 +32,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const handleAnswerSubmit = async (answer: string) => {
     setSelectedAnswer(answer);
     setIsProcessing(true);
-    const result = await submitLegendAnswerAction(game.id, answer);
+    const result = await submitLegendAnswerAction(game.id, answer, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }

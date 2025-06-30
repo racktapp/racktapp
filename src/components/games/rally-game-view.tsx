@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { RallyGame, User } from '@/lib/types';
@@ -32,7 +33,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
   const handleAction = async (choice: any) => {
     setIsProcessing(true);
-    const result = await playRallyTurnAction(game.id, choice);
+    const result = await playRallyTurnAction(game.id, choice, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }

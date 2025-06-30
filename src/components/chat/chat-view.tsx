@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -38,7 +39,7 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
 
   useEffect(() => {
     // Mark chat as read when component mounts
-    markChatAsReadAction(chat.id);
+    markChatAsReadAction(chat.id, currentUser.uid);
 
     const messagesRef = collection(db, 'chats', chat.id, 'messages');
     const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(50));
@@ -49,7 +50,7 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
     });
 
     return () => unsubscribe();
-  }, [chat.id]);
+  }, [chat.id, currentUser.uid]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

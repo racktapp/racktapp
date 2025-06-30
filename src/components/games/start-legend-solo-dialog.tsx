@@ -1,3 +1,4 @@
+
 'use client';
 import { ReactNode, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -20,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SPORTS } from '@/lib/constants';
 import { createLegendGameAction } from '@/lib/actions';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useAuth } from '@/hooks/use-auth';
 
 const formSchema = z.object({
   sport: z.enum(SPORTS),
@@ -31,6 +33,7 @@ interface StartLegendSoloDialogProps {
 
 export function StartLegendSoloDialog({ children }: StartLegendSoloDialogProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -41,8 +44,12 @@ export function StartLegendSoloDialog({ children }: StartLegendSoloDialogProps) 
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to start a game.' });
+      return;
+    }
     setIsLoading(true);
-    const result = await createLegendGameAction(null, values.sport);
+    const result = await createLegendGameAction(null, values.sport, user.uid);
     if (result.success && result.redirect) {
       toast({ title: 'Game Started!', description: 'Good luck!' });
       router.push(result.redirect);

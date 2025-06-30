@@ -1,3 +1,4 @@
+
 'use client';
 import { ReactNode, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -57,12 +58,16 @@ export function StartRallyFriendDialog({ children }: StartRallyFriendDialogProps
   }
 
   async function handleChallenge() {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to challenge a friend.' });
+        return;
+    }
     if (!selectedFriendId) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select a friend to challenge.' });
         return;
     }
     setIsLoading(true);
-    const result = await createRallyGameAction(selectedFriendId);
+    const result = await createRallyGameAction(selectedFriendId, user.uid);
     if (result.success && result.redirect) {
       toast({ title: 'Game Started!', description: `Challenge sent to your friend.` });
       router.push(result.redirect);

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, ReactNode } from 'react';
@@ -195,11 +196,11 @@ export default function FriendsPage() {
                                     </DropdownMenuSubTrigger>
                                      <DropdownMenuPortal>
                                         <DropdownMenuSubContent>
-                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid), friend.uid + 'rally')}>
+                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid, currentUser.uid), friend.uid + 'rally')}>
                                                 {processingIds.includes(friend.uid + 'rally') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                                                 Rally Game
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => handleAction(() => createLegendGameAction(friend.uid, currentUser.preferredSports[0] || 'Tennis'), friend.uid + 'legend')}>
+                                            <DropdownMenuItem onSelect={() => handleAction(() => createLegendGameAction(friend.uid, currentUser.preferredSports[0] || 'Tennis', currentUser.uid), friend.uid + 'legend')}>
                                                 {processingIds.includes(friend.uid + 'legend') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Users className="mr-2 h-4 w-4" />}
                                                 Guess the Legend
                                             </DropdownMenuItem>

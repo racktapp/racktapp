@@ -333,12 +333,11 @@ export async function sendMessageAction(chatId: string, text: string) {
 }
 
 export async function markChatAsReadAction(chatId: string, userId: string) {
-    const user = auth.currentUser;
-    if (!user) {
+    if (!userId) {
         return { success: false, message: "Not authenticated." };
     }
     try {
-        await markChatAsRead(chatId, user.uid);
+        await markChatAsRead(chatId, userId);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: 'Failed to mark chat as read.' };
@@ -347,12 +346,11 @@ export async function markChatAsReadAction(chatId: string, userId: string) {
 
 // --- Game Actions ---
 
-export async function createRallyGameAction(friendId: string) {
-    const user = auth.currentUser;
-    if (!user) return { success: false, message: 'You must be logged in to start a game.' };
+export async function createRallyGameAction(friendId: string, currentUserId: string) {
+    if (!currentUserId) return { success: false, message: 'You must be logged in to start a game.' };
 
     try {
-        const gameId = await createRallyGame(user.uid, friendId);
+        const gameId = await createRallyGame(currentUserId, friendId);
         revalidatePath('/games');
         return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
     } catch (error: any) {
@@ -360,24 +358,22 @@ export async function createRallyGameAction(friendId: string) {
     }
 }
 
-export async function playRallyTurnAction(gameId: string, choice: any) {
-    const user = auth.currentUser;
-    if (!user) return { success: false, message: 'You must be logged in.' };
+export async function playRallyTurnAction(gameId: string, choice: any, currentUserId: string) {
+    if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
     try {
-        await playRallyTurn(gameId, user.uid, choice);
+        await playRallyTurn(gameId, currentUserId, choice);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to play turn.' };
     }
 }
 
-export async function createLegendGameAction(friendId: string | null, sport: Sport) {
-    const user = auth.currentUser;
-    if (!user) return { success: false, message: 'You must be logged in to start a game.' };
+export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
+    if (!currentUserId) return { success: false, message: 'You must be logged in to start a game.' };
     
     try {
-        const gameId = await createLegendGame(user.uid, friendId, sport);
+        const gameId = await createLegendGame(currentUserId, friendId, sport);
         revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
     } catch (error: any) {
@@ -385,12 +381,11 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
     }
 }
 
-export async function submitLegendAnswerAction(gameId: string, answer: string) {
-     const user = auth.currentUser;
-    if (!user) return { success: false, message: 'You must be logged in.' };
+export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
+     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
     try {
-        await submitLegendAnswer(gameId, user.uid, answer);
+        await submitLegendAnswer(gameId, currentUserId, answer);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to submit answer.' };
