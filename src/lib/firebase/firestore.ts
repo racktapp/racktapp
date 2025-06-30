@@ -1,7 +1,3 @@
-
-
-
-
 import {
   collection,
   doc,
@@ -264,20 +260,19 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
  */
 export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
-    // This query requires a composite index on `participants` (array) and `date` (desc).
-    // The client-side code is now set up to handle the error and display a link
-    // to create this index if it's missing.
+    // Use a simpler query that doesn't require a composite index.
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId),
-        orderBy('date', 'desc')
+        where('participants', 'array-contains', userId)
     );
     try {
         const snapshot = await getDocs(q);
         const matches = snapshot.docs.map(doc => doc.data() as Match);
-        return matches;
+        // Sort the matches by date in descending order in the application code.
+        return matches.sort((a, b) => b.date - a.date);
     } catch (e) {
-        // Re-throw the original error so the action can catch it and display it to the user.
+        // The simpler query should not throw an index error, but we keep this for other potential issues.
+        console.error("Error fetching matches:", e);
         throw e;
     }
 }

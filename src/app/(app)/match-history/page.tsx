@@ -8,7 +8,6 @@ import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { useToast } from '@/hooks/use-toast';
-import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
@@ -17,7 +16,6 @@ export default function MatchHistoryPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [indexError, setIndexError] = useState<string | null>(null);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -25,32 +23,21 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    setIndexError(null);
 
-    // Fetch critical match data first and handle its potential errors separately.
     try {
-      const matchData = await getMatchHistoryAction();
+      // Fetch both match history and friends in parallel now that the query is reliable
+      const [matchData, friendsData] = await Promise.all([
+          getMatchHistoryAction(),
+          getFriendsAction(user.uid)
+      ]);
       setMatches(matchData);
+      setFriends(friendsData);
     } catch (error: any) {
-      const errorMessage = (error.message || '').toLowerCase();
-      if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
-          setIndexError(error.message);
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });
-        console.error('Failed to fetch match history:', error);
-      }
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });
+      console.error('Failed to fetch match history:', error);
     } finally {
       setIsLoading(false);
     }
-
-    // Fetch non-critical friends data for the filter dropdown.
-    try {
-        const friendsData = await getFriendsAction(user.uid);
-        setFriends(friendsData);
-    } catch(error) {
-        console.error('Failed to fetch friends for filtering:', error);
-    }
-
   }, [user, toast]);
 
   useEffect(() => {
@@ -72,10 +59,6 @@ export default function MatchHistoryPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       );
-    }
-
-    if (indexError) {
-      return <FirestoreIndexAlert message={indexError} />;
     }
     
     if (filteredMatches.length > 0) {
