@@ -45,21 +45,22 @@ export function RallyCourt({ game, currentUser }: RallyCourtProps) {
   const opponentServeBox = useMemo(() => ({ x: '50%', y: '37.5%' }), []);
 
   // Positions for the *upcoming* point
-  const isNextServerMe = game.currentPoint.servingPlayer === currentUser.uid;
-  const nextServerStartPosition = useMemo(() => isNextServerMe ? myBaseline : opponentBaseline, [isNextServerMe, myBaseline, opponentBaseline]);
-  const nextReturnerStartPosition = useMemo(() => isNextServerMe ? opponentBaseline : myBaseline, [isNextServerMe, opponentBaseline, myBaseline]);
+  const isNextServerMe = useMemo(() => game.currentPoint.servingPlayer === currentUser.uid, [game.currentPoint.servingPlayer, currentUser.uid]);
 
-  const [myPlayerPos, setMyPlayerPos] = useState(myBaseline);
-  const [opponentPlayerPos, setOpponentPlayerPos] = useState(opponentBaseline);
-  const [ballPos, setBallPos] = useState(nextServerStartPosition);
+  const nextServerStartPosition = useMemo(() => (isNextServerMe ? myBaseline : opponentBaseline), [isNextServerMe, myBaseline, opponentBaseline]);
+  const nextReturnerStartPosition = useMemo(() => (isNextServerMe ? opponentBaseline : myBaseline), [isNextServerMe, opponentBaseline, myBaseline]);
+
+  const [myPlayerPos, setMyPlayerPos] = useState(() => (isNextServerMe ? myBaseline : opponentBaseline));
+  const [opponentPlayerPos, setOpponentPlayerPos] = useState(() => (isNextServerMe ? opponentBaseline : myBaseline));
+  const [ballPos, setBallPos] = useState(() => nextServerStartPosition);
 
   useEffect(() => {
-    const currentPointIndex = game.pointHistory.length - 1;
-    const lastPoint = game.pointHistory[currentPointIndex];
+    const lastPointIndex = game.pointHistory.length - 1;
+    const lastPoint = game.pointHistory[lastPointIndex];
 
     // Animate only once when a new point is finished
-    if (game.turn === 'point_over' && lastPoint && animatedPointIndex.current !== currentPointIndex) {
-      animatedPointIndex.current = currentPointIndex;
+    if (game.turn === 'point_over' && lastPoint && animatedPointIndex.current !== lastPointIndex) {
+      animatedPointIndex.current = lastPointIndex;
 
       const iAmServerForLastPoint = lastPoint.servingPlayer === currentUser.uid;
       const serverWon = lastPoint.winner === lastPoint.servingPlayer;
@@ -67,15 +68,16 @@ export function RallyCourt({ game, currentUser }: RallyCourtProps) {
       // Determine final ball position for the animation
       let finalBallPos;
       if (serverWon) {
+        // Winner hits a winner, ball goes off the opponent's court
         finalBallPos = iAmServerForLastPoint ? { ...opponentBaseline, y: '5%' } : { ...myBaseline, y: '95%' };
       } else {
+        // Loser makes an error, ball goes off their own court
         finalBallPos = iAmServerForLastPoint ? { ...myBaseline, y: '95%' } : { ...opponentBaseline, y: '5%' };
       }
-
-      // Determine start positions for the point that was just played
+      
       const pointServerStartPos = iAmServerForLastPoint ? myBaseline : opponentBaseline;
       const pointReturnerStartPos = iAmServerForLastPoint ? opponentBaseline : myBaseline;
-
+      
       // --- Animation Sequence ---
       // 1. Reset players and ball to their starting positions for the point that just finished
       setMyPlayerPos(myBaseline);
@@ -96,11 +98,21 @@ export function RallyCourt({ game, currentUser }: RallyCourtProps) {
 
     } else if (game.turn === 'serving') {
       // Reset player and ball positions for the start of the new point
-      setMyPlayerPos(isNextServerMe ? nextServerStartPosition : nextReturnerStartPosition);
-      setOpponentPlayerPos(isNextServerMe ? nextReturnerStartPosition : nextServerStartPosition);
+      setMyPlayerPos(nextServerStartPosition);
+      setOpponentPlayerPos(nextReturnerStartPosition);
       setBallPos(nextServerStartPosition);
     }
-  }, [game.turn, game.pointHistory, currentUser.uid, myBaseline, opponentBaseline, myServeBox, opponentServeBox, isNextServerMe, nextServerStartPosition, nextReturnerStartPosition]);
+  }, [
+    game.turn, 
+    game.pointHistory.length, // More stable dependency than the array reference
+    currentUser.uid, 
+    myBaseline, 
+    opponentBaseline, 
+    myServeBox, 
+    opponentServeBox, 
+    nextServerStartPosition, 
+    nextReturnerStartPosition
+  ]);
 
 
   return (
