@@ -101,18 +101,13 @@ export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
 export interface FriendRequest {
   id: string;
   fromId: string;
-  toId: string;
   fromName: string;
   fromAvatar?: string;
+  toId: string;
+  toName: string;
+  toAvatar?: string;
   status: FriendRequestStatus;
   createdAt: number; // timestamp
-}
-
-export interface Chat {
-  id: string;
-  participantIds: string[];
-  lastMessage?: Message;
-  updatedAt: number; // timestamp
 }
 
 export interface Message {
@@ -122,6 +117,23 @@ export interface Message {
   text: string;
   createdAt: number; // timestamp
 }
+
+export interface Chat {
+  id: string;
+  participantIds: string[];
+  participantsData: {
+    [key: string]: { // key is userId
+        name: string;
+        avatar?: string;
+    }
+  };
+  lastMessage?: Message;
+  updatedAt: number; // timestamp for sorting
+  lastRead?: {
+      [userId: string]: number; // timestamp
+  };
+}
+
 
 export interface Minigame {
   id: string;

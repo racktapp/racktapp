@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserPlus, Search, Loader2, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords } from 'lucide-react';
+import { UserPlus, Search, Loader2, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords, MessageSquare } from 'lucide-react';
 import { User, FriendRequest } from '@/lib/types';
 import { 
     searchUsersAction, 
@@ -14,7 +14,8 @@ import {
     getSentRequestsAction,
     acceptFriendRequestAction,
     declineOrCancelFriendRequestAction,
-    removeFriendAction
+    removeFriendAction,
+    getOrCreateChatAction
 } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { UserAvatar } from '@/components/user-avatar';
@@ -23,6 +24,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ChallengeFriendDialog } from '@/components/challenges/challenge-friend-dialog';
 
@@ -56,6 +58,7 @@ const ActionButton = ({ onClick, isProcessing, idleIcon, processingText, buttonT
 
 export default function FriendsPage() {
     const { user: currentUser } = useAuth();
+    const router = useRouter();
     const { toast } = useToast();
 
     // State for all data
@@ -100,10 +103,25 @@ export default function FriendsPage() {
         if (result.success) {
             toast({ title: 'Success', description: result.message });
             await fetchData(); // Refresh all data
+            if (searchQuery) { // Re-run search to update button states
+                const searchResults = await searchUsersAction(searchQuery, currentUser!.uid);
+                setSearchResults(searchResults);
+            }
         } else {
             toast({ variant: 'destructive', title: 'Error', description: result.message });
         }
         setProcessingIds(prev => prev.filter(pId => pId !== id));
+    };
+
+    const handleStartChat = async (friendId: string) => {
+        setProcessingIds(prev => [...prev, friendId]);
+        const result = await getOrCreateChatAction(friendId);
+        if (result.success && result.chatId) {
+            router.push(`/chat/${result.chatId}`);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.message });
+        }
+        setProcessingIds(prev => prev.filter(pId => pId !== friendId));
     };
     
     const handleSearch = async (e: React.FormEvent) => {
@@ -146,12 +164,10 @@ export default function FriendsPage() {
             {friends.length > 0 ? (
                 friends.map(friend => (
                     <UserCard key={friend.uid} user={friend}>
-                        <ChallengeFriendDialog fromUser={currentUser} toUser={friend}>
-                            <Button variant="outline" size="sm">
-                                <Swords className="mr-2 h-4 w-4" />
-                                Challenge
-                            </Button>
-                        </ChallengeFriendDialog>
+                        <Button variant="outline" size="sm" onClick={() => handleStartChat(friend.uid)} disabled={processingIds.includes(friend.uid)}>
+                            {processingIds.includes(friend.uid) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                            Chat
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -159,8 +175,14 @@ export default function FriendsPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
+                                <ChallengeFriendDialog fromUser={currentUser} toUser={friend}>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <Swords className="mr-2 h-4 w-4" />
+                                        Challenge
+                                    </DropdownMenuItem>
+                                </ChallengeFriendDialog>
                                 <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid)}>
-                                     {processingIds.includes(friend.uid) ? 
+                                     {processingIds.includes(friend.uid + 'remove') ? 
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
                                         <UserMinus className="mr-2 h-4 w-4" />}
                                     Remove Friend
@@ -207,7 +229,7 @@ export default function FriendsPage() {
         <TabsContent value="sent" className="mt-4 space-y-4">
             {sentRequests.length > 0 ? (
                 sentRequests.map(req => (
-                     <UserCard key={req.id} user={{ uid: req.toId, name: req.fromName, avatar: req.fromAvatar }}>
+                     <UserCard key={req.id} user={{ uid: req.toId, name: req.toName, avatar: req.toAvatar }}>
                         <ActionButton
                             onClick={() => handleAction(() => declineOrCancelFriendRequestAction(req.id), req.id)}
                             isProcessing={processingIds.includes(req.id)}
@@ -243,7 +265,7 @@ export default function FriendsPage() {
                         searchResults.map(user => (
                             <UserCard key={user.uid} user={user}>
                                 <ActionButton
-                                    onClick={() => handleAction(() => addFriendAction(currentUser!, user.uid), user.uid)}
+                                    onClick={() => handleAction(() => addFriendAction(currentUser!, user), user.uid)}
                                     isProcessing={processingIds.includes(user.uid)}
                                     idleIcon={<UserPlus className="mr-2 h-4 w-4" />}
                                     processingText="Sending..."

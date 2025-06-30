@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { Calendar, MapPin, Swords, Check, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { acceptChallengeAction, declineChallengeAction, cancelChallengeAction } from '@/lib/actions';
+import { useRouter } from 'next/navigation';
 
 interface ChallengeCardProps {
   challenge: Challenge;
@@ -25,6 +26,7 @@ const ActionButton = ({ onClick, isProcessing, variant, idleIcon, text }: any) =
 );
 
 export function ChallengeCard({ challenge, currentUserId, type, onAction }: ChallengeCardProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
 
@@ -36,7 +38,7 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction }: Chal
     setProcessingAction(action);
     let result;
     if (action === 'accept') {
-      result = await acceptChallengeAction(challenge.id);
+      result = await acceptChallengeAction(challenge);
     } else if (action === 'decline') {
       result = await declineChallengeAction(challenge.id);
     } else { // cancel
@@ -45,7 +47,11 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction }: Chal
 
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      onAction();
+      if (action === 'accept' && result.chatId) {
+        router.push(`/chat/${result.chatId}`);
+      } else {
+        onAction();
+      }
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }

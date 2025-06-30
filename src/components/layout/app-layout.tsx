@@ -9,6 +9,7 @@ import { signOut } from 'firebase/auth';
 import { type User } from '@/lib/types';
 import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/constants';
 import { auth } from '@/lib/firebase/config';
+import { useUnreadChats } from '@/hooks/use-unread-chats';
 
 import {
   SidebarProvider,
@@ -51,6 +52,7 @@ const AppSidebar = ({ user }: { user: User }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { sport, setSport } = useSport();
+  const hasUnreadChats = useUnreadChats();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -79,10 +81,14 @@ const AppSidebar = ({ user }: { user: User }) => {
                 asChild
                 isActive={pathname.startsWith(item.href)}
                 tooltip={item.label}
+                className="relative"
               >
                 <Link href={item.href}>
                   <item.icon />
                   <span>{item.label}</span>
+                  {item.href === '/chat' && hasUnreadChats && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary group-data-[collapsible=icon]:right-1.5" />
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -150,17 +156,22 @@ const AppSidebar = ({ user }: { user: User }) => {
 
 const BottomNav = () => {
     const pathname = usePathname();
+    const hasUnreadChats = useUnreadChats();
+
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
-            <div className="grid h-16 grid-cols-4">
+            <div className="grid h-16 grid-cols-5">
                 {NAV_ITEMS_MOBILE.map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex flex-col items-center justify-center gap-1 text-xs ${pathname.startsWith(item.href) ? 'text-primary' : 'text-muted-foreground'}`}
+                        className={`relative flex flex-col items-center justify-center gap-1 text-xs ${pathname.startsWith(item.href) ? 'text-primary' : 'text-muted-foreground'}`}
                     >
                         <item.icon className="h-5 w-5" />
                         <span>{item.label}</span>
+                        {item.href === '/chat' && hasUnreadChats && (
+                          <span className="absolute top-2 right-[calc(50%-1.25rem)] h-2 w-2 rounded-full bg-primary" />
+                        )}
                     </Link>
                 ))}
             </div>

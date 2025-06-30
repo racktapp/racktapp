@@ -15,9 +15,10 @@ import {
   updateDoc,
   orderBy,
   limit,
+  addDoc,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -68,11 +69,14 @@ export async function getFriends(userId: string): Promise<User[]> {
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
   try {
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('uid', '!=', currentUserId));
+    const q = query(usersRef); // Fetch all users
     const querySnapshot = await getDocs(q);
     const users: User[] = [];
     querySnapshot.forEach((doc) => {
-      users.push(doc.data() as User);
+        const user = doc.data() as User;
+        if (user.uid !== currentUserId) { // Filter client-side
+            users.push(user);
+        }
     });
     return users;
   } catch (error) {
@@ -246,24 +250,17 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
 /**
  * Creates a friend request document in Firestore.
  * @param fromUser - The user object of the sender.
- * @param toId - The UID of the user receiving the request.
+ * @param toUser - The user object of the receiver.
  */
-export async function sendFriendRequest(fromUser: User, toId: string) {
+export async function sendFriendRequest(fromUser: User, toUser: User) {
   const friendRequestsRef = collection(db, 'friendRequests');
 
-  // Check if they are already friends
-  const toUserRef = doc(db, 'users', toId);
-  const toUserDoc = await getDoc(toUserRef);
-  if (toUserDoc.exists()) {
-    const toUserData = toUserDoc.data() as User;
-    if (toUserData.friendIds?.includes(fromUser.uid)) {
-      throw new Error("You are already friends with this user.");
-    }
+  if (toUser.friendIds?.includes(fromUser.uid)) {
+    throw new Error("You are already friends with this user.");
   }
-
-  // Check if a request already exists between these users (in either direction)
-  const q1 = query(friendRequestsRef, where('fromId', '==', fromUser.uid), where('toId', '==', toId));
-  const q2 = query(friendRequestsRef, where('fromId', '==', toId), where('toId', '==', fromUser.uid));
+  
+  const q1 = query(friendRequestsRef, where('fromId', '==', fromUser.uid), where('toId', '==', toUser.uid));
+  const q2 = query(friendRequestsRef, where('fromId', '==', toUser.uid), where('toId', '==', fromUser.uid));
   
   const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
 
@@ -280,7 +277,9 @@ export async function sendFriendRequest(fromUser: User, toId: string) {
     fromId: fromUser.uid,
     fromName: fromUser.name,
     fromAvatar: fromUser.avatar,
-    toId: toId,
+    toId: toUser.uid,
+    toName: toUser.name,
+    toAvatar: toUser.avatar,
     status: 'pending',
     createdAt: Timestamp.now().toMillis(),
   };
@@ -355,16 +354,22 @@ export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id
     await setDoc(newChallengeRef, newChallenge);
 }
 
+export async function getChallengeById(challengeId: string): Promise<Challenge | null> {
+    const challengeRef = doc(db, 'challenges', challengeId);
+    const docSnap = await getDoc(challengeRef);
+    return docSnap.exists() ? docSnap.data() as Challenge : null;
+}
+
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
     const challengesRef = collection(db, 'challenges');
     const q = query(
         challengesRef,
         where('toId', '==', userId),
-        where('status', '==', 'pending'),
         orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Challenge);
+    const allChallenges = snapshot.docs.map(doc => doc.data() as Challenge);
+    return allChallenges.filter(c => c.status === 'pending');
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
@@ -372,19 +377,19 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     const q = query(
         challengesRef,
         where('fromId', '==', userId),
-        where('status', '==', 'pending'),
         orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Challenge);
+    const allChallenges = snapshot.docs.map(doc => doc.data() as Challenge);
+    return allChallenges.filter(c => c.status === 'pending');
 }
 
 export async function getOpenChallenges(userId: string, sport: Sport): Promise<OpenChallenge[]> {
     const openChallengesRef = collection(db, 'openChallenges');
     const q = query(
         openChallengesRef,
-        where('posterId', '!=', userId),
         where('sport', '==', sport),
+        where('posterId', '!=', userId),
         orderBy('posterId', 'asc'), // required for '!=' query
         orderBy('createdAt', 'desc'),
         limit(50)
@@ -516,5 +521,95 @@ export async function reportTournamentWinner(tournamentId: string, matchId: stri
         }
 
         transaction.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
+    });
+}
+
+
+// --- Chat Functions ---
+
+export async function getOrCreateChat(userId1: string, userId2: string): Promise<string> {
+    const chatsRef = collection(db, 'chats');
+    // Firestore requires that array-contains queries have the same number of elements to combine
+    const q = query(chatsRef, 
+        where('participantIds', 'array-contains', userId1)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const existingChat = querySnapshot.docs.find(doc => doc.data().participantIds.includes(userId2));
+
+    if (existingChat) {
+        return existingChat.id;
+    } else {
+        // Create new chat
+        const [user1Doc, user2Doc] = await Promise.all([
+            getDoc(doc(db, 'users', userId1)),
+            getDoc(doc(db, 'users', userId2))
+        ]);
+
+        if (!user1Doc.exists() || !user2Doc.exists()) {
+            throw new Error("One or both users not found.");
+        }
+
+        const user1Data = user1Doc.data() as User;
+        const user2Data = user2Doc.data() as User;
+
+        const newChatRef = doc(collection(db, 'chats'));
+        const now = Timestamp.now().toMillis();
+        const newChat: Chat = {
+            id: newChatRef.id,
+            participantIds: [userId1, userId2],
+            participantsData: {
+                [userId1]: { name: user1Data.name, avatar: user1Data.avatar },
+                [userId2]: { name: user2Data.name, avatar: user2Data.avatar },
+            },
+            updatedAt: now,
+            lastRead: {
+                [userId1]: now,
+                [userId2]: now
+            }
+        };
+
+        await setDoc(newChatRef, newChat);
+        return newChatRef.id;
+    }
+}
+
+export async function getChatsForUser(userId: string): Promise<Chat[]> {
+    const chatsRef = collection(db, 'chats');
+    const q = query(chatsRef, where('participantIds', 'array-contains', userId), orderBy('updatedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Chat);
+}
+
+export async function sendMessage(chatId: string, senderId: string, text: string): Promise<void> {
+    const chatRef = doc(db, 'chats', chatId);
+    const messagesRef = collection(chatRef, 'messages');
+
+    const now = Timestamp.now().toMillis();
+    const newMessageRef = doc(messagesRef);
+
+    const newMessage: Message = {
+        id: newMessageRef.id,
+        chatId,
+        senderId,
+        text,
+        createdAt: now
+    };
+
+    const batch = writeBatch(db);
+    batch.set(newMessageRef, newMessage);
+    batch.update(chatRef, {
+        lastMessage: newMessage,
+        updatedAt: now
+    });
+    
+    await batch.commit();
+}
+
+export async function markChatAsRead(chatId: string, userId: string): Promise<void> {
+    const chatRef = doc(db, 'chats', chatId);
+    const now = Timestamp.now().toMillis();
+    await updateDoc(chatRef, {
+        [`lastRead.${userId}`]: now
     });
 }

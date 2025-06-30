@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/firebase/config';
 import { 
     reportMatchAndupdateRanks, 
     searchUsers, 
@@ -22,10 +23,15 @@ import {
     createTournament,
     getTournamentsForUser,
     getTournamentById,
-    reportTournamentWinner
+    reportTournamentWinner,
+    getOrCreateChat,
+    sendMessage,
+    markChatAsRead,
+    getChatsForUser,
+    getChallengeById,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 
 
@@ -86,9 +92,9 @@ export async function searchUsersAction(query: string, currentUserId: string): P
 }
 
 // Action for sending a friend request
-export async function addFriendAction(fromUser: User, toId: string) {
+export async function addFriendAction(fromUser: User, toUser: User) {
     try {
-        await sendFriendRequest(fromUser, toId);
+        await sendFriendRequest(fromUser, toUser);
         revalidatePath('/friends');
         return { success: true, message: "Friend request sent." };
     } catch (error: any) {
@@ -207,11 +213,13 @@ export async function getChallengesAction(userId: string, sport: Sport): Promise
     }
 }
 
-export async function acceptChallengeAction(challengeId: string) {
+export async function acceptChallengeAction(challenge: Challenge) {
     try {
-        await updateChallengeStatus(challengeId, 'accepted');
+        await updateChallengeStatus(challenge.id, 'accepted');
+        const chatId = await getOrCreateChat(challenge.fromId, challenge.toId);
         revalidatePath('/challenges');
-        return { success: true, message: "Challenge accepted!" };
+        revalidatePath('/chat');
+        return { success: true, message: "Challenge accepted! Starting chat...", chatId };
     } catch (error: any) {
         return { success: false, message: "Failed to accept challenge." };
     }
@@ -274,5 +282,54 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to report winner.' };
+    }
+}
+
+
+// --- Chat Actions ---
+
+export async function getOrCreateChatAction(friendId: string) {
+    const user = auth.currentUser;
+    if (!user) {
+      return { success: false, message: "Not authenticated." };
+    }
+    try {
+      const chatId = await getOrCreateChat(user.uid, friendId);
+      revalidatePath('/chat');
+      return { success: true, message: 'Chat ready.', chatId };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to get or create chat.' };
+    }
+}
+
+export async function getChatsAction(): Promise<Chat[]> {
+    const user = auth.currentUser;
+    if (!user) return [];
+    return getChatsForUser(user.uid);
+}
+
+export async function sendMessageAction(chatId: string, text: string) {
+    const user = auth.currentUser;
+    if (!user) {
+        return { success: false, message: "Not authenticated." };
+    }
+    try {
+        await sendMessage(chatId, user.uid, text);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to send message.' };
+    }
+}
+
+export async function markChatAsReadAction(chatId: string) {
+    const user = auth.currentUser;
+    if (!user) {
+        return { success: false, message: "Not authenticated." };
+    }
+    try {
+        await markChatAsRead(chatId, user.uid);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: 'Failed to mark chat as read.' };
     }
 }
