@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
-import { getFriends } from '@/lib/firebase/firestore';
+import { getAllUsers } from '@/lib/firebase/firestore';
 import { User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,15 +24,15 @@ export default function ReportMatchPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { sport } = useSport();
-  const [friends, setFriends] = useState<User[]>([]);
+  const [availablePlayers, setAvailablePlayers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingFriends, setIsFetchingFriends] = useState(true);
+  const [isFetchingPlayers, setIsFetchingPlayers] = useState(true);
 
   useEffect(() => {
     if (user) {
-      getFriends(user.uid).then(data => {
-        setFriends(data);
-        setIsFetchingFriends(false);
+      getAllUsers(user.uid).then(data => {
+        setAvailablePlayers(data);
+        setIsFetchingPlayers(false);
       });
     }
   }, [user]);
@@ -67,7 +67,7 @@ export default function ReportMatchPage() {
     }
   }
 
-  if (!user || isFetchingFriends) {
+  if (!user || isFetchingPlayers) {
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8 flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -75,9 +75,9 @@ export default function ReportMatchPage() {
     );
   }
 
-  const availablePartners = friends.filter(f => f.uid !== form.watch('opponent1') && f.uid !== form.watch('opponent2'));
-  const availableOpponent1 = friends.filter(f => f.uid !== form.watch('partner'));
-  const availableOpponent2 = friends.filter(f => f.uid !== form.watch('opponent1') && f.uid !== form.watch('partner'));
+  const availablePartners = availablePlayers.filter(f => f.uid !== form.watch('opponent1') && f.uid !== form.watch('opponent2'));
+  const availableOpponent1 = availablePlayers.filter(f => f.uid !== form.watch('partner'));
+  const availableOpponent2 = availablePlayers.filter(f => f.uid !== form.watch('opponent1') && f.uid !== form.watch('partner'));
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">

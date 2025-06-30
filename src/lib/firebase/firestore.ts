@@ -2,18 +2,73 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
+  query,
   runTransaction,
   Timestamp,
+  where,
 } from 'firebase/firestore';
 import { db } from './config';
 import { User, Sport, Match, SportStats, MatchType } from '@/lib/types';
-import { MOCK_FRIENDS } from '../mock-data'; // For friend selection
 import { calculateNewElo } from '../elo';
 
-// In a real app, this would fetch from Firestore based on the user's friend list.
+// Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
-  // For the demo, we'll return mock friends. A full implementation needs a friends collection.
-  return Promise.resolve(MOCK_FRIENDS);
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) {
+      console.error("Get friends failed: User not found with ID:", userId);
+      return [];
+    }
+
+    const userData = userDoc.data() as User;
+    const friendIds = userData.friendIds;
+
+    if (!friendIds || friendIds.length === 0) {
+      return []; // User has no friends
+    }
+
+    const friendsData: User[] = [];
+    const chunkSize = 30; // Firestore 'in' query is limited to 30 elements
+    for (let i = 0; i < friendIds.length; i += chunkSize) {
+      const chunk = friendIds.slice(i, i + chunkSize);
+      if (chunk.length > 0) {
+        const friendsQuery = query(collection(db, 'users'), where('uid', 'in', chunk));
+        const querySnapshot = await getDocs(friendsQuery);
+        querySnapshot.forEach((doc) => {
+          friendsData.push(doc.data() as User);
+        });
+      }
+    }
+    
+    return friendsData;
+  } catch (error) {
+    console.error("Error fetching friends:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetches all users from the system, excluding the current user.
+ * @param currentUserId The UID of the user to exclude from the list.
+ * @returns A promise that resolves to an array of User objects.
+ */
+export async function getAllUsers(currentUserId: string): Promise<User[]> {
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('uid', '!=', currentUserId));
+    const querySnapshot = await getDocs(q);
+    const users: User[] = [];
+    querySnapshot.forEach((doc) => {
+      users.push(doc.data() as User);
+    });
+    return users;
+  } catch (error) {
+    console.error("Error fetching all users:", error);
+    return [];
+  }
 }
 
 // Function to create a user document on signup or first login
