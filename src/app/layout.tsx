@@ -7,6 +7,11 @@ import { Toaster } from '@/components/ui/toaster';
 export const metadata: Metadata = {
   title: 'Rackt',
   description: 'The Social Sports Hub',
+  manifest: '/manifest.json',
+  icons: {
+    apple: '/icons/icon-192x192.png',
+  },
+  themeColor: '#2563EB',
 };
 
 export default function RootLayout({
