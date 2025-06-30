@@ -4,13 +4,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBw4qLEmhCdloIGMP-R5a-hsZuKC10DFD4",
-  authDomain: "rackt-1b802.firebaseapp.com",
-  projectId: "rackt-1b802",
-  storageBucket: "rackt-1b802.appspot.com",
-  messagingSenderId: "902514094077",
-  appId: "1:902514094077:web:ac5ec52b37b66943ba7394",
-  measurementId: "G-ZM9C15R4Z2"
+  apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
+  authDomain: "rackt-the-social-sports-hub.firebaseapp.com",
+  projectId: "rackt-the-social-sports-hub",
+  storageBucket: "rackt-the-social-sports-hub.appspot.com",
+  messagingSenderId: "1080946592753",
+  appId: "1:1080946592753:web:2b518f181c5936ebdad250"
 };
 
 // Initialize Firebase
