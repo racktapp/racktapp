@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -38,7 +37,7 @@ export default function MatchHistoryPage() {
       const matchData = await getMatchHistoryAction();
       setMatches(matchData);
     } catch (error: any) {
-      if (error.message && error.message.includes('query requires an index')) {
+      if (error.code === 'failed-precondition') {
           setIndexError(error.message);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });
