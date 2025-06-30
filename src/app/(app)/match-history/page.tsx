@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
-import { useSport } from '@/components/providers/sport-provider';
 import { getMatchHistoryAction, getFriendsAction } from '@/lib/actions';
 import { Match, User } from '@/lib/types';
 import { Loader2, History } from 'lucide-react';
@@ -13,7 +12,6 @@ import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
-  const { sport } = useSport();
   const { toast } = useToast();
 
   const [matches, setMatches] = useState<Match[]>([]);
@@ -29,16 +27,13 @@ export default function MatchHistoryPage() {
     setIsLoading(true);
     setIndexError(null);
     try {
-      // Fetch friends first, as this is less likely to fail.
       const friendsData = await getFriendsAction(user.uid);
       setFriends(friendsData);
       
-      // Then fetch the match history. If this fails, the catch block will handle it.
       const matchData = await getMatchHistoryAction();
       setMatches(matchData);
     } catch (error: any) {
       const errorMessage = (error.message || '').toLowerCase();
-      // Check for keywords that indicate a missing index.
       if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
           setIndexError(error.message);
       } else {
@@ -56,12 +51,11 @@ export default function MatchHistoryPage() {
 
   const filteredMatches = useMemo(() => {
     return matches
-      .filter(match => match.sport === sport)
       .filter(match => {
         if (opponentFilter === 'all') return true;
         return match.participants.includes(opponentFilter);
       });
-  }, [matches, sport, opponentFilter]);
+  }, [matches, opponentFilter]);
   
   const renderContent = () => {
     if (isLoading) {
@@ -101,7 +95,7 @@ export default function MatchHistoryPage() {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Match History"
-        description={`Review your past ${sport} games and generate AI recaps.`}
+        description="Review your past games and generate AI recaps."
       />
       
       <MatchHistoryFilters

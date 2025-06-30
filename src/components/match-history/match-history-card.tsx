@@ -68,6 +68,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
             <div className="space-y-4">
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                     <div><span className="font-medium text-foreground">Date:</span> {format(new Date(match.date), 'PPP')}</div>
+                    <div><span className="font-medium text-foreground">Sport:</span> {match.sport}</div>
                     <div><span className="font-medium text-foreground">Type:</span> {match.type}</div>
                     {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> {match.participantsData[partner]?.name}</div>}
                 </div>
