@@ -37,7 +37,7 @@ export default function MatchHistoryPage() {
       const matchData = await getMatchHistoryAction();
       setMatches(matchData);
     } catch (error: any) {
-      if (error.code === 'failed-precondition') {
+      if (error.message && error.message.includes('query requires an index')) {
           setIndexError(error.message);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });
