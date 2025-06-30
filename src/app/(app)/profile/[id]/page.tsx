@@ -1,20 +1,30 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
-import { Edit } from 'lucide-react';
+import { Edit, LogOut, MoreVertical, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { User } from '@/lib/types';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
+import { db, auth } from '@/lib/firebase/config';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { signOut } from 'firebase/auth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function ProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : undefined;
 
   const { user: authUser, loading: authLoading } = useAuth();
@@ -24,15 +34,12 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!id || authLoading) {
-      // If there's no ID or auth is still loading, do nothing.
-      // The parent layout will handle redirects if auth fails.
       return;
     }
 
     setLoading(true);
     const userRef = doc(db, 'users', id);
 
-    // Set up a real-time listener to get profile data and listen for updates.
     const unsubscribe = onSnapshot(
       userRef,
       (doc) => {
@@ -51,7 +58,6 @@ export default function ProfilePage() {
       }
     );
 
-    // Cleanup subscription on component unmount
     return () => unsubscribe();
   }, [id, authLoading]);
 
@@ -60,6 +66,11 @@ export default function ProfilePage() {
       setIsOwnProfile(authUser.uid === profileUser.uid);
     }
   }, [authUser, profileUser]);
+  
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   if (loading || authLoading) {
     return (
@@ -91,12 +102,32 @@ export default function ProfilePage() {
         description={`Viewing stats for Tennis`}
         actions={
           isOwnProfile && authUser ? (
-            <EditProfileDialog user={authUser}>
-              <Button variant="outline">
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Profile
-              </Button>
-            </EditProfileDialog>
+            <div className="flex gap-2">
+              <EditProfileDialog user={authUser}>
+                <Button variant="outline">
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Picture
+                </Button>
+              </EditProfileDialog>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => router.push('/settings')}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : (
             <Button>Add Friend</Button>
           )

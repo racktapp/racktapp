@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { Button } from '@/components/ui/button';
-import { Bot, BarChart, History, Plus, Users, Swords, Trophy, Activity, Flame, ChevronRight } from 'lucide-react';
+import { Bot, BarChart, History, Plus, Users, Swords, Trophy, Activity, Flame, ChevronRight, Gamepad2, BrainCircuit } from 'lucide-react';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
@@ -97,12 +97,21 @@ export default function DashboardPage() {
       <div className="grid gap-6">
         <WelcomeBanner user={user} sport={sport} />
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ActionButton icon={Plus} href="/report-match">Report Match</ActionButton>
-            <MatchPredictorDialog><ActionButton icon={Bot}>AI Predictor</ActionButton></MatchPredictorDialog>
-            <ActionButton icon={Users} href="/friends">Find Players</ActionButton>
-            <ActionButton icon={Swords} href="/challenges">Challenges</ActionButton>
-        </div>
+         <Card>
+            <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <ActionButton icon={Plus} href="/report-match">Report Match</ActionButton>
+                    <ActionButton icon={Users} href="/friends">Find Players</ActionButton>
+                    <ActionButton icon={Swords} href="/challenges">Challenges</ActionButton>
+                    <ActionButton icon={Trophy} href="/tournaments">Tournaments</ActionButton>
+                    <ActionButton icon={Gamepad2} href="/games">AI Games</ActionButton>
+                    <ActionButton icon={Bot} href="/coach">AI Coach</ActionButton>
+                    <ActionButton icon={History} href="/match-history">Match History</ActionButton>
+                    <MatchPredictorDialog><ActionButton icon={BrainCircuit}>AI Predictor</ActionButton></MatchPredictorDialog>
+                </div>
+            </CardContent>
+        </Card>
 
         <div>
             {sportStats ? (
