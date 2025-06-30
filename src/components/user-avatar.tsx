@@ -1,3 +1,4 @@
+
 import { type User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Flame } from 'lucide-react';

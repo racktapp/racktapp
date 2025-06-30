@@ -57,7 +57,7 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
   }, [messages]);
 
   const onSubmit = async (values: z.infer<typeof messageSchema>) => {
-    await sendMessageAction(chat.id, values.text);
+    await sendMessageAction(chat.id, currentUser.uid, values.text);
     form.reset();
   };
   

@@ -122,14 +122,7 @@ export default function FriendsPage() {
     };
 
     const handleStartChat = async (friendId: string) => {
-        setProcessingIds(prev => [...prev, friendId]);
-        const result = await getOrCreateChatAction(friendId);
-        if (result.success && result.chatId) {
-            router.push(`/chat/${result.chatId}`);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: result.message });
-        }
-        setProcessingIds(prev => prev.filter(pId => pId !== friendId));
+        handleAction(() => getOrCreateChatAction(friendId, currentUser!.uid), friendId);
     };
     
     const handleSearch = async (e: React.FormEvent) => {
