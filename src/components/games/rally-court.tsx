@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { RallyGame, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -35,74 +36,72 @@ const Ball = ({ position }: { position: { x: string; y: string }}) => (
 );
 
 export function RallyCourt({ game, currentUser }: RallyCourtProps) {
-  const isServerMe = game.currentPoint.servingPlayer === currentUser.uid;
-  
-  // Define positions in percentages
-  const myBaseline = { x: '50%', y: '85%' };
-  const opponentBaseline = { x: '50%', y: '15%' };
-  const myServeBox = { x: '50%', y: '62.5%' };
-  const opponentServeBox = { x: '50%', y: '37.5%' };
-  
-  const serverStartPosition = isServerMe ? myBaseline : opponentBaseline;
-  const returnerStartPosition = isServerMe ? opponentBaseline : myBaseline;
+  const animatedPointIndex = useRef(-1);
+
+  // Memoize positions to prevent re-creation on every render
+  const myBaseline = useMemo(() => ({ x: '50%', y: '85%' }), []);
+  const opponentBaseline = useMemo(() => ({ x: '50%', y: '15%' }), []);
+  const myServeBox = useMemo(() => ({ x: '50%', y: '62.5%' }), []);
+  const opponentServeBox = useMemo(() => ({ x: '50%', y: '37.5%' }), []);
+
+  // Positions for the *upcoming* point
+  const isNextServerMe = game.currentPoint.servingPlayer === currentUser.uid;
+  const nextServerStartPosition = useMemo(() => isNextServerMe ? myBaseline : opponentBaseline, [isNextServerMe, myBaseline, opponentBaseline]);
+  const nextReturnerStartPosition = useMemo(() => isNextServerMe ? opponentBaseline : myBaseline, [isNextServerMe, opponentBaseline, myBaseline]);
 
   const [myPlayerPos, setMyPlayerPos] = useState(myBaseline);
   const [opponentPlayerPos, setOpponentPlayerPos] = useState(opponentBaseline);
-  const [ballPos, setBallPos] = useState(serverStartPosition);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [ballPos, setBallPos] = useState(nextServerStartPosition);
 
   useEffect(() => {
-    const lastPoint = game.pointHistory[game.pointHistory.length - 1];
-    if (game.turn === 'point_over' && lastPoint && !isAnimating) {
-        setIsAnimating(true);
-        
-        const serverWon = lastPoint.winner === lastPoint.servingPlayer;
-        const iAmServer = lastPoint.servingPlayer === currentUser.uid;
+    const currentPointIndex = game.pointHistory.length - 1;
+    const lastPoint = game.pointHistory[currentPointIndex];
 
-        // Determine final ball position
-        let finalBallPos;
-        if (serverWon) {
-            finalBallPos = iAmServer ? { ...opponentBaseline, y: '5%' } : { ...myBaseline, y: '95%' };
-        } else {
-            finalBallPos = iAmServer ? { ...myBaseline, y: '95%' } : { ...opponentBaseline, y: '5%' };
-        }
+    // Animate only once when a new point is finished
+    if (game.turn === 'point_over' && lastPoint && animatedPointIndex.current !== currentPointIndex) {
+      animatedPointIndex.current = currentPointIndex;
 
-        // Animation sequence
-        // 1. Reset to start
-        setMyPlayerPos(myBaseline);
-        setOpponentPlayerPos(opponentBaseline);
-        setBallPos(serverStartPosition);
+      const iAmServerForLastPoint = lastPoint.servingPlayer === currentUser.uid;
+      const serverWon = lastPoint.winner === lastPoint.servingPlayer;
 
-        // 2. Serve
-        setTimeout(() => {
-            setBallPos(returnerStartPosition);
-        }, 100);
+      // Determine final ball position for the animation
+      let finalBallPos;
+      if (serverWon) {
+        finalBallPos = iAmServerForLastPoint ? { ...opponentBaseline, y: '5%' } : { ...myBaseline, y: '95%' };
+      } else {
+        finalBallPos = iAmServerForLastPoint ? { ...myBaseline, y: '95%' } : { ...opponentBaseline, y: '5%' };
+      }
 
-        // 3. Return
-        setTimeout(() => {
-            setBallPos(serverStartPosition);
-        }, 800);
-        
-        // 4. Final shot
-        setTimeout(() => {
-            setBallPos(finalBallPos);
-            // Move players to react
-            setMyPlayerPos(myServeBox);
-            setOpponentPlayerPos(opponentServeBox);
-        }, 1500);
+      // Determine start positions for the point that was just played
+      const pointServerStartPos = iAmServerForLastPoint ? myBaseline : opponentBaseline;
+      const pointReturnerStartPos = iAmServerForLastPoint ? opponentBaseline : myBaseline;
 
-        // 5. End animation state
-        setTimeout(() => {
-            setIsAnimating(false);
-        }, 2500);
+      // --- Animation Sequence ---
+      // 1. Reset players and ball to their starting positions for the point that just finished
+      setMyPlayerPos(myBaseline);
+      setOpponentPlayerPos(opponentBaseline);
+      setBallPos(pointServerStartPos);
+
+      // 2. Animate Serve
+      setTimeout(() => setBallPos(pointReturnerStartPos), 100);
+      // 3. Animate Return
+      setTimeout(() => setBallPos(pointServerStartPos), 800);
+      // 4. Animate Final Shot
+      setTimeout(() => {
+        setBallPos(finalBallPos);
+        // Move players to react
+        setMyPlayerPos(myServeBox);
+        setOpponentPlayerPos(opponentServeBox);
+      }, 1500);
 
     } else if (game.turn === 'serving') {
-        // Reset positions for a new point
-        setMyPlayerPos(myBaseline);
-        setOpponentPlayerPos(opponentBaseline);
-        setBallPos(serverStartPosition);
+      // Reset player and ball positions for the start of the new point
+      setMyPlayerPos(isNextServerMe ? nextServerStartPosition : nextReturnerStartPosition);
+      setOpponentPlayerPos(isNextServerMe ? nextReturnerStartPosition : nextServerStartPosition);
+      setBallPos(nextServerStartPosition);
     }
-  }, [game.turn, game.pointHistory, currentUser.uid, isAnimating, isServerMe, opponentBaseline, myBaseline, serverStartPosition, returnerStartPosition, opponentServeBox, myServeBox]);
+  }, [game.turn, game.pointHistory, currentUser.uid, myBaseline, opponentBaseline, myServeBox, opponentServeBox, isNextServerMe, nextServerStartPosition, nextReturnerStartPosition]);
+
 
   return (
     <div className="relative w-full max-w-sm mx-auto aspect-[1/2] bg-green-600 border-4 border-white/80 rounded-lg p-2 mb-8 shadow-lg">
