@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
@@ -8,9 +9,11 @@ import { StatsCard } from '@/components/dashboard/stats-card';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
-import { MOCK_MATCHES, MOCK_ELO_HISTORY } from '@/lib/mock-data';
+import { MOCK_ELO_HISTORY } from '@/lib/mock-data';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getMatchHistoryAction } from '@/lib/actions';
+import { Match } from '@/lib/types';
 
 const ActionButton = ({ href, children, icon: Icon, onClick }: { href?: string, children: React.ReactNode, icon: React.ElementType, onClick?: () => void }) => {
     const content = (
@@ -43,6 +46,32 @@ const ActionButton = ({ href, children, icon: Icon, onClick }: { href?: string, 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { sport } = useSport();
+  const [recentMatches, setRecentMatches] = useState<Match[]>([]);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(true);
+
+  const fetchRecentMatches = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingMatches(true);
+    try {
+      const result = await getMatchHistoryAction(user.uid);
+      if (result.success) {
+        setRecentMatches(result.data.slice(0, 5));
+      } else {
+        console.error("Failed to fetch recent matches:", result.error);
+        setRecentMatches([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch recent matches:", error);
+      setRecentMatches([]);
+    } finally {
+      setIsLoadingMatches(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchRecentMatches();
+  }, [fetchRecentMatches]);
+
 
   if (!user) return null;
 
@@ -106,7 +135,7 @@ export default function DashboardPage() {
             <EloChart data={MOCK_ELO_HISTORY} />
           </div>
           <div className="lg:col-span-1">
-            <RecentMatches matches={MOCK_MATCHES} currentUserId={user.uid} />
+            <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
           </div>
         </div>
       </div>
