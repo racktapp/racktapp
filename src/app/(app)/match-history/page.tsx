@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -31,12 +32,13 @@ export default function MatchHistoryPage() {
     setIsLoading(true);
     setIndexError(null);
     try {
-      const [matchData, friendsData] = await Promise.all([
-        getMatchHistoryAction(),
-        getFriendsAction(user.uid),
-      ]);
-      setMatches(matchData);
+      // Fetch friends first, as this is less likely to fail.
+      const friendsData = await getFriendsAction(user.uid);
       setFriends(friendsData);
+      
+      // Then fetch the match history. If this fails, the catch block will handle it.
+      const matchData = await getMatchHistoryAction();
+      setMatches(matchData);
     } catch (error: any) {
       if (error.message && error.message.includes('query requires an index')) {
           setIndexError(error.message);
