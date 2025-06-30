@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Edit, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { User } from '@/lib/types';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 
@@ -22,27 +22,36 @@ export default function ProfilePage() {
   const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   useEffect(() => {
-    async function fetchUser() {
-      if (!id || authLoading) return; // Wait for auth to complete
-      setLoading(true);
-      try {
-        const userRef = doc(db, 'users', id);
-        const userDoc = await getDoc(userRef);
+    if (!id || authLoading) {
+      // If there's no ID or auth is still loading, do nothing.
+      // The parent layout will handle redirects if auth fails.
+      return;
+    }
 
-        if (userDoc.exists()) {
-          setProfileUser(userDoc.data() as User);
+    setLoading(true);
+    const userRef = doc(db, 'users', id);
+
+    // Set up a real-time listener to get profile data and listen for updates.
+    const unsubscribe = onSnapshot(
+      userRef,
+      (doc) => {
+        if (doc.exists()) {
+          setProfileUser(doc.data() as User);
         } else {
-          console.error("User not found");
+          console.error('User not found');
           setProfileUser(null);
         }
-      } catch (error) {
-        console.error("Error fetching user:", error);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching user profile:', error);
         setProfileUser(null);
-      } finally {
         setLoading(false);
       }
-    }
-    fetchUser();
+    );
+
+    // Cleanup subscription on component unmount
+    return () => unsubscribe();
   }, [id, authLoading]);
 
   useEffect(() => {
