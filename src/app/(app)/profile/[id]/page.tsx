@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,10 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 
-export default function ProfilePage({ params }: { params: { id: string } }) {
+export default function ProfilePage() {
+  const params = useParams();
+  const id = typeof params.id === 'string' ? params.id : undefined;
+
   const { user: authUser, loading: authLoading } = useAuth();
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,10 +23,10 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     async function fetchUser() {
-      if (!params.id || authLoading) return; // Wait for auth to complete
+      if (!id || authLoading) return; // Wait for auth to complete
       setLoading(true);
       try {
-        const userRef = doc(db, 'users', params.id);
+        const userRef = doc(db, 'users', id);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
@@ -39,7 +43,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       }
     }
     fetchUser();
-  }, [params.id, authLoading]); // Add authLoading to dependencies
+  }, [id, authLoading]);
 
   useEffect(() => {
     if (authUser && profileUser) {
