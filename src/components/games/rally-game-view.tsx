@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import { RallyGame, User } from '@/lib/types';
@@ -73,9 +72,9 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
             {isMyTurn ? "It's your turn to act." : `Waiting for ${opponent.name}...`}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-h-[150px]">
             {game.turn === 'point_over' && lastPoint && (
-                <div className="bg-muted/50 p-4 rounded-lg text-center">
+                <div className="bg-muted/50 p-4 rounded-lg text-center opacity-0 animate-fade-in-slide-up">
                     <p className="font-bold text-lg">{lastPoint.winner === currentUser.uid ? 'You won the point!' : `${game.participantsData[lastPoint.winner]?.name} won the point!`}</p>
                     <p className="text-muted-foreground italic mt-2">"{lastPoint.narrative}"</p>
                     {isMyTurn && <Button className="mt-4" onClick={() => handleAction(null)}>Start Next Point</Button>}
@@ -89,9 +88,10 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                             const RiskIcon = 'risk' in option ? riskIcons[option.risk as 'low'|'medium'|'high'] : Swords;
                             return (
                                 <Button
-                                    key={idx}
+                                    key={`${game.turn}-${idx}`}
                                     variant="outline"
-                                    className="h-auto p-4 flex flex-col gap-2 items-start text-left"
+                                    className="h-auto p-4 flex flex-col gap-2 items-start text-left opacity-0 animate-fade-in-slide-up"
+                                    style={{ animationDelay: `${idx * 100}ms` }}
                                     disabled={!isMyTurn || isProcessing}
                                     onClick={() => handleAction(option)}
                                 >
@@ -110,7 +110,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
         </CardContent>
         <CardFooter>
             {game.status === 'complete' && (
-                <div className="text-center w-full">
+                <div className="text-center w-full opacity-0 animate-fade-in-slide-up" style={{animationDelay: '200ms'}}>
                     <p className="text-xl font-bold">{game.winnerId === currentUser.uid ? '🎉 You are the winner! 🎉' : `Better luck next time! ${opponent.name} won.`}</p>
                 </div>
             )}
