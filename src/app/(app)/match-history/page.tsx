@@ -26,10 +26,9 @@ export default function MatchHistoryPage() {
     if (!user) return;
     setIsLoading(true);
     setIndexError(null);
+
+    // Fetch critical match data first and handle its potential errors separately.
     try {
-      const friendsData = await getFriendsAction(user.uid);
-      setFriends(friendsData);
-      
       const matchData = await getMatchHistoryAction();
       setMatches(matchData);
     } catch (error: any) {
@@ -43,6 +42,15 @@ export default function MatchHistoryPage() {
     } finally {
       setIsLoading(false);
     }
+
+    // Fetch non-critical friends data for the filter dropdown.
+    try {
+        const friendsData = await getFriendsAction(user.uid);
+        setFriends(friendsData);
+    } catch(error) {
+        console.error('Failed to fetch friends for filtering:', error);
+    }
+
   }, [user, toast]);
 
   useEffect(() => {
@@ -83,7 +91,8 @@ export default function MatchHistoryPage() {
     return (
       <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
           <History className="h-12 w-12 text-muted-foreground" />
-          <p className="mt-4 text-muted-foreground">No matches found for the selected filters.</p>
+          <p className="mt-4 text-muted-foreground">No matches found.</p>
+           <p className="text-sm text-muted-foreground">Report a match to see your history.</p>
       </div>
     );
   };

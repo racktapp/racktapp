@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Match } from '@/lib/types';
+import { Match, Sport } from '@/lib/types';
 import { format } from 'date-fns';
 import { handleRecapAction } from '@/lib/actions';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -30,7 +30,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
   const partner = myTeamIds.find(id => id !== currentUserId);
   const opponents = opponentTeamIds;
 
-  const opponentDisplay = opponents.map(id => match.participantsData[id]?.name).join(' & ');
+  const opponentDisplay = opponents.map(id => match.participantsData[id]?.name || 'Unknown').join(' & ');
 
   const handleGenerateRecap = async () => {
     setIsLoading(true);
@@ -70,7 +70,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
                     <div><span className="font-medium text-foreground">Date:</span> {format(new Date(match.date), 'PPP')}</div>
                     <div><span className="font-medium text-foreground">Sport:</span> {match.sport}</div>
                     <div><span className="font-medium text-foreground">Type:</span> {match.type}</div>
-                    {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> {match.participantsData[partner]?.name}</div>}
+                    {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> {match.participantsData[partner]?.name || 'Unknown'}</div>}
                 </div>
 
                 {!recap && !isLoading && (
