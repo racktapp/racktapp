@@ -1,8 +1,10 @@
 // src/lib/types.ts
 import { z } from 'zod';
-import { SPORTS } from './constants';
+import { SPORTS as sportValues } from './constants';
 
-export type Sport = 'Tennis' | 'Padel' | 'Badminton' | 'Table Tennis';
+export const Sport = z.enum(sportValues);
+export type Sport = z.infer<typeof Sport>;
+
 
 export interface Socials {
   twitter?: string;
@@ -207,7 +209,7 @@ export const reportMatchSchema = z.object({
 
 // Zod schemas for forms
 export const challengeSchema = z.object({
-  sport: z.enum(SPORTS),
+  sport: Sport,
   location: z.string().optional(),
   wager: z.string().optional(),
   date: z.date({ required_error: "Please select a date." }),
@@ -215,13 +217,77 @@ export const challengeSchema = z.object({
 });
 
 export const openChallengeSchema = z.object({
-    sport: z.enum(SPORTS),
+    sport: Sport,
     location: z.string().min(1, 'Location is required.'),
     note: z.string().max(100, "Note must be 100 characters or less.").optional(),
 });
 
 export const createTournamentSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters.").max(50, "Name must be 50 characters or less."),
-    sport: z.enum(SPORTS),
+    sport: Sport,
     participantIds: z.array(z.string()).min(3, "You must select at least 3 friends."),
 });
+
+
+// Rally Game
+export const rallyGamePointSchema = z.object({
+    servingPlayer: z.string(),
+    serveChoice: z.any(),
+    returningPlayer: z.string(),
+    returnChoice: z.any(),
+    winner: z.string(),
+    narrative: z.string(),
+});
+export type RallyGamePoint = z.infer<typeof rallyGamePointSchema>;
+
+export const rallyGameSchema = z.object({
+    id: z.string(),
+    participantIds: z.tuple([z.string(), z.string()]),
+    participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional(), rank: z.number() })),
+    score: z.record(z.number()),
+    turn: z.enum(['serving', 'returning', 'point_over', 'game_over']),
+    currentPlayerId: z.string(),
+    currentPoint: z.object({
+        servingPlayer: z.string(),
+        serveChoice: z.any().optional(),
+        returningPlayer: z.string(),
+        returnChoice: z.any().optional(),
+        serveOptions: z.array(z.any()).optional(),
+        returnOptions: z.array(z.any()).optional(),
+    }),
+    pointHistory: z.array(rallyGamePointSchema),
+    status: z.enum(['ongoing', 'complete']),
+    winnerId: z.string().optional(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+});
+export type RallyGame = z.infer<typeof rallyGameSchema>;
+
+// Guess The Legend Game
+export const legendGameRoundSchema = z.object({
+    clue: z.string(),
+    options: z.array(z.string()),
+    correctAnswer: z.string(),
+    justification: z.string(),
+    guesses: z.record(z.string()), // { userId: guess }
+    winner: z.string().optional(),
+});
+export type LegendGameRound = z.infer<typeof legendGameRoundSchema>;
+
+export const legendGameSchema = z.object({
+    id: z.string(),
+    mode: z.enum(['solo', 'friend']),
+    sport: Sport,
+    participantIds: z.array(z.string()),
+    participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional() })),
+    score: z.record(z.number()),
+    turn: z.string().optional(), // only in friend mode
+    currentRound: legendGameRoundSchema,
+    roundHistory: z.array(legendGameRoundSchema),
+    status: z.enum(['ongoing', 'complete']),
+    winnerId: z.string().optional(), // only in friend mode
+    usedPlayers: z.array(z.string()),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+});
+export type LegendGame = z.infer<typeof legendGameSchema>;

@@ -29,10 +29,15 @@ import {
     markChatAsRead,
     getChatsForUser,
     getChallengeById,
+    createRallyGame,
+    playRallyTurn,
+    createLegendGame,
+    submitLegendAnswer,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
+import { redirect } from 'next/navigation';
 
 
 // Action to report a match
@@ -331,5 +336,57 @@ export async function markChatAsReadAction(chatId: string) {
         return { success: true };
     } catch (error: any) {
         return { success: false, message: 'Failed to mark chat as read.' };
+    }
+}
+
+// --- Game Actions ---
+
+export async function createRallyGameAction(friendId: string) {
+    const user = auth.currentUser;
+    if (!user) return { success: false, message: 'You must be logged in to start a game.' };
+
+    try {
+        const gameId = await createRallyGame(user.uid, friendId);
+        revalidatePath('/games');
+        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to start Rally Game.' };
+    }
+}
+
+export async function playRallyTurnAction(gameId: string, choice: any) {
+    const user = auth.currentUser;
+    if (!user) return { success: false, message: 'You must be logged in.' };
+
+    try {
+        await playRallyTurn(gameId, user.uid, choice);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to play turn.' };
+    }
+}
+
+export async function createLegendGameAction(friendId: string | null, sport: Sport) {
+    const user = auth.currentUser;
+    if (!user) return { success: false, message: 'You must be logged in to start a game.' };
+    
+    try {
+        const gameId = await createLegendGame(user.uid, friendId, sport);
+        revalidatePath('/games');
+        return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to start game.' };
+    }
+}
+
+export async function submitLegendAnswerAction(gameId: string, answer: string) {
+     const user = auth.currentUser;
+    if (!user) return { success: false, message: 'You must be logged in.' };
+
+    try {
+        await submitLegendAnswer(gameId, user.uid, answer);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to submit answer.' };
     }
 }

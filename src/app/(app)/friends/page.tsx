@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserPlus, Search, Loader2, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords, MessageSquare } from 'lucide-react';
+import { UserPlus, Search, Loader2, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords, MessageSquare, Gamepad2 } from 'lucide-react';
 import { User, FriendRequest } from '@/lib/types';
 import { 
     searchUsersAction, 
@@ -15,7 +15,9 @@ import {
     acceptFriendRequestAction,
     declineOrCancelFriendRequestAction,
     removeFriendAction,
-    getOrCreateChatAction
+    getOrCreateChatAction,
+    createRallyGameAction,
+    createLegendGameAction
 } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { UserAvatar } from '@/components/user-avatar';
@@ -25,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ChallengeFriendDialog } from '@/components/challenges/challenge-friend-dialog';
 
 // --- Reusable Card Components ---
@@ -97,15 +99,19 @@ export default function FriendsPage() {
         fetchData();
     }, [fetchData]);
 
-    const handleAction = async (action: () => Promise<{success: boolean, message: string}>, id: string) => {
+    const handleAction = async (action: () => Promise<{success: boolean, message: string, [key: string]: any}>, id: string) => {
         setProcessingIds(prev => [...prev, id]);
         const result = await action();
         if (result.success) {
             toast({ title: 'Success', description: result.message });
-            await fetchData(); // Refresh all data
-            if (searchQuery) { // Re-run search to update button states
-                const searchResults = await searchUsersAction(searchQuery, currentUser!.uid);
-                setSearchResults(searchResults);
+            if (result.redirect) {
+                router.push(result.redirect);
+            } else {
+                await fetchData(); // Refresh all data
+                if (searchQuery) { // Re-run search to update button states
+                    const searchResults = await searchUsersAction(searchQuery, currentUser!.uid);
+                    setSearchResults(searchResults);
+                }
             }
         } else {
             toast({ variant: 'destructive', title: 'Error', description: result.message });
@@ -181,6 +187,24 @@ export default function FriendsPage() {
                                         Challenge
                                     </DropdownMenuItem>
                                 </ChallengeFriendDialog>
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger>
+                                        <Gamepad2 className="mr-2 h-4 w-4" />
+                                        <span>Play Game</span>
+                                    </DropdownMenuSubTrigger>
+                                     <DropdownMenuPortal>
+                                        <DropdownMenuSubContent>
+                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid), friend.uid + 'rally')}>
+                                                {processingIds.includes(friend.uid + 'rally') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Swords className="mr-2 h-4 w-4" />}
+                                                Rally Game
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleAction(() => createLegendGameAction(friend.uid, currentUser.preferredSports[0] || 'Tennis'), friend.uid + 'legend')}>
+                                                {processingIds.includes(friend.uid + 'legend') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                                                Guess the Legend
+                                            </DropdownMenuItem>
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                </DropdownMenuSub>
                                 <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid)}>
                                      {processingIds.includes(friend.uid + 'remove') ? 
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
