@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ReactNode } from 'react';
@@ -61,10 +62,10 @@ const AppSidebar = ({ user }: { user: User }) => {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
+      <SidebarHeader>
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
-            <Flame className="h-6 w-6" />
+            <Flame className="h-7 w-7" />
             <span className="font-headline group-data-[collapsible=icon]:hidden">Rackt</span>
           </Link>
           <div className="group-data-[collapsible=icon]:hidden">
@@ -87,7 +88,7 @@ const AppSidebar = ({ user }: { user: User }) => {
                   <item.icon />
                   <span>{item.label}</span>
                   {item.href === '/chat' && hasUnreadChats && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary group-data-[collapsible=icon]:right-1.5" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-orange-500 group-data-[collapsible=icon]:right-1.5" />
                   )}
                 </Link>
               </SidebarMenuButton>
@@ -96,20 +97,20 @@ const AppSidebar = ({ user }: { user: User }) => {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-auto w-full justify-start p-2">
+            <Button variant="ghost" className="h-auto w-full justify-start p-2 text-left">
               <div className="flex w-full items-center justify-start gap-3">
-                <UserAvatar user={user} className="h-8 w-8" />
+                <UserAvatar user={user} className="h-10 w-10" />
                 <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
-                  <span className="text-sm font-medium">{user.name}</span>
+                  <span className="text-sm font-semibold">{user.name}</span>
                   <span className="text-xs text-muted-foreground">{user.email}</span>
                 </div>
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuContent className="w-56 mb-2" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{user.name}</p>
@@ -184,11 +185,11 @@ export function AppLayout({ children, user }: AppLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar user={user} />
-      <div className="flex flex-col md:pl-[var(--sidebar-width-icon)]">
+      <SidebarInset>
         <main className="flex-1 pb-16 md:pb-0">
           {children}
         </main>
-      </div>
+      </SidebarInset>
       <BottomNav />
     </SidebarProvider>
   );

@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -6,7 +7,7 @@ import { Match } from '@/lib/types';
 import { UserAvatar } from '../user-avatar';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 
 interface RecentMatchesProps {
   matches: Match[];
@@ -32,11 +33,13 @@ const MatchItem = ({ match, currentUserId }: { match: Match, currentUserId: stri
             <UserAvatar user={firstOpponent} className="h-10 w-10" />
             <div className="flex-1">
                 <p className="font-medium">vs {opponentDisplay}</p>
-                <p className="text-sm text-muted-foreground">{match.score}</p>
+                <div className='flex items-center gap-2'>
+                    <Badge variant={isWinner ? 'default' : 'destructive'} className={isWinner ? 'bg-green-600/20 text-green-700 border-green-600/30' : 'bg-red-600/20 text-red-700 border-red-600/30'}>
+                        {isWinner ? 'Win' : 'Loss'}
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">{match.score}</p>
+                </div>
             </div>
-            <Badge variant={isWinner ? 'default' : 'destructive'} className={isWinner ? 'bg-green-500/20 text-green-700 border-transparent' : 'bg-red-500/20 text-red-700 border-transparent'}>
-                {isWinner ? 'Win' : 'Loss'}
-            </Badge>
         </div>
     )
 }
@@ -61,12 +64,11 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
     }
   
     return (
-      <ScrollArea className="h-[280px]">
+      <ScrollArea className="h-[280px] pr-4">
         <div className="space-y-4">
-          {matches.map((match, index) => (
+          {matches.map((match) => (
               <div key={match.id}>
                   <MatchItem match={match} currentUserId={currentUserId} />
-                  {index < matches.length - 1 && <Separator className="my-4" />}
               </div>
           ))}
         </div>
@@ -76,15 +78,17 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Recent Matches</CardTitle>
-        <CardDescription>Your last few games.</CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+            <CardTitle>Recent Matches</CardTitle>
+            <CardDescription>Your last few games.</CardDescription>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+            <Link href="/match-history">View All <ArrowRight className='ml-2' /></Link>
+        </Button>
       </CardHeader>
       <CardContent>
         {renderContent()}
-        <Button asChild variant="outline" className="mt-4 w-full">
-            <Link href="/match-history">View All Matches</Link>
-        </Button>
       </CardContent>
     </Card>
   );
