@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-c
 import { ChallengeCard } from '@/components/challenges/challenge-card';
 import { OpenChallengeCard } from '@/components/challenges/open-challenge-card';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function ChallengesPage() {
   const { user } = useAuth();
@@ -78,7 +79,7 @@ export default function ChallengesPage() {
           </TabsList>
           {isLoading ? (
             <div className="flex h-64 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <LoadingSpinner className="h-8 w-8" />
             </div>
           ) : (
             <>

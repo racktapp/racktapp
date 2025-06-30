@@ -7,7 +7,8 @@ import { Match } from '@/lib/types';
 import { UserAvatar } from '../user-avatar';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface RecentMatchesProps {
   matches: Match[];
@@ -50,7 +51,7 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
     if (isLoading) {
       return (
         <div className="h-[280px] flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <LoadingSpinner className="h-6 w-6" />
         </div>
       );
     }

@@ -9,8 +9,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
 import { Badge } from '@/components/ui/badge';
-import { Bot, Sparkles, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
+import { Bot, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface MatchHistoryCardProps {
   match: Match;
@@ -83,7 +84,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
                 
                 {isLoading && (
                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <LoadingSpinner className="h-4 w-4" />
                         <span>Generating recap...</span>
                     </div>
                 )}

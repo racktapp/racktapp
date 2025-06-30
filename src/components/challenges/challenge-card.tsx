@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
 import { Challenge, User } from '@/lib/types';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Swords, Check, X, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Swords, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { acceptChallengeAction, declineChallengeAction, cancelChallengeAction } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface ChallengeCardProps {
   challenge: Challenge;
@@ -20,7 +21,7 @@ interface ChallengeCardProps {
 
 const ActionButton = ({ onClick, isProcessing, variant, idleIcon, text }: any) => (
   <Button onClick={onClick} disabled={isProcessing} variant={variant} size="sm">
-    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : idleIcon}
+    {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : idleIcon}
     {text}
   </Button>
 );

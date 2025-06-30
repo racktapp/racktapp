@@ -16,9 +16,10 @@ import { predictFriendMatchAction, getFriendsAction } from '@/lib/actions';
 import { type PredictMatchOutput, type User } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
-import { Loader2, BrainCircuit, Star, Users, BarChart } from 'lucide-react';
+import { BrainCircuit, Star, Users, BarChart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export function MatchPredictorDialog({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -104,7 +105,7 @@ export function MatchPredictorDialog({ children }: { children: ReactNode }) {
                 </div>
               <DialogFooter>
                 <Button onClick={handlePredict} disabled={isLoading || !selectedFriendId}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                   Predict
                 </Button>
               </DialogFooter>

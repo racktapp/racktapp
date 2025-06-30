@@ -2,7 +2,7 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -20,7 +20,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <LoadingSpinner className="h-12 w-12" />
     </div>
   );
 }

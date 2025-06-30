@@ -1,7 +1,7 @@
 'use client';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2, Trophy } from 'lucide-react';
+import { Plus, Trophy } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getTournamentsForUserAction } from '@/lib/actions';
 import { Tournament } from '@/lib/types';
@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/comp
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { CreateTournamentDialog } from '@/components/tournaments/create-tournament-dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 function TournamentListItem({ tournament }: { tournament: Tournament }) {
     return (
@@ -71,7 +72,7 @@ export default function TournamentsPage() {
             />
             {isLoading ? (
                 <div className="flex h-64 items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <LoadingSpinner className="h-8 w-8" />
                 </div>
             ) : tournaments.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

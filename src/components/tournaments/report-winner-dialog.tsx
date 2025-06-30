@@ -3,7 +3,6 @@ import { ReactNode, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -12,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { type User, type TournamentMatch } from '@/lib/types';
 import { reportWinnerAction } from '@/lib/actions';
 import { UserAvatar } from '../user-avatar';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 
 interface ReportWinnerDialogProps {
@@ -88,7 +88,7 @@ export function ReportWinnerDialog({ children, tournamentId, match, player1, pla
             />
             <DialogFooter>
               <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Confirm Winner
               </Button>
             </DialogFooter>

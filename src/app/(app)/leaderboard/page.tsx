@@ -6,13 +6,14 @@ import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { getLeaderboardAction } from '@/lib/actions';
 import { User, SportStats } from '@/lib/types';
-import { Loader2, Trophy, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Trophy, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/user-avatar';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const getRankDisplay = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
@@ -79,7 +80,7 @@ export default function LeaderboardPage() {
     if (isLoading) {
       return (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <LoadingSpinner className="h-8 w-8" />
         </div>
       );
     }

@@ -3,7 +3,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, UserPlus, Check, X, Command } from 'lucide-react';
+import { UserPlus, Check, X, Command } from 'lucide-react';
 
 import {
   Dialog,
@@ -40,6 +40,7 @@ import { type User, createTournamentSchema } from '@/lib/types';
 import { createTournamentAction, getFriendsAction } from '@/lib/actions';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 
 interface CreateTournamentDialogProps {
@@ -191,7 +192,7 @@ export function CreateTournamentDialog({ user, children, onTournamentCreated }: 
 
             <DialogFooter>
               <Button type="submit" disabled={isLoading || isFetchingFriends}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Create Tournament
               </Button>
             </DialogFooter>

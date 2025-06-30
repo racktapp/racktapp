@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserPlus, Search, Loader2, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords, MessageSquare, Gamepad2 } from 'lucide-react';
+import { UserPlus, Search, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords, MessageSquare, Gamepad2 } from 'lucide-react';
 import { User, FriendRequest } from '@/lib/types';
 import { 
     searchUsersAction, 
@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ChallengeFriendDialog } from '@/components/challenges/challenge-friend-dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 // --- Reusable Card Components ---
 
@@ -50,7 +51,7 @@ const UserCard = ({ user, children }: { user: Partial<User>, children: ReactNode
 const ActionButton = ({ onClick, isProcessing, idleIcon, processingText, buttonText, variant = 'default' }: any) => {
     return (
         <Button onClick={onClick} disabled={isProcessing} variant={variant} size="sm">
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : idleIcon}
+            {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : idleIcon}
             {isProcessing ? processingText : buttonText}
         </Button>
     )
@@ -143,7 +144,7 @@ export default function FriendsPage() {
     if (isLoading || !currentUser) {
         return (
             <div className="container mx-auto flex h-full items-center justify-center p-4 md:p-6 lg:p-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <LoadingSpinner className="h-8 w-8" />
             </div>
         );
     }
@@ -171,7 +172,7 @@ export default function FriendsPage() {
                 friends.map(friend => (
                     <UserCard key={friend.uid} user={friend}>
                         <Button variant="outline" size="sm" onClick={() => handleStartChat(friend.uid)} disabled={processingIds.includes(friend.uid)}>
-                            {processingIds.includes(friend.uid) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                            {processingIds.includes(friend.uid) ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <MessageSquare className="mr-2 h-4 w-4" />}
                             Chat
                         </Button>
                         <DropdownMenu>
@@ -195,11 +196,11 @@ export default function FriendsPage() {
                                      <DropdownMenuPortal>
                                         <DropdownMenuSubContent>
                                              <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid), friend.uid + 'rally')}>
-                                                {processingIds.includes(friend.uid + 'rally') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Swords className="mr-2 h-4 w-4" />}
+                                                {processingIds.includes(friend.uid + 'rally') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                                                 Rally Game
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => handleAction(() => createLegendGameAction(friend.uid, currentUser.preferredSports[0] || 'Tennis'), friend.uid + 'legend')}>
-                                                {processingIds.includes(friend.uid + 'legend') ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                                                {processingIds.includes(friend.uid + 'legend') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Users className="mr-2 h-4 w-4" />}
                                                 Guess the Legend
                                             </DropdownMenuItem>
                                         </DropdownMenuSubContent>
@@ -207,7 +208,7 @@ export default function FriendsPage() {
                                 </DropdownMenuSub>
                                 <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid)}>
                                      {processingIds.includes(friend.uid + 'remove') ? 
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                                        <LoadingSpinner className="mr-2 h-4 w-4" /> : 
                                         <UserMinus className="mr-2 h-4 w-4" />}
                                     Remove Friend
                                 </DropdownMenuItem>
@@ -275,14 +276,14 @@ export default function FriendsPage() {
             <form onSubmit={handleSearch} className="flex gap-2 mb-6">
                 <Input placeholder="Search by username..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 <Button type="submit" disabled={isSearching || !searchQuery.trim()}>
-                    {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                    {isSearching ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Search className="mr-2 h-4 w-4" />}
                     Search
                 </Button>
             </form>
             <div className="space-y-4">
                 {isSearching ? (
                     <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <LoadingSpinner className="h-8 w-8" />
                     </div>
                 ) : hasSearched ? (
                     searchResults.length > 0 ? (

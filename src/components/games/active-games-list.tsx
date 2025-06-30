@@ -6,10 +6,11 @@ import { db } from '@/lib/firebase/config';
 import { type RallyGame, type LegendGame, type User } from '@/lib/types';
 import { UserAvatar } from '@/components/user-avatar';
 import { formatDistanceToNow } from 'date-fns';
-import { Loader2, Swords, Brain } from 'lucide-react';
+import { Swords, Brain } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface GameListItemProps {
   game: RallyGame | LegendGame;
@@ -79,7 +80,7 @@ export function ActiveGamesList({ currentUserId }: { currentUserId: string }) {
   }, [currentUserId]);
 
   if (isLoading) {
-    return <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex h-40 items-center justify-center"><LoadingSpinner className="h-8 w-8" /></div>;
   }
 
   const allGames = [...rallyGames, ...legendGames];

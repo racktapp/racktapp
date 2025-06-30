@@ -5,11 +5,12 @@ import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { getMatchHistoryAction, getFriendsAction } from '@/lib/actions';
 import { Match, User } from '@/lib/types';
-import { Loader2, History } from 'lucide-react';
+import { History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { useToast } from '@/hooks/use-toast';
 import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
@@ -70,7 +71,7 @@ export default function MatchHistoryPage() {
     if (isLoading) {
       return (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <LoadingSpinner className="h-8 w-8" />
         </div>
       );
     }

@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Upload, Video, CheckCircle, Lightbulb, TriangleAlert } from 'lucide-react';
+import { Upload, Video, CheckCircle, Lightbulb, TriangleAlert } from 'lucide-react';
 import { analyzeSwingAction } from '@/lib/actions';
 import { SwingAnalysisOutput } from '@/ai/flows/swing-analysis-flow';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const SHOT_TYPES = ['Forehand', 'Backhand', 'Serve'];
 
@@ -118,7 +119,7 @@ export default function CoachPage() {
                         </SelectContent>
                     </Select>
                     <Button onClick={handleAnalyze} disabled={isLoading || !videoFile || !shotType}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                        {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
                         {isLoading ? 'Analyzing...' : 'Analyze Video'}
                     </Button>
                 </div>

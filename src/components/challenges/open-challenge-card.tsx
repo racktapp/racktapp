@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
 import { OpenChallenge, User } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { MapPin, Swords, Loader2 } from 'lucide-react';
+import { MapPin, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { challengeFromOpenAction } from '@/lib/actions';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface OpenChallengeCardProps {
   challenge: OpenChallenge;
@@ -49,7 +50,7 @@ export function OpenChallengeCard({ challenge, challenger, onAction }: OpenChall
 
         <div className="flex flex-col items-end gap-2 self-end sm:self-center">
             <Button onClick={handleChallenge} disabled={isProcessing} size="sm">
-                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Swords className="mr-2 h-4 w-4" />}
+                {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                 Challenge
             </Button>
             <p className="text-xs text-muted-foreground">

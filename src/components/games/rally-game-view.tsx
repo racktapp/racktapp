@@ -5,9 +5,10 @@ import { playRallyTurnAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Swords, Shield, Zap } from 'lucide-react';
+import { Swords, Shield, Zap } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface RallyGameViewProps {
   game: RallyGame;
@@ -102,7 +103,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                             );
                         })}
                     </div>
-                    {isProcessing && <div className="flex justify-center pt-4"><Loader2 className="h-6 w-6 animate-spin" /></div>}
+                    {isProcessing && <div className="flex justify-center pt-4"><LoadingSpinner className="h-6 w-6" /></div>}
                 </div>
             )}
         </CardContent>

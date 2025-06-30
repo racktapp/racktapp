@@ -6,10 +6,11 @@ import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { getTournamentByIdAction } from '@/lib/actions';
 import { Tournament } from '@/lib/types';
-import { Loader2, Trophy, ArrowLeft } from 'lucide-react';
+import { Trophy, ArrowLeft } from 'lucide-react';
 import { TournamentBracket } from '@/components/tournaments/tournament-bracket';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function TournamentPage() {
   const params = useParams();
@@ -35,7 +36,7 @@ export default function TournamentPage() {
   if (loading || !user) {
     return (
       <div className="container mx-auto flex h-full w-full items-center justify-center p-4 md:p-6 lg:p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingSpinner className="h-8 w-8" />
       </div>
     );
   }

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
 import { type RallyGame } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { RallyGameView } from '@/components/games/rally-game-view';
 
@@ -44,7 +44,7 @@ export default function RallyGamePage() {
   if (loading || authLoading) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingSpinner className="h-8 w-8" />
       </div>
     );
   }

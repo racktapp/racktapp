@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { SPORTS } from '@/lib/constants';
 import { createLegendGameAction } from '@/lib/actions';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const formSchema = z.object({
   sport: z.enum(SPORTS),
@@ -81,7 +81,7 @@ export function StartLegendSoloDialog({ children }: StartLegendSoloDialogProps) 
             />
             <DialogFooter>
               <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Start Game
               </Button>
             </DialogFooter>

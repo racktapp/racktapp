@@ -5,12 +5,13 @@ import { useParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
-import { Edit, Loader2 } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { User } from '@/lib/types';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function ProfilePage() {
   const params = useParams();
@@ -63,7 +64,7 @@ export default function ProfilePage() {
   if (loading || authLoading) {
     return (
       <div className="container mx-auto flex h-full w-full items-center justify-center p-4 md:p-6 lg:p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingSpinner className="h-8 w-8" />
       </div>
     );
   }

@@ -5,10 +5,11 @@ import { submitLegendAnswerAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface LegendGameViewProps {
   game: LegendGame;
@@ -91,7 +92,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                     disabled={!isMyTurn || isProcessing || !!myGuess}
                     onClick={() => handleAnswerSubmit(option)}
                 >
-                    {isProcessing && selectedAnswer === option && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isProcessing && selectedAnswer === option && <LoadingSpinner className="mr-2 h-4 w-4" />}
                     {getButtonState(option) === 'correct' && <CheckCircle className="mr-2 h-4 w-4" />}
                     {getButtonState(option) === 'incorrect' && <XCircle className="mr-2 h-4 w-4" />}
                     {option}

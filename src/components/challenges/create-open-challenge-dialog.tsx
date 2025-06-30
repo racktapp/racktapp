@@ -4,8 +4,6 @@ import { ReactNode, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
-
 import {
   Dialog,
   DialogContent,
@@ -24,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SPORTS } from '@/lib/constants';
 import { type User, openChallengeSchema } from '@/lib/types';
 import { createOpenChallengeAction } from '@/lib/actions';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface CreateOpenChallengeDialogProps {
   user: User;
@@ -89,7 +88,7 @@ export function CreateOpenChallengeDialog({ user, children, onChallengeCreated }
             <FormField control={form.control} name="note" render={({ field }) => (<FormItem><FormLabel>Note (optional)</FormLabel><FormControl><Textarea placeholder="e.g. Looking for a friendly match after 5pm." {...field} /></FormControl><FormMessage /></FormItem>)} />
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Post Challenge
               </Button>
             </DialogFooter>

@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase/config';
 import { type Chat } from '@/lib/types';
 import { useAuth } from '@/hooks/use-auth';
 import { ChatView } from '@/components/chat/chat-view';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function ChatPage() {
   const { user, loading: authLoading } = useAuth();
@@ -40,7 +40,7 @@ export default function ChatPage() {
   if (loading || authLoading) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LoadingSpinner className="h-8 w-8" />
       </div>
     );
   }

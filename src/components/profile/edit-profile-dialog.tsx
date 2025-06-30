@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Loader2, Camera, Upload, CheckCircle } from 'lucide-react';
+import { Camera, Upload, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { type User } from '@/lib/types';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -23,6 +23,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { auth, db, storage } from '@/lib/firebase/config';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface EditProfileDialogProps {
   children: ReactNode;
@@ -234,7 +235,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
             <Button variant="outline">Cancel</Button>
           </DialogClose>
           <Button onClick={handleUpload} disabled={isLoading || (!selectedFile && !capturedImage)}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+            {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
             Save Changes
           </Button>
         </DialogFooter>
