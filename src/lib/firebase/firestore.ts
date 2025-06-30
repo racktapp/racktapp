@@ -1,3 +1,4 @@
+
 import {
   collection,
   doc,
@@ -255,21 +256,27 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
 
 /**
  * Fetches all confirmed matches for a given user.
- * This version of the function does not sort by date in the query
- * to avoid requiring a composite index. Sorting should be done client-side.
+ * This query requires a composite index on (`participants`, `createdAt`).
  * @param userId The UID of the user.
- * @returns A promise that resolves to an array of Match objects.
+ * @returns A promise that resolves to an array of Match objects, sorted by most recent.
+ * @throws An error if the required Firestore index is missing.
  */
 export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
-    // This query does NOT require a composite index.
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId)
+        where('participants', 'array-contains', userId),
+        orderBy('createdAt', 'desc')
     );
-    const snapshot = await getDocs(q);
-    const matches = snapshot.docs.map(doc => doc.data() as Match);
-    return matches;
+    try {
+        const snapshot = await getDocs(q);
+        const matches = snapshot.docs.map(doc => doc.data() as Match);
+        return matches;
+    } catch(e) {
+        // Re-throw the error so the server action can catch it
+        // and return the message to the UI.
+        throw e;
+    }
 }
 
 
@@ -938,3 +945,5 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
         throw e;
     }
 }
+
+    
