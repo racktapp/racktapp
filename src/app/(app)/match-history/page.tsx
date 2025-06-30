@@ -9,6 +9,7 @@ import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { useToast } from '@/hooks/use-toast';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export default function MatchHistoryPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [indexError, setIndexError] = useState<string | null>(null);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -24,14 +26,20 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    try {
-      const [friendsData, matchResult] = await Promise.all([
-        getFriendsAction(user.uid),
-        getMatchHistoryAction(),
-      ]);
+    setIndexError(null);
 
+    try {
+      const friendsData = await getFriendsAction(user.uid);
       setFriends(friendsData);
-      setMatches(matchResult.matches || []);
+
+      const matchResult = await getMatchHistoryAction();
+
+      if (matchResult.error) {
+        setIndexError(matchResult.error);
+        setMatches([]);
+      } else {
+        setMatches(matchResult.matches || []);
+      }
     } catch (error) {
       console.error("Failed to fetch match data:", error);
       toast({
@@ -53,9 +61,16 @@ export default function MatchHistoryPage() {
     return matches
       .filter(match => {
         if (opponentFilter === 'all') return true;
-        return match.participants.includes(opponentFilter);
+        const opponentId = match.participants.find(pId => pId !== user!.uid);
+        if (opponentFilter === opponentId) return true;
+        // Also check for doubles partners
+        if (match.type === 'Doubles') {
+            const opponentTeam = match.teams.team1.playerIds.includes(user!.uid) ? match.teams.team2.playerIds : match.teams.team1.playerIds;
+            if (opponentTeam.includes(opponentFilter)) return true;
+        }
+        return false;
       });
-  }, [matches, opponentFilter]);
+  }, [matches, opponentFilter, user]);
   
   const renderContent = () => {
     if (isLoading) {
@@ -66,6 +81,10 @@ export default function MatchHistoryPage() {
       );
     }
     
+    if (indexError) {
+      return <FirestoreIndexAlert message={indexError} />;
+    }
+
     if (filteredMatches.length > 0) {
       return (
         <div className="space-y-4">

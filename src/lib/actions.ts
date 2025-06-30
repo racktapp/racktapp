@@ -420,14 +420,23 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<{ matches: Match[] }> {
+export async function getMatchHistoryAction(): Promise<{ matches: Match[]; error?: string }> {
     const user = auth.currentUser;
     if (!user) return { matches: [] };
     
-    // This action relies on a Firestore index for optimal performance.
-    const matches = await getMatchesForUser(user.uid);
-    return { matches };
+    try {
+        const matches = await getMatchesForUser(user.uid);
+        return { matches };
+    } catch (error: any) {
+        const errorMessage = (error as any).message || '';
+        if (errorMessage.toLowerCase().includes('query requires an index') || errorMessage.toLowerCase().includes('failed-precondition')) {
+            return { matches: [], error: error.message };
+        }
+        console.error('getMatchHistoryAction failed:', error);
+        return { matches: [], error: 'An unexpected error occurred while fetching match history.' };
+    }
 }
+
 
 // --- AI Coach Actions ---
 export async function analyzeSwingAction(input: SwingAnalysisInput) {
