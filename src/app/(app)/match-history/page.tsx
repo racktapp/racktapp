@@ -64,6 +64,8 @@ export default function MatchHistoryPage() {
   }
 
   const filteredMatches = useMemo(() => {
+    if (!Array.isArray(matches)) return [];
+
     return matches
       .filter(match => {
         if (opponentFilter === 'all') return true;
