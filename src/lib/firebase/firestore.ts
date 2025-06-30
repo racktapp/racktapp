@@ -11,9 +11,13 @@ import {
   deleteDoc,
   arrayUnion,
   arrayRemove,
+  writeBatch,
+  updateDoc,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 
 // Fetches a user's friends from Firestore
@@ -282,7 +286,7 @@ export async function sendFriendRequest(fromUser: User, toId: string) {
   await setDoc(newRequestRef, newRequest);
 }
 
-// --- New Friend Management Functions ---
+// --- Friend Management Functions ---
 
 export async function getIncomingFriendRequests(userId: string): Promise<FriendRequest[]> {
   const requestsRef = collection(db, 'friendRequests');
@@ -304,11 +308,9 @@ export async function acceptFriendRequest(requestId: string, fromId: string, toI
     const toUserRef = doc(db, 'users', toId);
     const requestRef = doc(db, 'friendRequests', requestId);
 
-    // Add each user to the other's friend list
     transaction.update(fromUserRef, { friendIds: arrayUnion(toId) });
     transaction.update(toUserRef, { friendIds: arrayUnion(fromId) });
     
-    // Delete the friend request, as it has been handled
     transaction.delete(requestRef);
   });
 }
@@ -323,10 +325,92 @@ export async function removeFriend(userId: string, friendId: string) {
     const userRef = doc(db, 'users', userId);
     const friendRef = doc(db, 'users', friendId);
 
-    // Remove friendId from user's friend list
     transaction.update(userRef, { friendIds: arrayRemove(friendId) });
-
-    // Remove userId from friend's friend list
     transaction.update(friendRef, { friendIds: arrayRemove(userId) });
   });
+}
+
+// --- Challenge System Functions ---
+
+export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' | 'createdAt' | 'status'>) {
+    const newChallengeRef = doc(collection(db, 'challenges'));
+    const newChallenge: Challenge = {
+        ...challengeData,
+        id: newChallengeRef.id,
+        status: 'pending',
+        createdAt: Timestamp.now().toMillis(),
+    };
+    await setDoc(newChallengeRef, newChallenge);
+}
+
+export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id' | 'createdAt'>) {
+    const newChallengeRef = doc(collection(db, 'openChallenges'));
+    const newChallenge: OpenChallenge = {
+        ...challengeData,
+        id: newChallengeRef.id,
+        createdAt: Timestamp.now().toMillis(),
+    };
+    await setDoc(newChallengeRef, newChallenge);
+}
+
+export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
+    const challengesRef = collection(db, 'challenges');
+    const q = query(
+        challengesRef,
+        where('toId', '==', userId),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Challenge);
+}
+
+export async function getSentChallenges(userId: string): Promise<Challenge[]> {
+    const challengesRef = collection(db, 'challenges');
+    const q = query(
+        challengesRef,
+        where('fromId', '==', userId),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Challenge);
+}
+
+export async function getOpenChallenges(userId: string, sport: Sport): Promise<OpenChallenge[]> {
+    const openChallengesRef = collection(db, 'openChallenges');
+    const q = query(
+        openChallengesRef,
+        where('posterId', '!=', userId),
+        where('sport', '==', sport),
+        orderBy('posterId', 'asc'), // required for '!=' query
+        orderBy('createdAt', 'desc'),
+        limit(50)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as OpenChallenge);
+}
+
+export async function updateChallengeStatus(challengeId: string, status: 'accepted' | 'declined' | 'cancelled') {
+    const challengeRef = doc(db, 'challenges', challengeId);
+    await updateDoc(challengeRef, { status });
+}
+
+export async function challengeFromOpen(openChallenge: OpenChallenge, challenger: User) {
+    if (openChallenge.posterId === challenger.uid) {
+        throw new Error("You cannot challenge your own open post.");
+    }
+    const challengeData = {
+        fromId: challenger.uid,
+        fromName: challenger.name,
+        fromAvatar: challenger.avatar,
+        toId: openChallenge.posterId,
+        toName: openChallenge.posterName,
+        toAvatar: openChallenge.posterAvatar,
+        sport: openChallenge.sport,
+        location: openChallenge.location,
+        matchDateTime: Timestamp.now().toMillis(), // Placeholder, to be edited by players
+        wager: "A friendly match",
+    };
+    await createDirectChallenge(challengeData);
 }

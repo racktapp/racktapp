@@ -11,10 +11,19 @@ import {
     getSentFriendRequests,
     acceptFriendRequest,
     deleteFriendRequest,
-    removeFriend
+    removeFriend,
+    createDirectChallenge,
+    createOpenChallenge,
+    getIncomingChallenges,
+    getSentChallenges,
+    getOpenChallenges,
+    updateChallengeStatus,
+    challengeFromOpen
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType, reportMatchSchema } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, Challenge, OpenChallenge } from '@/lib/types';
+import { setHours, setMinutes } from 'date-fns';
+
 
 // Action to report a match
 export async function handleReportMatchAction(
@@ -83,7 +92,7 @@ export async function addFriendAction(fromUser: User, toId: string) {
     }
 }
 
-// --- New Friend Management Actions ---
+// --- Friend Management Actions ---
 
 export async function getFriendsAction(userId: string): Promise<User[]> {
     if (!userId) return [];
@@ -130,5 +139,106 @@ export async function removeFriendAction(currentUserId: string, friendId: string
     } catch (error: any) {
         console.error("Remove friend action failed:", error);
         return { success: false, message: "Failed to remove friend." };
+    }
+}
+
+// --- Challenge System Actions ---
+
+export async function createDirectChallengeAction(values: z.infer<typeof challengeSchema>, fromUser: User, toUser: User) {
+    try {
+        const [hours, minutes] = values.time.split(':').map(Number);
+        const matchDateTime = setMinutes(setHours(values.date, hours), minutes).getTime();
+
+        await createDirectChallenge({
+            fromId: fromUser.uid,
+            fromName: fromUser.name,
+            fromAvatar: fromUser.avatar,
+            toId: toUser.uid,
+            toName: toUser.name,
+            toAvatar: toUser.avatar,
+            sport: values.sport,
+            location: values.location,
+            wager: values.wager,
+            matchDateTime: matchDateTime,
+        });
+        revalidatePath('/challenges');
+        return { success: true, message: "Challenge sent successfully!" };
+    } catch (error: any) {
+        return { success: false, message: error.message || "Failed to send challenge." };
+    }
+}
+
+export async function createOpenChallengeAction(values: z.infer<typeof openChallengeSchema>, poster: User) {
+    try {
+        await createOpenChallenge({
+            posterId: poster.uid,
+            posterName: poster.name,
+            posterAvatar: poster.avatar,
+            sport: values.sport,
+            location: values.location!,
+            note: values.note,
+        });
+        revalidatePath('/challenges');
+        return { success: true, message: "Open challenge posted!" };
+    } catch (error: any) {
+        return { success: false, message: error.message || "Failed to post open challenge." };
+    }
+}
+
+export async function getChallengesAction(userId: string, sport: Sport): Promise<{
+    incoming: Challenge[],
+    sent: Challenge[],
+    open: OpenChallenge[]
+}> {
+    try {
+        const [incoming, sent, open] = await Promise.all([
+            getIncomingChallenges(userId),
+            getSentChallenges(userId),
+            getOpenChallenges(userId, sport)
+        ]);
+        return { incoming, sent, open };
+    } catch (error) {
+        console.error("Error fetching challenges data:", error);
+        return { incoming: [], sent: [], open: [] };
+    }
+}
+
+export async function acceptChallengeAction(challengeId: string) {
+    try {
+        await updateChallengeStatus(challengeId, 'accepted');
+        revalidatePath('/challenges');
+        return { success: true, message: "Challenge accepted!" };
+    } catch (error: any) {
+        return { success: false, message: "Failed to accept challenge." };
+    }
+}
+
+export async function declineChallengeAction(challengeId: string) {
+    try {
+        await updateChallengeStatus(challengeId, 'declined');
+        revalidatePath('/challenges');
+        return { success: true, message: "Challenge declined." };
+    } catch (error: any) {
+        return { success: false, message: "Failed to decline challenge." };
+    }
+}
+
+export async function cancelChallengeAction(challengeId: string) {
+    try {
+        await updateChallengeStatus(challengeId, 'cancelled');
+        revalidatePath('/challenges');
+        return { success: true, message: "Challenge cancelled." };
+    } catch (error: any) {
+        return { success: false, message: "Failed to cancel challenge." };
+    }
+}
+
+export async function challengeFromOpenAction(openChallenge: OpenChallenge, challenger: User) {
+    try {
+        await challengeFromOpen(openChallenge, challenger);
+        revalidatePath('/challenges');
+        return { success: true, message: `Challenge sent to ${openChallenge.posterName}!` };
+    } catch (error: any) {
+        return { success: false, message: error.message || "Failed to challenge from open post." };
     }
 }

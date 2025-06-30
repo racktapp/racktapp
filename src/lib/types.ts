@@ -1,5 +1,6 @@
 // src/lib/types.ts
 import { z } from 'zod';
+import { SPORTS } from './constants';
 
 export type Sport = 'Tennis' | 'Padel' | 'Badminton' | 'Table Tennis';
 
@@ -65,27 +66,35 @@ export interface Match {
   rankChange: RankChange[];
 }
 
-export type ChallengeStatus = 'pending' | 'accepted' | 'declined';
+export type ChallengeStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
 
 export interface Challenge {
   id: string;
-  from: User;
-  to: User;
+  fromId: string;
+  fromName: string;
+  fromAvatar?: string;
+  toId: string;
+  toName: string;
+  toAvatar?: string;
   status: ChallengeStatus;
   sport: Sport;
   wager?: string;
   location?: string;
-  matchDateTime?: number; // timestamp
+  matchDateTime: number; // Combined timestamp
+  createdAt: number;
 }
 
 export interface OpenChallenge {
   id: string;
-  poster: User;
+  posterId: string;
+  posterName: string;
+  posterAvatar?: string;
   sport: Sport;
   location: string;
   note?: string;
-  createdAt: number; // timestamp
+  createdAt: number;
 }
+
 
 export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
 
@@ -158,4 +167,19 @@ export const reportMatchSchema = z.object({
 .refine(data => data.myScore !== data.opponentScore, {
     message: "Scores cannot be the same.",
     path: ["myScore"],
+});
+
+// Zod schemas for forms
+export const challengeSchema = z.object({
+  sport: z.enum(SPORTS),
+  location: z.string().optional(),
+  wager: z.string().optional(),
+  date: z.date({ required_error: "Please select a date." }),
+  time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time (HH:MM)"),
+});
+
+export const openChallengeSchema = z.object({
+    sport: z.enum(SPORTS),
+    location: z.string().min(1, 'Location is required.'),
+    note: z.string().max(100, "Note must be 100 characters or less.").optional(),
 });
