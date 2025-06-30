@@ -28,9 +28,10 @@ import { createOpenChallengeAction } from '@/lib/actions';
 interface CreateOpenChallengeDialogProps {
   user: User;
   children: ReactNode;
+  onChallengeCreated: () => void;
 }
 
-export function CreateOpenChallengeDialog({ user, children }: CreateOpenChallengeDialogProps) {
+export function CreateOpenChallengeDialog({ user, children, onChallengeCreated }: CreateOpenChallengeDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -49,6 +50,7 @@ export function CreateOpenChallengeDialog({ user, children }: CreateOpenChalleng
     const result = await createOpenChallengeAction(values, user);
     if (result.success) {
       toast({ title: 'Success!', description: 'Your open challenge has been posted.' });
+      onChallengeCreated();
       setOpen(false);
       form.reset();
     } else {

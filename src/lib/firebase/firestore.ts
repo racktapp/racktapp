@@ -264,11 +264,11 @@ export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId)
+        where('participants', 'array-contains', userId),
+        orderBy('date', 'desc')
     );
     const snapshot = await getDocs(q);
     const matches = snapshot.docs.map(doc => doc.data() as Match);
-    matches.sort((a, b) => b.date - a.date);
     return matches;
 }
 
@@ -390,12 +390,11 @@ export async function getIncomingChallenges(userId: string): Promise<Challenge[]
     const q = query(
         challengesRef,
         where('toId', '==', userId),
-        where('status', '==', 'pending')
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(doc => doc.data() as Challenge);
-    challenges.sort((a,b) => b.createdAt - a.createdAt);
-    return challenges;
+    return snapshot.docs.map(doc => doc.data() as Challenge);
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
@@ -403,12 +402,11 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     const q = query(
         challengesRef,
         where('fromId', '==', userId),
-        where('status', '==', 'pending')
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(doc => doc.data() as Challenge);
-    challenges.sort((a,b) => b.createdAt - a.createdAt);
-    return challenges;
+    return snapshot.docs.map(doc => doc.data() as Challenge);
 }
 
 export async function getOpenChallenges(userId: string, sport: Sport): Promise<OpenChallenge[]> {
@@ -416,16 +414,13 @@ export async function getOpenChallenges(userId: string, sport: Sport): Promise<O
     const q = query(
         openChallengesRef,
         where('sport', '==', sport),
-        limit(100)
+        where('posterId', '!=', userId),
+        orderBy('posterId'), // required for inequality filter
+        orderBy('createdAt', 'desc'),
+        limit(50)
     );
     const snapshot = await getDocs(q);
-    const allChallenges = snapshot.docs.map(doc => doc.data() as OpenChallenge);
-
-    const filteredAndSorted = allChallenges
-        .filter(c => c.posterId !== userId)
-        .sort((a, b) => b.createdAt - a.createdAt);
-        
-    return filteredAndSorted.slice(0, 50);
+    return snapshot.docs.map(doc => doc.data() as OpenChallenge);
 }
 
 export async function updateChallengeStatus(challengeId: string, status: 'accepted' | 'declined' | 'cancelled') {
@@ -486,10 +481,9 @@ export async function createTournament(values: z.infer<typeof createTournamentSc
 
 export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
     const tournamentsRef = collection(db, 'tournaments');
-    const q = query(tournamentsRef, where('participantIds', 'array-contains', userId));
+    const q = query(tournamentsRef, where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     const tournaments = snapshot.docs.map(doc => doc.data() as Tournament);
-    tournaments.sort((a,b) => b.createdAt - a.createdAt);
     return tournaments;
 }
 
@@ -608,10 +602,9 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
 
 export async function getChatsForUser(userId: string): Promise<Chat[]> {
     const chatsRef = collection(db, 'chats');
-    const q = query(chatsRef, where('participantIds', 'array-contains', userId));
+    const q = query(chatsRef, where('participantIds', 'array-contains', userId), orderBy('updatedAt', 'desc'));
     const snapshot = await getDocs(q);
     const chats = snapshot.docs.map(doc => doc.data() as Chat);
-    chats.sort((a,b) => b.updatedAt - a.updatedAt);
     return chats;
 }
 
@@ -903,31 +896,18 @@ export async function getHeadToHeadRecord(userId1: string, userId2: string, spor
 
 /**
  * Fetches the top 100 users for a given sport, ranked by RacktRank.
- * This method fetches all users and sorts them in memory to avoid needing a composite index.
+ * This query requires a composite index on (`sports.${sport}.racktRank`, `name`).
  * @param sport The sport to get the leaderboard for.
  * @returns A promise that resolves to an array of User objects.
  */
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    try {
-        const usersRef = collection(db, 'users');
-        const querySnapshot = await getDocs(usersRef);
-
-        const usersWithSportStats = querySnapshot.docs
-            .map(doc => doc.data() as User)
-            .filter(user => user.sports && user.sports[sport]);
-
-        // Sort by RacktRank in descending order
-        usersWithSportStats.sort((a, b) => {
-            const rankA = a.sports?.[sport]?.racktRank ?? 0;
-            const rankB = b.sports?.[sport]?.racktRank ?? 0;
-            return rankB - rankA;
-        });
-        
-        // Return top 100
-        return usersWithSportStats.slice(0, 100);
-
-    } catch (error) {
-        console.error(`Error fetching leaderboard for ${sport}:`, error);
-        throw new Error(`Failed to fetch ${sport} leaderboard.`);
-    }
+    const usersRef = collection(db, 'users');
+    const q = query(
+        usersRef, 
+        where(`sports.${sport}`, '!=', null), 
+        orderBy(`sports.${sport}.racktRank`, 'desc'), 
+        limit(100)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as User);
 }

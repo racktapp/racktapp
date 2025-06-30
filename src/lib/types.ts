@@ -327,7 +327,7 @@ export const PredictMatchInputSchema = z.object({
 export type PredictMatchInput = z.infer<typeof PredictMatchInputSchema>;
 
 export const PredictMatchOutputSchema = z.object({
-  predictedWinner: z.enum(['player1', 'player2', 'draw']),
+  predictedWinner: z.enum(['player1', 'player2']),
   confidence: z.enum(['High', 'Medium', 'Slight Edge']),
   analysis: z.string(),
 });

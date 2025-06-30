@@ -224,8 +224,12 @@ export async function getChallengesAction(userId: string, sport: Sport): Promise
             getOpenChallenges(userId, sport)
         ]);
         return { incoming, sent, open };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error fetching challenges data:", error);
+        // Propagate index-related errors to the client
+        if ((error as any).code === 'failed-precondition') {
+            throw error;
+        }
         return { incoming: [], sent: [], open: [] };
     }
 }
@@ -322,7 +326,15 @@ export async function getOrCreateChatAction(friendId: string) {
 export async function getChatsAction(): Promise<Chat[]> {
     const user = auth.currentUser;
     if (!user) return [];
-    return getChatsForUser(user.uid);
+    try {
+        return await getChatsForUser(user.uid);
+    } catch (error: any) {
+        if ((error as any).code === 'failed-precondition') {
+            throw error;
+        }
+        console.error("getChatsAction failed:", error);
+        return [];
+    }
 }
 
 export async function sendMessageAction(chatId: string, text: string) {
@@ -407,7 +419,15 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 export async function getMatchHistoryAction(): Promise<Match[]> {
     const user = auth.currentUser;
     if (!user) return [];
-    return getMatchesForUser(user.uid);
+    try {
+        return await getMatchesForUser(user.uid);
+    } catch (error: any) {
+        if ((error as any).code === 'failed-precondition') {
+            throw error;
+        }
+        console.error("getMatchHistoryAction failed:", error);
+        return [];
+    }
 }
 
 // --- AI Coach Actions ---
@@ -473,9 +493,11 @@ export async function predictFriendMatchAction(friendId: string, sport: Sport): 
 // --- Leaderboard Actions ---
 export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
     try {
-        const users = await getLeaderboard(sport);
-        return users;
-    } catch (error) {
+        return await getLeaderboard(sport);
+    } catch (error: any) {
+        if ((error as any).code === 'failed-precondition') {
+            throw error;
+        }
         console.error("Leaderboard action failed:", error);
         return [];
     }

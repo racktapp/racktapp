@@ -14,6 +14,7 @@ import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-c
 import { ChallengeCard } from '@/components/challenges/challenge-card';
 import { OpenChallengeCard } from '@/components/challenges/open-challenge-card';
 import { Badge } from '@/components/ui/badge';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function ChallengesPage() {
   const { user } = useAuth();
@@ -24,17 +25,23 @@ export default function ChallengesPage() {
   const [incoming, setIncoming] = useState<Challenge[]>([]);
   const [sent, setSent] = useState<Challenge[]>([]);
   const [open, setOpen] = useState<OpenChallenge[]>([]);
+  const [indexError, setIndexError] = useState<string | null>(null);
 
   const fetchChallenges = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    setIndexError(null);
     try {
       const { incoming, sent, open } = await getChallengesAction(user.uid, sport);
       setIncoming(incoming);
       setSent(sent);
       setOpen(open);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to load challenges.' });
+    } catch (error: any) {
+       if (error.message && error.message.includes('query requires an index')) {
+          setIndexError(error.message);
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load challenges.' });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +59,7 @@ export default function ChallengesPage() {
         title="Challenges"
         description="Accept incoming challenges or create an open one."
         actions={
-          <CreateOpenChallengeDialog user={user}>
+          <CreateOpenChallengeDialog user={user} onChallengeCreated={fetchChallenges}>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Post Open Challenge
@@ -60,80 +67,84 @@ export default function ChallengesPage() {
           </CreateOpenChallengeDialog>
         }
       />
-      <Tabs defaultValue="incoming">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="incoming">
-            Incoming
-            {incoming.length > 0 && <Badge className="ml-2">{incoming.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="sent">Sent</TabsTrigger>
-          <TabsTrigger value="open">Open</TabsTrigger>
-        </TabsList>
-        {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <>
-            <TabsContent value="incoming">
-              {incoming.length > 0 ? (
-                <div className="space-y-4 pt-4">
-                  {incoming.map((challenge) => (
-                    <ChallengeCard
-                      key={challenge.id}
-                      challenge={challenge}
-                      currentUserId={user.uid}
-                      type="incoming"
-                      onAction={fetchChallenges}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                  <p className="text-muted-foreground">Incoming challenges will be shown here.</p>
-                </div>
-              )}
-            </TabsContent>
-            <TabsContent value="sent">
-              {sent.length > 0 ? (
-                <div className="space-y-4 pt-4">
-                  {sent.map((challenge) => (
-                    <ChallengeCard
-                      key={challenge.id}
-                      challenge={challenge}
-                      currentUserId={user.uid}
-                      type="sent"
-                      onAction={fetchChallenges}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                  <p className="text-muted-foreground">Sent challenges will be shown here.</p>
-                </div>
-              )}
-            </TabsContent>
-            <TabsContent value="open">
-              {open.length > 0 ? (
-                <div className="space-y-4 pt-4">
-                  {open.map((challenge) => (
-                    <OpenChallengeCard
-                      key={challenge.id}
-                      challenge={challenge}
-                      challenger={user}
-                      onAction={fetchChallenges}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
-                  <p className="text-muted-foreground">No open {sport} challenges. Post one!</p>
-                </div>
-              )}
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+      {indexError ? (
+        <FirestoreIndexAlert message={indexError} />
+      ) : (
+        <Tabs defaultValue="incoming">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="incoming">
+              Incoming
+              {incoming.length > 0 && <Badge className="ml-2">{incoming.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="sent">Sent</TabsTrigger>
+            <TabsTrigger value="open">Open</TabsTrigger>
+          </TabsList>
+          {isLoading ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <TabsContent value="incoming">
+                {incoming.length > 0 ? (
+                  <div className="space-y-4 pt-4">
+                    {incoming.map((challenge) => (
+                      <ChallengeCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        currentUserId={user.uid}
+                        type="incoming"
+                        onAction={fetchChallenges}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">Incoming challenges will be shown here.</p>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="sent">
+                {sent.length > 0 ? (
+                  <div className="space-y-4 pt-4">
+                    {sent.map((challenge) => (
+                      <ChallengeCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        currentUserId={user.uid}
+                        type="sent"
+                        onAction={fetchChallenges}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">Sent challenges will be shown here.</p>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="open">
+                {open.length > 0 ? (
+                  <div className="space-y-4 pt-4">
+                    {open.map((challenge) => (
+                      <OpenChallengeCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        challenger={user}
+                        onAction={fetchChallenges}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">No open {sport} challenges. Post one!</p>
+                  </div>
+                )}
+              </TabsContent>
+            </>
+          )}
+        </Tabs>
+      )}
     </div>
   );
 }

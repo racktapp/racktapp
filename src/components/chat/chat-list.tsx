@@ -9,6 +9,7 @@ import { UserAvatar } from '@/components/user-avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 interface ChatListItemProps {
     chat: Chat;
@@ -51,6 +52,7 @@ function ChatListItem({ chat, currentUserId }: ChatListItemProps) {
 export function ChatList({ currentUserId }: { currentUserId: string }) {
     const [chats, setChats] = useState<Chat[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [indexError, setIndexError] = useState<string | null>(null);
     
     useEffect(() => {
         const chatsRef = collection(db, 'chats');
@@ -63,9 +65,14 @@ export function ChatList({ currentUserId }: { currentUserId: string }) {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const chatsData = snapshot.docs.map(doc => doc.data() as Chat);
             setChats(chatsData);
+            setIndexError(null);
             setIsLoading(false);
         }, (error) => {
-            console.error("Error fetching chats:", error);
+            if (error.code === 'failed-precondition') {
+                setIndexError(error.message);
+            } else {
+                console.error("Error fetching chats:", error);
+            }
             setIsLoading(false);
         });
 
@@ -78,6 +85,10 @@ export function ChatList({ currentUserId }: { currentUserId: string }) {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         )
+    }
+
+    if (indexError) {
+        return <FirestoreIndexAlert message={indexError} />;
     }
 
     if (chats.length === 0) {

@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/user-avatar';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 const getRankDisplay = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
@@ -31,15 +32,21 @@ export default function LeaderboardPage() {
 
   const [leaderboard, setLeaderboard] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [indexError, setIndexError] = useState<string | null>(null);
 
   const fetchLeaderboard = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    setIndexError(null);
     try {
       const data = await getLeaderboardAction(sport);
       setLeaderboard(data);
-    } catch (error) {
-      console.error('Failed to fetch leaderboard:', error);
+    } catch (error: any) {
+      if (error.message && error.message.includes('query requires an index')) {
+          setIndexError(error.message);
+      } else {
+          console.error('Failed to fetch leaderboard:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,33 +57,38 @@ export default function LeaderboardPage() {
   }, [fetchLeaderboard]);
 
   const rankedUsers = useMemo(() => {
-    return leaderboard.map((player, index) => {
-      const sportStats = player.sports?.[sport] as SportStats;
-      const totalGames = sportStats.wins + sportStats.losses;
-      const winRate = totalGames > 0 ? (sportStats.wins / totalGames) * 100 : 0;
-      return {
-        ...player,
-        rank: index + 1,
-        sportStats,
-        winRate,
-      };
-    });
+    return leaderboard
+      .filter(player => player.sports?.[sport]) // Ensure player has stats for the sport
+      .map((player, index) => {
+        const sportStats = player.sports?.[sport] as SportStats;
+        const totalGames = sportStats.wins + sportStats.losses;
+        const winRate = totalGames > 0 ? (sportStats.wins / totalGames) * 100 : 0;
+        return {
+          ...player,
+          rank: index + 1,
+          sportStats,
+          winRate,
+        };
+      });
   }, [leaderboard, sport]);
 
   if (!user) return null;
 
-  return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title={`${sport} Leaderboard`}
-        description={`See how you stack up against the competition.`}
-      />
-      
-      {isLoading ? (
+  const renderContent = () => {
+    if (isLoading) {
+      return (
         <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : rankedUsers.length > 0 ? (
+      );
+    }
+    
+    if (indexError) {
+      return <FirestoreIndexAlert message={indexError} />;
+    }
+
+    if (rankedUsers.length > 0) {
+      return (
         <Card>
           <Table>
             <TableHeader>
@@ -111,17 +123,30 @@ export default function LeaderboardPage() {
             </TableBody>
           </Table>
         </Card>
-      ) : (
-        <Card>
-            <CardContent className="pt-6">
-                <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
-                    <Trophy className="h-12 w-12 text-muted-foreground" />
-                    <p className="mt-4 text-muted-foreground">No players on the leaderboard for {sport} yet.</p>
-                    <p className="text-sm text-muted-foreground">Report a match to get started!</p>
-                </div>
-            </CardContent>
-        </Card>
-      )}
+      );
+    }
+
+    return (
+      <Card>
+          <CardContent className="pt-6">
+              <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
+                  <Trophy className="h-12 w-12 text-muted-foreground" />
+                  <p className="mt-4 text-muted-foreground">No players on the leaderboard for {sport} yet.</p>
+                  <p className="text-sm text-muted-foreground">Report a match to get started!</p>
+              </div>
+          </CardContent>
+      </Card>
+    );
+  };
+
+
+  return (
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      <PageHeader
+        title={`${sport} Leaderboard`}
+        description={`See how you stack up against the competition.`}
+      />
+      {renderContent()}
     </div>
   );
 }

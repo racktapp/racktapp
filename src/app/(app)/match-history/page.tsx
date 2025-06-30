@@ -9,14 +9,18 @@ import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { DateRange } from 'react-day-picker';
+import { useToast } from '@/hooks/use-toast';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
   const { sport } = useSport();
+  const { toast } = useToast();
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [indexError, setIndexError] = useState<string | null>(null);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -25,6 +29,7 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    setIndexError(null);
     try {
       const [matchData, friendsData] = await Promise.all([
         getMatchHistoryAction(),
@@ -32,12 +37,17 @@ export default function MatchHistoryPage() {
       ]);
       setMatches(matchData);
       setFriends(friendsData);
-    } catch (error) {
-      console.error('Failed to fetch match history:', error);
+    } catch (error: any) {
+      if (error.message && error.message.includes('query requires an index')) {
+          setIndexError(error.message);
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });
+        console.error('Failed to fetch match history:', error);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => {
     fetchMatchData();
@@ -56,6 +66,38 @@ export default function MatchHistoryPage() {
         return match.date >= dateFilter.from.getTime() && match.date <= new Date(to).setHours(23, 59, 59, 999);
       });
   }, [matches, sport, opponentFilter, dateFilter]);
+  
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    if (indexError) {
+      return <FirestoreIndexAlert message={indexError} />;
+    }
+    
+    if (filteredMatches.length > 0) {
+      return (
+        <div className="space-y-4">
+          {filteredMatches.map(match => (
+            <MatchHistoryCard key={match.id} match={match} currentUserId={user!.uid} />
+          ))}
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
+          <History className="h-12 w-12 text-muted-foreground" />
+          <p className="mt-4 text-muted-foreground">No matches found for the selected filters.</p>
+      </div>
+    );
+  };
+
 
   if (!user) return null;
 
@@ -74,23 +116,8 @@ export default function MatchHistoryPage() {
         setDateFilter={setDateFilter}
         className="mb-6"
       />
-
-      {isLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : filteredMatches.length > 0 ? (
-        <div className="space-y-4">
-          {filteredMatches.map(match => (
-            <MatchHistoryCard key={match.id} match={match} currentUserId={user.uid} />
-          ))}
-        </div>
-      ) : (
-        <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
-            <History className="h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">No matches found for the selected filters.</p>
-        </div>
-      )}
+      
+      {renderContent()}
     </div>
   );
 }
