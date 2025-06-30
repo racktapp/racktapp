@@ -142,15 +142,17 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
         await updateProfile(auth.currentUser, { photoURL: downloadURL });
       }
 
-      toast({ title: 'Success', description: 'Profile picture updated!' });
+      toast({ title: 'Success', description: 'Profile picture updated! The change will appear shortly.' });
       setOpen(false);
-      window.location.reload();
 
     } catch (error: any) {
+      console.error("Profile picture upload failed:", error);
       toast({
         variant: 'destructive',
         title: 'Upload Failed',
-        description: 'Upload failed. Please check your storage rules in the Firebase console.',
+        description: error.code === 'storage/unauthorized' || error.code === 'permission-denied' 
+          ? 'Permission denied. Please check your Storage and Firestore security rules in the Firebase console.'
+          : error.message || 'An unexpected error occurred.',
       });
     } finally {
       setIsLoading(false);
