@@ -68,7 +68,7 @@ export async function handleReportMatchAction(
         matchType: values.matchType as MatchType,
         team1Ids,
         team2Ids,
-        score: `${values.myScore}-${values.opponentScore}`,
+        sets: values.sets,
         allPlayers,
         reportedById: user.uid,
         date: new Date().getTime(),

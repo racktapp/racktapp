@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { PageHeader } from '@/components/page-header';
@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { getAllUsers } from '@/lib/firebase/firestore';
 import { User, reportMatchSchema } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { handleReportMatchAction } from '@/lib/actions';
 
@@ -41,9 +41,13 @@ export default function ReportMatchPage() {
     resolver: zodResolver(reportMatchSchema),
     defaultValues: {
       matchType: 'Singles',
-      myScore: 0,
-      opponentScore: 0,
+      sets: [{ my: 0, opponent: 0 }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'sets',
   });
   
   const matchType = form.watch('matchType');
@@ -145,13 +149,28 @@ export default function ReportMatchPage() {
             </CardContent>
           </Card>
            <Card>
-            <CardHeader><CardTitle>Final Score</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                 <div className="flex items-center gap-4">
-                    <FormField control={form.control} name="myScore" render={({ field }) => (<FormItem className='flex-1'><FormLabel>Your Team's Score</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <span className="text-xl font-bold mt-8">-</span>
-                    <FormField control={form.control} name="opponentScore" render={({ field }) => (<FormItem className='flex-1'><FormLabel>Opponent's Score</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                 </div>
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <CardTitle>Final Score</CardTitle>
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ my: 0, opponent: 0 })}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Set
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+                {fields.map((field, index) => (
+                    <div key={field.id} className="flex items-center gap-2 sm:gap-4">
+                        <FormLabel className="min-w-[50px] text-sm text-muted-foreground">Set {index + 1}</FormLabel>
+                        <FormField control={form.control} name={`sets.${index}.my`} render={({ field }) => (<FormItem className='flex-1'><FormControl><Input type="number" placeholder="Your Score" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <span className="text-lg font-medium text-muted-foreground">-</span>
+                        <FormField control={form.control} name={`sets.${index}.opponent`} render={({ field }) => (<FormItem className='flex-1'><FormControl><Input type="number" placeholder="Opponent Score" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 1}>
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Remove Set</span>
+                        </Button>
+                    </div>
+                ))}
+                <FormField control={form.control} name="sets" render={({ fieldState }) => <FormMessage>{fieldState.error?.message || (fieldState.error as any)?.root?.message}</FormMessage>} />
             </CardContent>
           </Card>
           <Button type="submit" disabled={isLoading} className="w-full md:w-auto">

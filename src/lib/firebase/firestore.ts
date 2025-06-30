@@ -153,7 +153,7 @@ interface ReportMatchData {
     team1Ids: string[];
     team2Ids: string[];
     allPlayers: User[];
-    score: string;
+    sets: { my: number; opponent: number }[];
     reportedById: string;
     date: number;
 }
@@ -163,7 +163,6 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
     return await runTransaction(db, async (transaction) => {
         const allPlayerIds = [...data.team1Ids, ...data.team2Ids];
         
-        // This is slightly redundant if allPlayers is passed in, but ensures data integrity
         const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
         const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
 
@@ -183,9 +182,11 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
 
         const team1AvgElo = getTeamAvgElo(data.team1Ids);
         const team2AvgElo = getTeamAvgElo(data.team2Ids);
-
-        const [team1Score, team2Score] = data.score.split('-').map(Number);
-        const team1GameScore = team1Score > team2Score ? 1 : 0;
+        
+        const team1SetsWon = data.sets.filter(set => set.my > set.opponent).length;
+        const team2SetsWon = data.sets.filter(set => set.my < set.opponent).length;
+        const team1GameScore = team1SetsWon > team2SetsWon ? 1 : 0;
+        
         const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
         
         const team1EloChange = newTeam1Elo - team1AvgElo;
@@ -230,6 +231,8 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             return acc;
         }, {} as Match['participantsData']);
 
+        const scoreString = data.sets.map(set => `${set.my}-${set.opponent}`).join(', ');
+
         const newMatch: Match = {
             id: matchRef.id,
             type: data.matchType,
@@ -237,11 +240,11 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             participants: allPlayerIds,
             participantsData,
             teams: {
-                team1: { playerIds: data.team1Ids, score: team1Score },
-                team2: { playerIds: data.team2Ids, score: team2Score },
+                team1: { playerIds: data.team1Ids, setsWon: team1SetsWon },
+                team2: { playerIds: data.team2Ids, setsWon: team2SetsWon },
             },
             winner: team1GameScore === 1 ? data.team1Ids : data.team2Ids,
-            score: data.score,
+            score: scoreString,
             date: data.date,
             createdAt: Timestamp.now().toMillis(),
             rankChange: rankChanges,
