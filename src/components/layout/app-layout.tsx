@@ -4,8 +4,9 @@
 import { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Flame, LogOut, Search, Settings, ChevronDown, Check, User as UserIcon } from 'lucide-react';
+import { LogOut, Search, Settings, ChevronDown, Check, User as UserIcon } from 'lucide-react';
 import { signOut } from 'firebase/auth';
+import Image from 'next/image';
 
 import { type User } from '@/lib/types';
 import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/constants';
@@ -65,7 +66,7 @@ const AppSidebar = ({ user }: { user: User }) => {
       <SidebarHeader>
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
-            <Flame className="h-7 w-7" />
+            <Image src="/my-logo2.svg" alt="Rackt Logo" width={28} height={28} />
             <span className="font-headline group-data-[collapsible=icon]:hidden">Rackt</span>
           </Link>
           <div className="group-data-[collapsible=icon]:hidden">
