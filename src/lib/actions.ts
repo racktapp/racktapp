@@ -2,7 +2,8 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@/lib/firebase/config';
+import { auth, db } from '@/lib/firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 import { 
     reportMatchAndupdateRanks, 
     searchUsers, 
@@ -34,9 +35,13 @@ import {
     createLegendGame,
     submitLegendAnswer,
     getMatchesForUser,
+    getHeadToHeadRecord,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match } from '@/lib/types';
+import { predictMatchOutcome } from '@/ai/flows/predict-match';
+import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
+import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { redirect } from 'next/navigation';
 
@@ -62,7 +67,7 @@ export async function handleReportMatchAction(
         matchType: values.matchType as MatchType,
         team1Ids,
         team2Ids,
-        score: `${values.myScore}-${values.myScore > values.opponentScore ? values.opponentScore : values.myScore + 2}-${values.opponentScore}`,
+        score: `${values.myScore}-${values.opponentScore}`,
         allPlayers,
         reportedById: user.uid,
         date: new Date().getTime(),
@@ -120,12 +125,12 @@ export async function getFriendsAction(userId: string): Promise<User[]> {
     return getFriends(userId);
 }
 
-export async function getIncomingRequestsAction(userId: string): Promise<FriendRequest[]> {
+export async function getIncomingRequestsAction(userId: string): Promise<any[]> {
     if (!userId) return [];
     return getIncomingFriendRequests(userId);
 }
 
-export async function getSentRequestsAction(userId: string): Promise<FriendRequest[]> {
+export async function getSentRequestsAction(userId: string): Promise<any[]> {
     if (!userId) return [];
     return getSentFriendRequests(userId);
 }
@@ -402,4 +407,64 @@ export async function getMatchHistoryAction(): Promise<Match[]> {
     const user = auth.currentUser;
     if (!user) return [];
     return getMatchesForUser(user.uid);
+}
+
+// --- AI Coach Actions ---
+export async function analyzeSwingAction(input: SwingAnalysisInput) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    
+    try {
+        const result = await analyzeSwing(input);
+        return result;
+    } catch (error: any) {
+        console.error("Swing analysis action failed:", error);
+        throw new Error(error.message || "Failed to analyze swing.");
+    }
+}
+
+// --- AI Prediction Actions ---
+
+export async function predictFriendMatchAction(friendId: string, sport: Sport): Promise<PredictMatchOutput> {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    
+    const [currentUserDoc, friendDoc] = await Promise.all([
+        getDoc(doc(db, 'users', user.uid)),
+        getDoc(doc(db, 'users', friendId))
+    ]);
+
+    if (!currentUserDoc.exists() || !friendDoc.exists()) {
+        throw new Error("User data not found.");
+    }
+    
+    const currentUserData = currentUserDoc.data() as User;
+    const friendData = friendDoc.data() as User;
+
+    const currentUserStats = currentUserData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0 };
+    const friendStats = friendData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0 };
+
+    const headToHead = await getHeadToHeadRecord(user.uid, friendId, sport);
+
+    const currentUserTotalGames = currentUserStats.wins + currentUserStats.losses;
+    const friendTotalGames = friendStats.wins + friendStats.losses;
+    
+    const predictionInput = {
+        player1Name: currentUserData.name,
+        player2Name: friendData.name,
+        player1RacktRank: currentUserStats.racktRank,
+        player2RacktRank: friendStats.racktRank,
+        player1WinRate: currentUserTotalGames > 0 ? currentUserStats.wins / currentUserTotalGames : 0,
+        player2WinRate: friendTotalGames > 0 ? friendStats.wins / friendTotalGames : 0,
+        player1Streak: currentUserStats.streak,
+        player2Streak: friendStats.streak,
+        headToHead: {
+            player1Wins: headToHead.player1Wins,
+            player2Wins: headToHead.player2Wins,
+        },
+        sport,
+    };
+
+    const result = await predictMatchOutcome(predictionInput);
+    return result;
 }

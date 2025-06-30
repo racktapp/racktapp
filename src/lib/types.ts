@@ -145,6 +145,11 @@ export interface Minigame {
   // ... fields for minigames
 }
 
+export interface RallyGame {
+  id: string;
+  // ... fields for rally games
+}
+
 export interface LegendGame {
   id: string;
   // ... fields for legend games
@@ -245,8 +250,8 @@ export type RallyGamePoint = z.infer<typeof rallyGamePointSchema>;
 
 export const rallyGameSchema = z.object({
     id: z.string(),
-    participantIds: z.tuple([z.string(), z.string()]),
-    participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional(), rank: z.number() })),
+    participantIds: z.array(z.string()),
+    participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional() })),
     score: z.record(z.number()),
     turn: z.enum(['serving', 'returning', 'point_over', 'game_over']),
     currentPlayerId: z.string(),
@@ -294,3 +299,25 @@ export const legendGameSchema = z.object({
     updatedAt: z.number(),
 });
 export type LegendGame = z.infer<typeof legendGameSchema>;
+
+// AI Prediction Schemas
+export const PredictMatchInputSchema = z.object({
+  player1Name: z.string(),
+  player2Name: z.string(),
+  player1RacktRank: z.number(),
+  player2RacktRank: z.number(),
+  player1WinRate: z.number(),
+  player2WinRate: z.number(),
+  player1Streak: z.number().int(),
+  player2Streak: z.number().int(),
+  headToHead: z.object({ player1Wins: z.number(), player2Wins: z.number() }),
+  sport: Sport,
+});
+export type PredictMatchInput = z.infer<typeof PredictMatchInputSchema>;
+
+export const PredictMatchOutputSchema = z.object({
+  predictedWinner: z.enum(['player1', 'player2', 'draw']),
+  confidence: z.enum(['High', 'Medium', 'Slight Edge']),
+  analysis: z.string(),
+});
+export type PredictMatchOutput = z.infer<typeof PredictMatchOutputSchema>;

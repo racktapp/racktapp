@@ -687,8 +687,8 @@ export async function playRallyTurn(gameId: string, playerId: string, choice: an
         
         const opponentId = game.participantIds.find(id => id !== playerId)!;
         const playerRanks = {
-            [game.currentPoint.servingPlayer]: game.participantsData[game.currentPoint.servingPlayer]?.rank || 1200,
-            [game.currentPoint.returningPlayer]: game.participantsData[game.currentPoint.returningPlayer]?.rank || 1200,
+            [game.currentPoint.servingPlayer]: (game.participantsData[game.currentPoint.servingPlayer] as any)?.rank || 1200,
+            [game.currentPoint.returningPlayer]: (game.participantsData[game.currentPoint.returningPlayer] as any)?.rank || 1200,
         };
 
         let aiResponse;
@@ -835,9 +835,9 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
             // Check for game over
             const WIN_SCORE = 5;
             const p1Score = game.score[game.participantIds[0]];
-            const p2Score = game.mode === 'friend' ? game.score[game.participantIds[1]] : -1;
+            const p2Score = game.mode === 'friend' && game.participantIds[1] ? game.score[game.participantIds[1]] : -1;
 
-            if (p1Score >= WIN_SCORE || p2Score >= WIN_SCORE) {
+            if (p1Score >= WIN_SCORE || (p2Score != -1 && p2Score >= WIN_SCORE)) {
                 game.status = 'complete';
                 game.winnerId = p1Score > p2Score ? game.participantIds[0] : game.participantIds[1];
             } else {
@@ -855,4 +855,31 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
 
         transaction.update(gameRef, { ...game, updatedAt: Timestamp.now().toMillis() });
     });
+}
+
+export async function getHeadToHeadRecord(userId1: string, userId2: string, sport: Sport): Promise<{ player1Wins: number; player2Wins: number }> {
+    const matchesRef = collection(db, 'matches');
+    const q = query(
+        matchesRef,
+        where('sport', '==', sport),
+        where('participants', 'array-contains', userId1)
+    );
+    const snapshot = await getDocs(q);
+
+    let player1Wins = 0;
+    let player2Wins = 0;
+    
+    snapshot.docs.forEach(doc => {
+        const match = doc.data() as Match;
+        // Ensure this match is between only these two players for singles
+        if (match.type === 'Singles' && match.participants.includes(userId2) && match.participants.length === 2) {
+            if (match.winner.includes(userId1)) {
+                player1Wins++;
+            } else if (match.winner.includes(userId2)) {
+                player2Wins++;
+            }
+        }
+    });
+
+    return { player1Wins, player2Wins };
 }
