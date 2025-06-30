@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { ActiveGamesList } from '@/components/games/active-games-list';
 import { StartLegendSoloDialog } from '@/components/games/start-legend-solo-dialog';
 import { Gamepad2, Brain, Swords } from 'lucide-react';
+import { StartRallyFriendDialog } from '@/components/games/start-rally-friend-dialog';
 
 export default function GamesPage() {
   const { user } = useAuth();
@@ -32,8 +33,11 @@ export default function GamesPage() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardFooter className="mt-auto">
-                    <p className="text-sm text-muted-foreground">Challenge friends from the Friends page.</p>
+                <CardFooter className="mt-auto flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Challenge a friend to a game.</p>
+                    <StartRallyFriendDialog>
+                        <Button variant="outline">Challenge Friend</Button>
+                    </StartRallyFriendDialog>
                 </CardFooter>
             </Card>
             <Card className="flex flex-col">
