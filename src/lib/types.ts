@@ -1,4 +1,5 @@
 // src/lib/types.ts
+import { z } from 'zod';
 
 export type Sport = 'Tennis' | 'Padel' | 'Badminton' | 'Table Tennis';
 
@@ -134,3 +135,22 @@ export interface EloDataPoint {
   date: string; // e.g., "Jan 22"
   elo: number;
 }
+
+// Schema for report match form
+export const reportMatchSchema = z.object({
+  matchType: z.enum(['Singles', 'Doubles']),
+  opponent1: z.string().min(1, 'Please select an opponent.'),
+  partner: z.string().optional(),
+  opponent2: z.string().optional(),
+  myScore: z.coerce.number().min(0).int(),
+  opponentScore: z.coerce.number().min(0).int(),
+}).refine(data => {
+    if (data.matchType === 'Doubles') {
+        return !!data.partner && !!data.opponent2;
+    }
+    return true;
+}, { message: "Partner and second opponent are required for Doubles.", path: ["partner"] })
+.refine(data => data.myScore !== data.opponentScore, {
+    message: "Scores cannot be the same.",
+    path: ["myScore"],
+});

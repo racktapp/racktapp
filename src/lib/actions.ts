@@ -4,26 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { reportMatchAndupdateRanks, searchUsers } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType } from '@/lib/types';
-
-// Schema for report match form
-export const reportMatchSchema = z.object({
-  matchType: z.enum(['Singles', 'Doubles']),
-  opponent1: z.string().min(1, 'Please select an opponent.'),
-  partner: z.string().optional(),
-  opponent2: z.string().optional(),
-  myScore: z.coerce.number().min(0).int(),
-  opponentScore: z.coerce.number().min(0).int(),
-}).refine(data => {
-    if (data.matchType === 'Doubles') {
-        return !!data.partner && !!data.opponent2;
-    }
-    return true;
-}, { message: "Partner and second opponent are required for Doubles.", path: ["partner"] })
-.refine(data => data.myScore !== data.opponentScore, {
-    message: "Scores cannot be the same.",
-    path: ["myScore"],
-});
+import { type Sport, type User, MatchType, reportMatchSchema } from '@/lib/types';
 
 // Action to report a match
 export async function handleReportMatchAction(

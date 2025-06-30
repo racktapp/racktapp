@@ -14,10 +14,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { getAllUsers } from '@/lib/firebase/firestore';
-import { User } from '@/lib/types';
+import { User, reportMatchSchema } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { handleReportMatchAction, reportMatchSchema } from '@/lib/actions';
+import { handleReportMatchAction } from '@/lib/actions';
 
 export default function ReportMatchPage() {
   const router = useRouter();
