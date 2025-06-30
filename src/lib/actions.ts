@@ -422,13 +422,8 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 export async function getMatchHistoryAction(): Promise<Match[]> {
     const user = auth.currentUser;
     if (!user) return [];
-    try {
-        return await getMatchesForUser(user.uid);
-    } catch (error: any) {
-        // Re-throw the original error so the client can handle it.
-        // This preserves the full error object, including the code and message.
-        throw error;
-    }
+    // The page component will handle any errors.
+    return await getMatchesForUser(user.uid);
 }
 
 // --- AI Coach Actions ---

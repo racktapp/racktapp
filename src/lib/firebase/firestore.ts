@@ -255,27 +255,23 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
 
 /**
  * Fetches all confirmed matches for a given user.
+ * This version of the function does not sort by date in the query
+ * to avoid requiring a composite index. Sorting should be done client-side.
  * @param userId The UID of the user.
  * @returns A promise that resolves to an array of Match objects.
  */
 export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
-    // Use a simpler query that doesn't require a composite index.
+    // This query does NOT require a composite index.
     const q = query(
         matchesRef,
         where('participants', 'array-contains', userId)
     );
-    try {
-        const snapshot = await getDocs(q);
-        const matches = snapshot.docs.map(doc => doc.data() as Match);
-        // Sort the matches by date in descending order in the application code.
-        return matches.sort((a, b) => b.date - a.date);
-    } catch (e) {
-        // The simpler query should not throw an index error, but we keep this for other potential issues.
-        console.error("Error fetching matches:", e);
-        throw e;
-    }
+    const snapshot = await getDocs(q);
+    const matches = snapshot.docs.map(doc => doc.data() as Match);
+    return matches;
 }
+
 
 /**
  * Creates a friend request document in Firestore.
