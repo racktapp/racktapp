@@ -1,3 +1,4 @@
+
 import { User, Match, Sport, EloDataPoint } from './types';
 
 export const MOCK_USER: User = {
@@ -105,8 +106,8 @@ export const MOCK_MATCHES: Match[] = [
       'user-2': { uid: 'user-2', name: MOCK_FRIENDS[0].name, avatar: MOCK_FRIENDS[0].avatar },
     },
     teams: {
-      team1: { playerIds: ['user-1'], score: 2 },
-      team2: { playerIds: ['user-2'], score: 1 },
+      team1: { playerIds: ['user-1'] },
+      team2: { playerIds: ['user-2'] },
     },
     winner: ['user-1'],
     score: '6-4, 4-6, 7-5',
@@ -127,8 +128,8 @@ export const MOCK_MATCHES: Match[] = [
         'user-3': { uid: 'user-3', name: MOCK_FRIENDS[1].name, avatar: MOCK_FRIENDS[1].avatar },
     },
     teams: {
-        team1: { playerIds: ['user-1'], score: 2 },
-        team2: { playerIds: ['user-3'], score: 0 },
+        team1: { playerIds: ['user-1'] },
+        team2: { playerIds: ['user-3'] },
     },
     winner: ['user-1'],
     score: '6-2, 6-3',
@@ -151,8 +152,8 @@ export const MOCK_MATCHES: Match[] = [
         'user-4': { uid: 'user-4', name: user4.name, avatar: user4.avatar },
     },
     teams: {
-        team1: { playerIds: ['user-1', 'user-2'], score: 1 },
-        team2: { playerIds: ['user-3', 'user-4'], score: 2 },
+        team1: { playerIds: ['user-1', 'user-2'] },
+        team2: { playerIds: ['user-3', 'user-4'] },
     },
     winner: ['user-3', 'user-4'],
     score: '3-6, 6-4, 2-6',

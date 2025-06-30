@@ -1,3 +1,4 @@
+
 import {
   collection,
   doc,
@@ -44,7 +45,8 @@ export async function getFriends(userId: string): Promise<User[]> {
     }
 
     const friendsData: User[] = [];
-    const chunkSize = 30; // Firestore 'in' query is limited to 30 elements
+    // Firestore 'in' query is limited to 30 elements, so we chunk the requests
+    const chunkSize = 30;
     for (let i = 0; i < friendIds.length; i += chunkSize) {
       const chunk = friendIds.slice(i, i + chunkSize);
       if (chunk.length > 0) {
@@ -230,10 +232,6 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             return acc;
         }, {} as Match['participantsData']);
 
-        const sets = data.score.split(',').map(s => s.trim().split('-').map(Number));
-        const team1SetsWon = sets.filter(set => set.length === 2 && set[0] > set[1]).length;
-        const team2SetsWon = sets.filter(set => set.length === 2 && set[0] < set[1]).length;
-
         const newMatch: Match = {
             id: matchRef.id,
             type: data.matchType,
@@ -241,8 +239,8 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             participants: allPlayerIds,
             participantsData,
             teams: {
-                team1: { playerIds: data.team1Ids, setsWon: team1SetsWon },
-                team2: { playerIds: data.team2Ids, setsWon: team2SetsWon },
+                team1: { playerIds: data.team1Ids },
+                team2: { playerIds: data.team2Ids },
             },
             winner: data.winnerIds,
             score: data.score,
@@ -268,9 +266,15 @@ export async function getMatchesForUser(userId: string): Promise<Match[]> {
         where('participants', 'array-contains', userId),
         orderBy('date', 'desc')
     );
-    const snapshot = await getDocs(q);
-    const matches = snapshot.docs.map(doc => doc.data() as Match);
-    return matches;
+    try {
+        const snapshot = await getDocs(q);
+        const matches = snapshot.docs.map(doc => doc.data() as Match);
+        return matches;
+    } catch(e) {
+        // This is likely a missing index error.
+        // Re-throw it so the action can catch it and display it to the user.
+        throw e;
+    }
 }
 
 /**
@@ -394,8 +398,12 @@ export async function getIncomingChallenges(userId: string): Promise<Challenge[]
         where('status', '==', 'pending'),
         orderBy('createdAt', 'desc')
     );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Challenge);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as Challenge);
+    } catch(e) {
+        throw e;
+    }
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
@@ -406,8 +414,12 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
         where('status', '==', 'pending'),
         orderBy('createdAt', 'desc')
     );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Challenge);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as Challenge);
+    } catch(e) {
+        throw e;
+    }
 }
 
 export async function getOpenChallenges(userId: string, sport: Sport): Promise<OpenChallenge[]> {
@@ -420,8 +432,12 @@ export async function getOpenChallenges(userId: string, sport: Sport): Promise<O
         orderBy('createdAt', 'desc'),
         limit(50)
     );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as OpenChallenge);
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as OpenChallenge);
+    } catch(e) {
+        throw e;
+    }
 }
 
 export async function updateChallengeStatus(challengeId: string, status: 'accepted' | 'declined' | 'cancelled') {
@@ -604,9 +620,13 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
 export async function getChatsForUser(userId: string): Promise<Chat[]> {
     const chatsRef = collection(db, 'chats');
     const q = query(chatsRef, where('participantIds', 'array-contains', userId), orderBy('updatedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    const chats = snapshot.docs.map(doc => doc.data() as Chat);
-    return chats;
+    try {
+        const snapshot = await getDocs(q);
+        const chats = snapshot.docs.map(doc => doc.data() as Chat);
+        return chats;
+    } catch(e) {
+        throw e;
+    }
 }
 
 export async function sendMessage(chatId: string, senderId: string, text: string): Promise<void> {
@@ -911,9 +931,11 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
     
     try {
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs
+        const users = querySnapshot.docs
             .map(doc => doc.data() as User)
             .filter(user => user.sports?.[sport]); // Ensure player has stats for the sport
+        
+        return users;
     } catch(e) {
         // This is likely a missing index error.
         // Re-throw it so the action can catch it and display it to the user.

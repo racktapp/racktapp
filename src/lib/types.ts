@@ -1,3 +1,4 @@
+
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS as sportValues } from './constants';
@@ -57,11 +58,9 @@ export interface Match {
   teams: {
     team1: {
       playerIds: string[];
-      setsWon: number;
     };
     team2: {
       playerIds: string[];
-      setsWon: number;
     };
   };
   winner: string[]; // User IDs of the winners
