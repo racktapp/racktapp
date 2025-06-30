@@ -17,8 +17,10 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema } from '@/lib/types';
 import { calculateNewElo } from '../elo';
+import { generateBracket } from '../tournament-utils';
+import { z } from 'zod';
 
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
@@ -413,4 +415,106 @@ export async function challengeFromOpen(openChallenge: OpenChallenge, challenger
         wager: "A friendly match",
     };
     await createDirectChallenge(challengeData);
+}
+
+// --- Tournament Functions ---
+
+export async function createTournament(values: z.infer<typeof createTournamentSchema>, organizer: User) {
+    const participantIds = [organizer.uid, ...values.participantIds];
+    if (new Set(participantIds).size !== participantIds.length) {
+        throw new Error("Duplicate participants are not allowed.");
+    }
+
+    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+    const participantsData = userDocs.docs.map(doc => doc.data() as User);
+
+    if (participantsData.length !== participantIds.length) {
+        throw new Error("One or more selected participants could not be found.");
+    }
+
+    const bracket = generateBracket(participantsData);
+
+    const newTournamentRef = doc(collection(db, 'tournaments'));
+    const newTournament: Tournament = {
+        id: newTournamentRef.id,
+        name: values.name,
+        sport: values.sport,
+        organizerId: organizer.uid,
+        participantIds: participantIds,
+        participantsData: participantsData.map(p => ({ uid: p.uid, name: p.name, avatar: p.avatar })),
+        status: 'ongoing',
+        bracket: bracket,
+        createdAt: Timestamp.now().toMillis(),
+    };
+    await setDoc(newTournamentRef, newTournament);
+}
+
+export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
+    const tournamentsRef = collection(db, 'tournaments');
+    const q = query(tournamentsRef, where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Tournament);
+}
+
+export async function getTournamentById(tournamentId: string): Promise<Tournament | null> {
+    const tournamentRef = doc(db, 'tournaments', tournamentId);
+    const tournamentDoc = await getDoc(tournamentRef);
+    return tournamentDoc.exists() ? tournamentDoc.data() as Tournament : null;
+}
+
+export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
+    return runTransaction(db, async (transaction) => {
+        const tournamentRef = doc(db, 'tournaments', tournamentId);
+        const tournamentDoc = await transaction.get(tournamentRef);
+
+        if (!tournamentDoc.exists()) {
+            throw new Error("Tournament not found.");
+        }
+
+        const tournament = tournamentDoc.data() as Tournament;
+        const { bracket } = tournament;
+
+        let matchFound = false;
+        let matchIndex = -1;
+        let roundIndex = -1;
+
+        for (let i = 0; i < bracket.length; i++) {
+            const matchIdx = bracket[i].matches.findIndex(m => m.id === matchId);
+            if (matchIdx !== -1) {
+                matchFound = true;
+                matchIndex = matchIdx;
+                roundIndex = i;
+                break;
+            }
+        }
+
+        if (!matchFound) {
+            throw new Error("Match not found in the tournament.");
+        }
+        
+        const match = bracket[roundIndex].matches[matchIndex];
+        if (match.winnerId) {
+             throw new Error("This match already has a winner.");
+        }
+        match.winnerId = winnerId;
+        
+        // Advance winner to the next round
+        const nextRoundIndex = roundIndex + 1;
+        if (nextRoundIndex < bracket.length) {
+            const nextMatchIndex = Math.floor(matchIndex / 2);
+            const nextMatch = bracket[nextRoundIndex].matches[nextMatchIndex];
+
+            if (matchIndex % 2 === 0) {
+                nextMatch.player1Id = winnerId;
+            } else {
+                nextMatch.player2Id = winnerId;
+            }
+        } else {
+            // This was the final match
+            tournament.status = 'complete';
+            tournament.winnerId = winnerId;
+        }
+
+        transaction.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
+    });
 }

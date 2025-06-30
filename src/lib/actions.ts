@@ -18,10 +18,14 @@ import {
     getSentChallenges,
     getOpenChallenges,
     updateChallengeStatus,
-    challengeFromOpen
+    challengeFromOpen,
+    createTournament,
+    getTournamentsForUser,
+    getTournamentById,
+    reportTournamentWinner
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, Challenge, OpenChallenge } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 
 
@@ -240,5 +244,35 @@ export async function challengeFromOpenAction(openChallenge: OpenChallenge, chal
         return { success: true, message: `Challenge sent to ${openChallenge.posterName}!` };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to challenge from open post." };
+    }
+}
+
+
+// --- Tournament Actions ---
+export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
+    try {
+        await createTournament(values, organizer);
+        revalidatePath('/tournaments');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to create tournament.' };
+    }
+}
+
+export async function getTournamentsForUserAction(userId: string): Promise<Tournament[]> {
+    return getTournamentsForUser(userId);
+}
+
+export async function getTournamentByIdAction(tournamentId: string): Promise<Tournament | null> {
+    return getTournamentById(tournamentId);
+}
+
+export async function reportWinnerAction(tournamentId: string, matchId: string, winnerId: string) {
+    try {
+        await reportTournamentWinner(tournamentId, matchId, winnerId);
+        revalidatePath(`/tournaments/${tournamentId}`);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to report winner.' };
     }
 }

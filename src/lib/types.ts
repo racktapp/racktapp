@@ -133,10 +133,34 @@ export interface LegendGame {
   // ... fields for legend games
 }
 
+export interface TournamentMatch {
+  id: string; // Unique ID for the match within the tournament
+  player1Id?: string | null; // Can be null for a bye or TBD
+  player2Id?: string | null; // Can be null if waiting for winner
+  winnerId?: string | null; // null until decided
+  round: number;
+  matchNumber: number; // The match number within the round
+  isBye?: boolean;
+}
+
+export interface TournamentRound {
+  roundNumber: number;
+  matches: TournamentMatch[];
+}
+
 export interface Tournament {
   id: string;
-  // ... fields for tournaments
+  name: string;
+  sport: Sport;
+  organizerId: string;
+  participantIds: string[];
+  participantsData: { uid: string; name: string; avatar?: string }[];
+  status: 'pending' | 'ongoing' | 'complete';
+  winnerId?: string;
+  bracket: TournamentRound[];
+  createdAt: number;
 }
+
 
 export interface Achievement {
   id: string;
@@ -182,4 +206,10 @@ export const openChallengeSchema = z.object({
     sport: z.enum(SPORTS),
     location: z.string().min(1, 'Location is required.'),
     note: z.string().max(100, "Note must be 100 characters or less.").optional(),
+});
+
+export const createTournamentSchema = z.object({
+    name: z.string().min(3, "Name must be at least 3 characters.").max(50, "Name must be 50 characters or less."),
+    sport: z.enum(SPORTS),
+    participantIds: z.array(z.string()).min(3, "You must select at least 3 friends."),
 });
