@@ -215,27 +215,13 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
     }
 }
 
-export async function getChallengesAction(userId: string, sport: Sport): Promise<{
-    incoming?: Challenge[],
-    sent?: Challenge[],
-    open?: OpenChallenge[],
-    error?: string,
-}> {
-    try {
-        const [incoming, sent, open] = await Promise.all([
-            getIncomingChallenges(userId),
-            getSentChallenges(userId),
-            getOpenChallenges(userId, sport)
-        ]);
-        return { incoming, sent, open };
-    } catch (error: any) {
-        const errorMessage = (error as any).message || '';
-        if (errorMessage.toLowerCase().includes('query requires an index') || errorMessage.toLowerCase().includes('failed-precondition')) {
-            return { error: error.message };
-        }
-        console.error("Error fetching challenges data:", error);
-        return { error: 'An unexpected error occurred while fetching challenges.' };
-    }
+export async function getChallengesAction(userId: string, sport: Sport) {
+    const [incoming, sent, open] = await Promise.all([
+        getIncomingChallenges(userId),
+        getSentChallenges(userId),
+        getOpenChallenges(userId, sport)
+    ]);
+    return { incoming, sent, open };
 }
 
 export async function acceptChallengeAction(challenge: Challenge) {
@@ -330,15 +316,7 @@ export async function getOrCreateChatAction(friendId: string) {
 export async function getChatsAction(): Promise<Chat[]> {
     const user = auth.currentUser;
     if (!user) return [];
-    try {
-        return await getChatsForUser(user.uid);
-    } catch (error: any) {
-        if ((error as any).code === 'failed-precondition') {
-            throw error;
-        }
-        console.error("getChatsAction failed:", error);
-        return [];
-    }
+    return await getChatsForUser(user.uid);
 }
 
 export async function sendMessageAction(chatId: string, text: string) {
@@ -354,7 +332,7 @@ export async function sendMessageAction(chatId: string, text: string) {
     }
 }
 
-export async function markChatAsReadAction(chatId: string) {
+export async function markChatAsReadAction(chatId: string, userId: string) {
     const user = auth.currentUser;
     if (!user) {
         return { success: false, message: "Not authenticated." };
@@ -420,24 +398,10 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<{ matches: Match[]; error?: string }> {
+export async function getMatchHistoryAction(): Promise<Match[]> {
     const user = auth.currentUser;
-    if (!user) return { matches: [] };
-    
-    try {
-        const matches = await getMatchesForUser(user.uid);
-        return { matches };
-    } catch (error: any) {
-        const errorMessage = (error as any).message || '';
-        // Check for specific Firestore error messages related to missing indexes.
-        if (errorMessage.toLowerCase().includes('query requires an index') || errorMessage.toLowerCase().includes('failed-precondition')) {
-            // Return the full error message so the client can display it.
-            return { matches: [], error: error.message };
-        }
-        // For other types of errors, log them and return a generic message.
-        console.error('getMatchHistoryAction failed:', error);
-        return { matches: [], error: 'An unexpected error occurred while fetching match history.' };
-    }
+    if (!user) return [];
+    return await getMatchesForUser(user.uid);
 }
 
 
@@ -502,16 +466,7 @@ export async function predictFriendMatchAction(friendId: string, sport: Sport): 
 }
 
 // --- Leaderboard Actions ---
-export async function getLeaderboardAction(sport: Sport): Promise<{ users?: User[], error?: string }> {
-    try {
-        const users = await getLeaderboard(sport);
-        return { users };
-    } catch (error: any) {
-        const errorMessage = (error.message || '').toLowerCase();
-        if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
-            return { error: error.message };
-        }
-        console.error('getLeaderboardAction failed:', error);
-        return { error: 'An unexpected error occurred while fetching leaderboard.' };
-    }
+export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
+    const users = await getLeaderboard(sport);
+    return users;
 }

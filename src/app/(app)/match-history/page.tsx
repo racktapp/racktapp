@@ -9,7 +9,6 @@ import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { useToast } from '@/hooks/use-toast';
-import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
@@ -18,7 +17,6 @@ export default function MatchHistoryPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [indexError, setIndexError] = useState<string | null>(null);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -26,31 +24,21 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    setIndexError(null);
 
     try {
-      // Fetch friends first, as this query is simpler and less likely to fail.
-      const friendsData = await getFriendsAction(user.uid);
+      const [friendsData, matchData] = await Promise.all([
+        getFriendsAction(user.uid),
+        getMatchHistoryAction()
+      ]);
       setFriends(friendsData);
+      setMatches(matchData || []);
 
-      // Now, attempt to fetch the match history.
-      const matchResult = await getMatchHistoryAction();
-
-      if (matchResult.error) {
-        // If the action returned a specific error (like a missing index), display it.
-        setIndexError(matchResult.error);
-        setMatches([]);
-      } else {
-        // Otherwise, set the matches.
-        setMatches(matchResult.matches || []);
-      }
     } catch (error) {
-      // Catch any unexpected errors during the process.
       console.error("Failed to fetch match data:", error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not load match history. Please try again later.'
+        description: 'Could not load match history. This may be due to a missing database index.'
       });
       setMatches([]);
     } finally {
@@ -86,10 +74,6 @@ export default function MatchHistoryPage() {
       );
     }
     
-    if (indexError) {
-      return <FirestoreIndexAlert message={indexError} />;
-    }
-
     if (filteredMatches.length > 0) {
       return (
         <div className="space-y-4">

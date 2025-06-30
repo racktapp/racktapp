@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,7 +15,6 @@ import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-c
 import { ChallengeCard } from '@/components/challenges/challenge-card';
 import { OpenChallengeCard } from '@/components/challenges/open-challenge-card';
 import { Badge } from '@/components/ui/badge';
-import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function ChallengesPage() {
   const { user } = useAuth();
@@ -25,28 +25,26 @@ export default function ChallengesPage() {
   const [incoming, setIncoming] = useState<Challenge[]>([]);
   const [sent, setSent] = useState<Challenge[]>([]);
   const [open, setOpen] = useState<OpenChallenge[]>([]);
-  const [indexError, setIndexError] = useState<string | null>(null);
 
   const fetchChallenges = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    setIndexError(null);
     
-    const result = await getChallengesAction(user.uid, sport);
-    
-    if (result.error) {
-        setIndexError(result.error);
-        setIncoming([]);
-        setSent([]);
-        setOpen([]);
-    } else {
+    try {
+        const result = await getChallengesAction(user.uid, sport);
         setIncoming(result.incoming || []);
         setSent(result.sent || []);
         setOpen(result.open || []);
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not load challenges. This may be due to a missing database index.'
+        })
     }
     
     setIsLoading(false);
-  }, [user, sport]);
+  }, [user, sport, toast]);
 
 
   useEffect(() => {
@@ -69,9 +67,6 @@ export default function ChallengesPage() {
           </CreateOpenChallengeDialog>
         }
       />
-      {indexError ? (
-        <FirestoreIndexAlert message={indexError} />
-      ) : (
         <Tabs defaultValue="incoming">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="incoming">
@@ -146,7 +141,6 @@ export default function ChallengesPage() {
             </>
           )}
         </Tabs>
-      )}
     </div>
   );
 }

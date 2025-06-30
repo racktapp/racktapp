@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -11,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/user-avatar';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
+import { useToast } from '@/hooks/use-toast';
 
 const getRankDisplay = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
@@ -29,26 +30,28 @@ const getStreakDisplay = (streak: number) => {
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const { sport } = useSport();
+  const { toast } = useToast();
 
   const [leaderboard, setLeaderboard] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [indexError, setIndexError] = useState<string | null>(null);
 
   const fetchLeaderboard = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    setIndexError(null);
     
-    const result = await getLeaderboardAction(sport);
-    if (result.error) {
-        setIndexError(result.error);
-        setLeaderboard([]);
-    } else if (result.users) {
-        setLeaderboard(result.users);
+    try {
+        const users = await getLeaderboardAction(sport);
+        setLeaderboard(users || []);
+    } catch (error: any) {
+         toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not load leaderboard. This may be due to a missing database index.'
+        })
     }
     
     setIsLoading(false);
-  }, [user, sport]);
+  }, [user, sport, toast]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -79,10 +82,6 @@ export default function LeaderboardPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       );
-    }
-    
-    if (indexError) {
-      return <FirestoreIndexAlert message={indexError} />;
     }
 
     if (rankedUsers.length > 0) {
