@@ -429,9 +429,12 @@ export async function getMatchHistoryAction(): Promise<{ matches: Match[]; error
         return { matches };
     } catch (error: any) {
         const errorMessage = (error as any).message || '';
+        // Check for specific Firestore error messages related to missing indexes.
         if (errorMessage.toLowerCase().includes('query requires an index') || errorMessage.toLowerCase().includes('failed-precondition')) {
+            // Return the full error message so the client can display it.
             return { matches: [], error: error.message };
         }
+        // For other types of errors, log them and return a generic message.
         console.error('getMatchHistoryAction failed:', error);
         return { matches: [], error: 'An unexpected error occurred while fetching match history.' };
     }

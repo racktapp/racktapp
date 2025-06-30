@@ -29,18 +29,23 @@ export default function MatchHistoryPage() {
     setIndexError(null);
 
     try {
+      // Fetch friends first, as this query is simpler and less likely to fail.
       const friendsData = await getFriendsAction(user.uid);
       setFriends(friendsData);
 
+      // Now, attempt to fetch the match history.
       const matchResult = await getMatchHistoryAction();
 
       if (matchResult.error) {
+        // If the action returned a specific error (like a missing index), display it.
         setIndexError(matchResult.error);
         setMatches([]);
       } else {
+        // Otherwise, set the matches.
         setMatches(matchResult.matches || []);
       }
     } catch (error) {
+      // Catch any unexpected errors during the process.
       console.error("Failed to fetch match data:", error);
       toast({
         variant: 'destructive',

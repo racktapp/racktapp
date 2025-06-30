@@ -267,9 +267,15 @@ export async function getMatchesForUser(userId: string): Promise<Match[]> {
         where('participants', 'array-contains', userId),
         orderBy('createdAt', 'desc')
     );
-    const snapshot = await getDocs(q);
-    const matches = snapshot.docs.map(doc => doc.data() as Match);
-    return matches;
+    try {
+        const snapshot = await getDocs(q);
+        const matches = snapshot.docs.map(doc => doc.data() as Match);
+        return matches;
+    } catch (error) {
+        // Re-throw the error so the action layer can catch it and pass the
+        // specific error message (which includes the index creation link) to the client.
+        throw error;
+    }
 }
 
 
