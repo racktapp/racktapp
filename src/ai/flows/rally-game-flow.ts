@@ -44,13 +44,18 @@ export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOu
   return rallyGameFlow(input);
 }
 
+const RallyGamePromptInputSchema = RallyGameInputSchema.extend({
+  isServeTurn: z.boolean(),
+  isReturnTurn: z.boolean(),
+});
+
 const prompt = ai.definePrompt({
   name: 'rallyGamePrompt',
-  input: { schema: RallyGameInputSchema },
+  input: { schema: RallyGamePromptInputSchema },
   output: { schema: RallyGameOutputSchema },
   prompt: `You are a tennis strategy AI and commentator that powers a turn-based rally game. Your analysis must always consider the player ranks (a higher rank means a more skilled player).
 
-{{#if (eq turn "serve")}}
+{{#if isServeTurn}}
 **ROLE: Serve Strategist**
 The serving player (Rank: {{{player1Rank}}}) is preparing to serve against the returning player (Rank: {{{player2Rank}}}). Your task is to generate three distinct and creative serve options. Each serve must have a \`name\`, a \`description\`, a \`risk\` level, and a \`reward\` level.
 - Be creative with the names (e.g., "The Cannonball", "Wicked Slice", "The Ghoster").
@@ -58,7 +63,7 @@ The serving player (Rank: {{{player1Rank}}}) is preparing to serve against the r
 - The output MUST be an array of 3 serve options in the 'serveOptions' field.
 {{/if}}
 
-{{#if (eq turn "return")}}
+{{#if isReturnTurn}}
 The serve has been hit! The serving player (Rank: {{{player1Rank}}}) used: **"{{{serveChoice.name}}}"** ({{serveChoice.description}}).
 
   {{#if returnChoice}}
@@ -90,7 +95,12 @@ const rallyGameFlow = ai.defineFlow(
     outputSchema: RallyGameOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
+    const promptInput = {
+      ...input,
+      isServeTurn: input.turn === 'serve',
+      isReturnTurn: input.turn === 'return',
+    };
+    const { output } = await prompt(promptInput);
     return output!;
   }
 );
