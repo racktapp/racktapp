@@ -264,11 +264,12 @@ export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId),
-        orderBy('date', 'desc')
+        where('participants', 'array-contains', userId)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Match);
+    const matches = snapshot.docs.map(doc => doc.data() as Match);
+    matches.sort((a, b) => b.date - a.date);
+    return matches;
 }
 
 /**
@@ -389,11 +390,12 @@ export async function getIncomingChallenges(userId: string): Promise<Challenge[]
     const q = query(
         challengesRef,
         where('toId', '==', userId),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
+        where('status', '==', 'pending')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Challenge);
+    const challenges = snapshot.docs.map(doc => doc.data() as Challenge);
+    challenges.sort((a,b) => b.createdAt - a.createdAt);
+    return challenges;
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
@@ -401,11 +403,12 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     const q = query(
         challengesRef,
         where('fromId', '==', userId),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
+        where('status', '==', 'pending')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Challenge);
+    const challenges = snapshot.docs.map(doc => doc.data() as Challenge);
+    challenges.sort((a,b) => b.createdAt - a.createdAt);
+    return challenges;
 }
 
 export async function getOpenChallenges(userId: string, sport: Sport): Promise<OpenChallenge[]> {
@@ -413,14 +416,16 @@ export async function getOpenChallenges(userId: string, sport: Sport): Promise<O
     const q = query(
         openChallengesRef,
         where('sport', '==', sport),
-        where('posterId', '!=', userId),
-        orderBy('posterId', 'asc'), // required for '!=' query
-        orderBy('createdAt', 'desc'),
-        limit(50)
+        limit(100)
     );
     const snapshot = await getDocs(q);
-    // Additional client-side filter because Firestore doesn't support two '!=' clauses
-    return snapshot.docs.map(doc => doc.data() as OpenChallenge);
+    const allChallenges = snapshot.docs.map(doc => doc.data() as OpenChallenge);
+
+    const filteredAndSorted = allChallenges
+        .filter(c => c.posterId !== userId)
+        .sort((a, b) => b.createdAt - a.createdAt);
+        
+    return filteredAndSorted.slice(0, 50);
 }
 
 export async function updateChallengeStatus(challengeId: string, status: 'accepted' | 'declined' | 'cancelled') {
@@ -481,9 +486,11 @@ export async function createTournament(values: z.infer<typeof createTournamentSc
 
 export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
     const tournamentsRef = collection(db, 'tournaments');
-    const q = query(tournamentsRef, where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
+    const q = query(tournamentsRef, where('participantIds', 'array-contains', userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Tournament);
+    const tournaments = snapshot.docs.map(doc => doc.data() as Tournament);
+    tournaments.sort((a,b) => b.createdAt - a.createdAt);
+    return tournaments;
 }
 
 export async function getTournamentById(tournamentId: string): Promise<Tournament | null> {
@@ -601,9 +608,11 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
 
 export async function getChatsForUser(userId: string): Promise<Chat[]> {
     const chatsRef = collection(db, 'chats');
-    const q = query(chatsRef, where('participantIds', 'array-contains', userId), orderBy('updatedAt', 'desc'));
+    const q = query(chatsRef, where('participantIds', 'array-contains', userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Chat);
+    const chats = snapshot.docs.map(doc => doc.data() as Chat);
+    chats.sort((a,b) => b.updatedAt - a.updatedAt);
+    return chats;
 }
 
 export async function sendMessage(chatId: string, senderId: string, text: string): Promise<void> {
