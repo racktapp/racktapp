@@ -107,6 +107,11 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
   };
 
   const handleUpload = async () => {
+    if (!auth.currentUser) {
+      toast({ variant: 'destructive', title: 'Not Authenticated', description: 'You must be logged in to change your picture.' });
+      return;
+    }
+
     if (!selectedFile && !capturedImage) {
       toast({ variant: 'destructive', title: 'No image selected', description: 'Please select a file or take a photo.' });
       return;
@@ -145,7 +150,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
       toast({
         variant: 'destructive',
         title: 'Upload Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: 'Upload failed. Please check your storage rules in the Firebase console.',
       });
     } finally {
       setIsLoading(false);
