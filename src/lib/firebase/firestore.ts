@@ -97,15 +97,18 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
         if (!lowerCaseQuery) return [];
 
         const usersRef = collection(db, 'users');
-        const q = query(
-            usersRef,
-            where('username', '>=', lowerCaseQuery),
-            where('username', '<=', lowerCaseQuery + '\uf8ff')
-        );
-
-        const querySnapshot = await getDocs(q);
-        const users: User[] = querySnapshot.docs.map(doc => doc.data() as User);
-        return users.filter(user => user.uid !== currentUserId);
+        
+        // Fetch all users and filter client-side because of Firestore query limitations
+        const querySnapshot = await getDocs(usersRef);
+        
+        const users = querySnapshot.docs
+            .map(doc => doc.data() as User)
+            .filter(user => 
+                user.username.toLowerCase().includes(lowerCaseQuery) && 
+                user.uid !== currentUserId
+            );
+        
+        return users;
     } catch (error) {
         console.error("Error searching users:", error);
         throw new Error("Failed to search for users in the database.");
@@ -882,4 +885,33 @@ export async function getHeadToHeadRecord(userId1: string, userId2: string, spor
     });
 
     return { player1Wins, player2Wins };
+}
+
+// --- Leaderboard Functions ---
+
+/**
+ * Fetches the top 100 users for a given sport, ranked by RacktRank.
+ * @param sport The sport to get the leaderboard for.
+ * @returns A promise that resolves to an array of User objects.
+ */
+export async function getLeaderboard(sport: Sport): Promise<User[]> {
+    try {
+        const usersRef = collection(db, 'users');
+        const sportStatField = `sports.${sport}`;
+        
+        // This query requires a composite index on `sports.${sport}.racktRank`.
+        // Firestore will provide a link to create this index if it's missing.
+        const q = query(
+            usersRef,
+            where(sportStatField, '!=', null),
+            orderBy(`${sportStatField}.racktRank`, 'desc'),
+            limit(100)
+        );
+
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => doc.data() as User);
+    } catch (error) {
+        console.error(`Error fetching leaderboard for ${sport}:`, error);
+        throw new Error(`Failed to fetch ${sport} leaderboard. A database index may be required.`);
+    }
 }

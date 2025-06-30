@@ -36,6 +36,7 @@ import {
     submitLegendAnswer,
     getMatchesForUser,
     getHeadToHeadRecord,
+    getLeaderboard,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -467,4 +468,15 @@ export async function predictFriendMatchAction(friendId: string, sport: Sport): 
 
     const result = await predictMatchOutcome(predictionInput);
     return result;
+}
+
+// --- Leaderboard Actions ---
+export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
+    try {
+        const users = await getLeaderboard(sport);
+        return users;
+    } catch (error) {
+        console.error("Leaderboard action failed:", error);
+        return [];
+    }
 }
