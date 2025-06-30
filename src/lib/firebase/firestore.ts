@@ -71,6 +71,38 @@ export async function getAllUsers(currentUserId: string): Promise<User[]> {
   }
 }
 
+/**
+ * Searches for users by their username.
+ * @param usernameQuery The partial username to search for.
+ * @param currentUserId The UID of the current user to exclude from results.
+ * @returns A promise that resolves to an array of matching User objects.
+ */
+export async function searchUsers(usernameQuery: string, currentUserId: string): Promise<User[]> {
+    try {
+        const lowerCaseQuery = usernameQuery.toLowerCase().trim();
+        if (!lowerCaseQuery) return [];
+
+        const usersRef = collection(db, 'users');
+        // This query performs a "starts with" search on the username field.
+        const q = query(
+            usersRef,
+            where('username', '>=', lowerCaseQuery),
+            where('username', '<=', lowerCaseQuery + '\uf8ff'),
+            where('uid', '!=', currentUserId)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const users: User[] = [];
+        querySnapshot.forEach((doc) => {
+            users.push(doc.data() as User);
+        });
+        return users;
+    } catch (error) {
+        console.error("Error searching users:", error);
+        throw new Error("Failed to search for users in the database.");
+    }
+}
+
 // Function to create a user document on signup or first login
 export const createUserDocument = async (user: {
   uid: string;
