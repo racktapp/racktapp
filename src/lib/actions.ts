@@ -49,29 +49,31 @@ import { redirect } from 'next/navigation';
 
 // Action to report a match
 export async function handleReportMatchAction(
-    values: z.infer<typeof reportMatchSchema>, 
-    sport: Sport, 
+    values: z.infer<typeof reportMatchSchema>,
     user: User
 ) {
-    const allPlayers = [
-        user,
-        ...(values.partner ? [await getDoc(doc(db, 'users', values.partner)).then(d => d.data() as User)] : []),
-        await getDoc(doc(db, 'users', values.opponent1)).then(d => d.data() as User),
-        ...(values.opponent2 ? [await getDoc(doc(db, 'users', values.opponent2)).then(d => d.data() as User)] : []),
-    ];
+    const team1Ids = [user.uid];
+    if (values.matchType === 'Doubles' && values.partner) {
+        team1Ids.push(values.partner);
+    }
 
-    const team1Ids = [user.uid, ...(values.partner ? [values.partner] : [])];
-    const team2Ids = [values.opponent1, ...(values.opponent2 ? [values.opponent2] : [])];
-    
+    const team2Ids = [values.opponent1];
+    if (values.matchType === 'Doubles' && values.opponent2) {
+        team2Ids.push(values.opponent2);
+    }
+
+    const winnerIsOnTeam1 = team1Ids.includes(values.winnerId);
+    const winnerIds = winnerIsOnTeam1 ? team1Ids : team2Ids;
+
     await reportMatchAndupdateRanks({
-        sport,
-        matchType: values.matchType as MatchType,
+        sport: values.sport,
+        matchType: values.matchType,
         team1Ids,
         team2Ids,
-        sets: values.sets,
-        allPlayers,
+        winnerIds: winnerIds,
+        score: values.score,
         reportedById: user.uid,
-        date: new Date().getTime(),
+        date: values.date.getTime(),
     });
     
     revalidatePath('/dashboard');

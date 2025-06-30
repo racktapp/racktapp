@@ -197,33 +197,23 @@ export interface EloDataPoint {
 }
 
 // Schema for report match form
-const setScoreSchema = z.object({
-  my: z.coerce.number().min(0, "Score must be positive").int(),
-  opponent: z.coerce.number().min(0, "Score must be positive").int(),
-}).refine(data => data.my !== data.opponent, {
-  message: "Sets cannot be a draw",
-});
-
 export const reportMatchSchema = z.object({
   matchType: z.enum(['Singles', 'Doubles']),
-  opponent1: z.string().min(1, 'Please select an opponent.'),
+  sport: Sport,
+  opponent1: z.string({ required_error: 'Please select an opponent.' }),
   partner: z.string().optional(),
   opponent2: z.string().optional(),
-  sets: z.array(setScoreSchema).min(1, "At least one set is required."),
+  score: z.string()
+    .min(3, "Please enter a valid score (e.g., 6-4, 6-3).")
+    .regex(/^(\d+-\d+(\s*,\s*\d+-\d+)*)$/, "Score format must be sets separated by commas (e.g., 6-4, 7-5)."),
+  winnerId: z.string({ required_error: 'Please select the winner.' }),
+  date: z.date({ required_error: 'Please select the date of the match.' }),
 }).refine(data => {
     if (data.matchType === 'Doubles') {
         return !!data.partner && !!data.opponent2;
     }
     return true;
-}, { message: "Partner and second opponent are required for Doubles.", path: ["partner"] })
-.refine(data => {
-    const mySetsWon = data.sets.filter(set => set.my > set.opponent).length;
-    const opponentSetsWon = data.sets.filter(set => set.opponent > set.my).length;
-    return mySetsWon !== opponentSetsWon;
-}, {
-    message: "One team must win more sets than the other to determine a winner.",
-    path: ["sets"],
-});
+}, { message: "Partner and second opponent are required for Doubles.", path: ["partner"] });
 
 
 // Zod schemas for forms

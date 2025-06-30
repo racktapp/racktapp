@@ -152,8 +152,8 @@ interface ReportMatchData {
     matchType: MatchType;
     team1Ids: string[];
     team2Ids: string[];
-    allPlayers: User[];
-    sets: { my: number; opponent: number }[];
+    winnerIds: string[];
+    score: string;
     reportedById: string;
     date: number;
 }
@@ -183,9 +183,8 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
         const team1AvgElo = getTeamAvgElo(data.team1Ids);
         const team2AvgElo = getTeamAvgElo(data.team2Ids);
         
-        const team1SetsWon = data.sets.filter(set => set.my > set.opponent).length;
-        const team2SetsWon = data.sets.filter(set => set.my < set.opponent).length;
-        const team1GameScore = team1SetsWon > team2SetsWon ? 1 : 0;
+        const team1Won = data.team1Ids.includes(data.winnerIds[0]);
+        const team1GameScore = team1Won ? 1 : 0;
         
         const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
         
@@ -231,7 +230,9 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             return acc;
         }, {} as Match['participantsData']);
 
-        const scoreString = data.sets.map(set => `${set.my}-${set.opponent}`).join(', ');
+        const sets = data.score.split(',').map(s => s.trim().split('-').map(Number));
+        const team1SetsWon = sets.filter(set => set.length === 2 && set[0] > set[1]).length;
+        const team2SetsWon = sets.filter(set => set.length === 2 && set[0] < set[1]).length;
 
         const newMatch: Match = {
             id: matchRef.id,
@@ -243,8 +244,8 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
                 team1: { playerIds: data.team1Ids, setsWon: team1SetsWon },
                 team2: { playerIds: data.team2Ids, setsWon: team2SetsWon },
             },
-            winner: team1GameScore === 1 ? data.team1Ids : data.team2Ids,
-            score: scoreString,
+            winner: data.winnerIds,
+            score: data.score,
             date: data.date,
             createdAt: Timestamp.now().toMillis(),
             rankChange: rankChanges,
@@ -904,10 +905,18 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
     const usersRef = collection(db, 'users');
     const q = query(
         usersRef, 
-        where(`sports.${sport}`, '!=', null), 
         orderBy(`sports.${sport}.racktRank`, 'desc'), 
         limit(100)
     );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as User);
+    
+    try {
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs
+            .map(doc => doc.data() as User)
+            .filter(user => user.sports?.[sport]); // Ensure player has stats for the sport
+    } catch(e) {
+        // This is likely a missing index error.
+        // Re-throw it so the action can catch it and display it to the user.
+        throw e;
+    }
 }
