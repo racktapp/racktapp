@@ -2,6 +2,7 @@
 'use client';
 
 import { ReactNode, useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Camera, Upload, CheckCircle } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { type User } from '@/lib/types';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -24,6 +25,10 @@ import { updateProfile } from 'firebase/auth';
 import { auth, db, storage } from '@/lib/firebase/config';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { cn } from '@/lib/utils';
+import { UserAvatar } from '../user-avatar';
+
+const STOCK_AVATARS = ['/avatars/avatar1.png', '/avatars/avatar2.png'];
 
 interface EditProfileDialogProps {
   children: ReactNode;
@@ -35,35 +40,41 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
-  // For file upload
+  // States for different image sources
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [selectedStockAvatar, setSelectedStockAvatar] = useState<string | null>(null);
 
   // For camera
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-
+  
   useEffect(() => {
     if (selectedFile) {
       const objectUrl = URL.createObjectURL(selectedFile);
       setPreview(objectUrl);
-      setCapturedImage(null);
       return () => URL.revokeObjectURL(objectUrl);
     }
   }, [selectedFile]);
 
+  const clearSelections = (except?: 'file' | 'camera' | 'stock') => {
+    if (except !== 'file') { setSelectedFile(null); setPreview(null); }
+    if (except !== 'camera') { setCapturedImage(null); }
+    if (except !== 'stock') { setSelectedStockAvatar(null); }
+    if (videoRef.current?.srcObject) stopCamera();
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
+      clearSelections('file');
       setSelectedFile(e.target.files[0]);
     }
   };
 
   const startCamera = async () => {
-    setCapturedImage(null);
-    setSelectedFile(null);
-    setPreview(null);
+    clearSelections('camera');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
@@ -99,12 +110,16 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
+        clearSelections('camera');
         setCapturedImage(dataUrl);
-        setSelectedFile(null);
-        setPreview(null);
         stopCamera();
       }
     }
+  };
+
+  const handleStockAvatarSelect = (url: string) => {
+    clearSelections('stock');
+    setSelectedStockAvatar(url);
   };
 
   const handleUpload = async () => {
@@ -113,46 +128,49 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
       return;
     }
 
-    if (!selectedFile && !capturedImage) {
-      toast({ variant: 'destructive', title: 'No image selected', description: 'Please select a file or take a photo.' });
-      return;
-    }
-
     setIsLoading(true);
+
+    let newAvatarUrl: string | null = null;
+    
     try {
-      let uploadable: string;
-      if (selectedFile) {
-        const reader = new FileReader();
-        reader.readAsDataURL(selectedFile);
-        uploadable = await new Promise<string>((resolve, reject) => {
+      if (selectedStockAvatar) {
+        newAvatarUrl = selectedStockAvatar;
+      } else if (selectedFile || capturedImage) {
+        let uploadable: string;
+        if (selectedFile) {
+          uploadable = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(selectedFile);
             reader.onload = () => resolve(reader.result as string);
             reader.onerror = reject;
-        });
+          });
+        } else {
+          uploadable = capturedImage!;
+        }
+        
+        const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}`);
+        const snapshot = await uploadString(storageRef, uploadable, 'data_url');
+        newAvatarUrl = await getDownloadURL(snapshot.ref);
       } else {
-        uploadable = capturedImage!;
+        toast({ variant: 'destructive', title: 'No image selected', description: 'Please select an image to upload.' });
+        setIsLoading(false);
+        return;
       }
 
-      const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}`);
-      const snapshot = await uploadString(storageRef, uploadable, 'data_url');
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, { avatar: downloadURL });
-
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      if (newAvatarUrl) {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { avatar: newAvatarUrl });
+        await updateProfile(auth.currentUser, { photoURL: newAvatarUrl });
+        toast({ title: 'Success', description: 'Profile picture updated! The change will appear shortly.' });
+        setOpen(false);
       }
-
-      toast({ title: 'Success', description: 'Profile picture updated! The change will appear shortly.' });
-      setOpen(false);
-
     } catch (error: any) {
-      console.error("Profile picture upload failed:", error);
+      console.error("Profile picture update failed:", error);
       toast({
         variant: 'destructive',
         title: 'Upload Failed',
         description: error.code === 'storage/unauthorized' || error.code === 'permission-denied' 
-          ? 'Permission denied. Please check your Storage and Firestore security rules in the Firebase console.'
+          ? 'Permission denied. Please check your Storage and Firestore security rules.'
           : error.message || 'An unexpected error occurred.',
       });
     } finally {
@@ -163,13 +181,12 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
   const onOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      stopCamera();
-      setPreview(null);
-      setSelectedFile(null);
-      setCapturedImage(null);
+      clearSelections();
       setHasCameraPermission(null);
     }
   };
+  
+  const currentPreviewSrc = preview || capturedImage || selectedStockAvatar;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -178,63 +195,80 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
         <DialogHeader>
           <DialogTitle>Edit Profile Picture</DialogTitle>
           <DialogDescription>
-            Choose a new photo by uploading from your device or using your camera.
+            Choose a new photo by uploading, using your camera, or selecting a stock avatar.
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex justify-center items-center h-40 bg-muted rounded-md my-4">
+          {currentPreviewSrc ? (
+            <Image src={currentPreviewSrc} alt="Avatar preview" width={160} height={160} className="h-full w-auto object-contain rounded-md" />
+          ) : (
+            <UserAvatar user={user} className="h-24 w-24" />
+          )}
+        </div>
+
         <Tabs defaultValue="upload" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="upload" onClick={stopCamera}>
-              <Upload className="mr-2 h-4 w-4" /> Upload
-            </TabsTrigger>
-            <TabsTrigger value="camera" onClick={startCamera}>
-              <Camera className="mr-2 h-4 w-4" /> Take Photo
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="upload" onClick={() => clearSelections('file')}><Upload className="mr-2 h-4 w-4" /> Upload</TabsTrigger>
+            <TabsTrigger value="camera" onClick={startCamera}><Camera className="mr-2 h-4 w-4" /> Camera</TabsTrigger>
+            <TabsTrigger value="stock" onClick={() => clearSelections('stock')}><ImageIcon className="mr-2 h-4 w-4" /> Stock</TabsTrigger>
           </TabsList>
+
           <TabsContent value="upload" className="mt-4">
-            <div className="space-y-4">
-              <Input type="file" accept="image/*" onChange={handleFileChange} className="file:text-primary file:font-medium" />
-              {(preview || capturedImage) && (
-                  <div className="relative">
-                    <img src={preview || capturedImage || ''} alt="Preview" className="mx-auto max-h-60 rounded-md" />
-                  </div>
-              )}
-            </div>
+            <Input type="file" accept="image/*" onChange={handleFileChange} className="file:text-primary file:font-medium" />
           </TabsContent>
+
           <TabsContent value="camera" className="mt-4">
             <div className="space-y-4">
-              {capturedImage ? (
-                <div className="relative">
-                  <img src={capturedImage} alt="Captured" className="mx-auto max-h-60 rounded-md" />
-                </div>
-              ) : (
+              {!capturedImage && (
                 <div className="relative">
                    <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
                    <canvas ref={canvasRef} className="hidden" />
                 </div>
               )}
-
               {hasCameraPermission === false && (
                 <Alert variant="destructive">
                   <AlertTitle>Camera Access Required</AlertTitle>
                   <AlertDescription>Please allow camera access in your browser to use this feature.</AlertDescription>
                 </Alert>
               )}
-              
               {hasCameraPermission && !capturedImage && (
                 <Button onClick={handleCapture} className="w-full">
                   <Camera className="mr-2 h-4 w-4" /> Capture Photo
                 </Button>
               )}
+               {capturedImage && (
+                <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>Photo Captured!</AlertTitle>
+                    <AlertDescription>Click "Save Changes" to apply your new picture.</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="stock" className="mt-4">
+            <div className="grid grid-cols-3 gap-4">
+                {STOCK_AVATARS.map((avatarUrl) => (
+                    <button
+                        key={avatarUrl}
+                        type="button"
+                        onClick={() => handleStockAvatarSelect(avatarUrl)}
+                        className={cn(
+                            "rounded-md border-2 p-1 transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                            selectedStockAvatar === avatarUrl ? "border-primary" : "border-transparent"
+                        )}
+                    >
+                        <Image src={avatarUrl} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" />
+                    </button>
+                ))}
             </div>
           </TabsContent>
         </Tabs>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
-          <Button onClick={handleUpload} disabled={isLoading || (!selectedFile && !capturedImage)}>
+          <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+          <Button onClick={handleUpload} disabled={isLoading || !currentPreviewSrc}>
             {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
             Save Changes
           </Button>
