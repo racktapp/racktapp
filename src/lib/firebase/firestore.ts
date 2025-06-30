@@ -894,27 +894,31 @@ export async function getHeadToHeadRecord(userId1: string, userId2: string, spor
 
 /**
  * Fetches the top 100 users for a given sport, ranked by RacktRank.
+ * This method fetches all users and sorts them in memory to avoid needing a composite index.
  * @param sport The sport to get the leaderboard for.
  * @returns A promise that resolves to an array of User objects.
  */
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
     try {
         const usersRef = collection(db, 'users');
-        const sportStatField = `sports.${sport}`;
-        
-        // This query requires a composite index on `sports.${sport}.racktRank`.
-        // Firestore will provide a link to create this index if it's missing.
-        const q = query(
-            usersRef,
-            where(sportStatField, '!=', null),
-            orderBy(`${sportStatField}.racktRank`, 'desc'),
-            limit(100)
-        );
+        const querySnapshot = await getDocs(usersRef);
 
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => doc.data() as User);
+        const usersWithSportStats = querySnapshot.docs
+            .map(doc => doc.data() as User)
+            .filter(user => user.sports && user.sports[sport]);
+
+        // Sort by RacktRank in descending order
+        usersWithSportStats.sort((a, b) => {
+            const rankA = a.sports?.[sport]?.racktRank ?? 0;
+            const rankB = b.sports?.[sport]?.racktRank ?? 0;
+            return rankB - rankA;
+        });
+        
+        // Return top 100
+        return usersWithSportStats.slice(0, 100);
+
     } catch (error) {
         console.error(`Error fetching leaderboard for ${sport}:`, error);
-        throw new Error(`Failed to fetch ${sport} leaderboard. A database index may be required.`);
+        throw new Error(`Failed to fetch ${sport} leaderboard.`);
     }
 }
