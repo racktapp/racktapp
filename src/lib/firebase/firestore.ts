@@ -1,4 +1,5 @@
 
+
 import {
   collection,
   doc,
@@ -261,15 +262,17 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
  */
 export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
+    // The orderBy clause was removed to avoid needing a composite index.
+    // Sorting will now be done on the client-side after fetching.
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId),
-        orderBy('date', 'desc')
+        where('participants', 'array-contains', userId)
     );
     try {
         const snapshot = await getDocs(q);
         const matches = snapshot.docs.map(doc => doc.data() as Match);
-        return matches;
+        // Sort the matches by date in descending order here.
+        return matches.sort((a, b) => b.date - a.date);
     } catch(e) {
         // This is likely a missing index error.
         // Re-throw it so the action can catch it and display it to the user.
