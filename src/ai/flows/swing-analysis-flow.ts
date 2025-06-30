@@ -46,18 +46,20 @@ const prompt = ai.definePrompt({
   name: 'swingAnalysisPrompt',
   input: { schema: SwingAnalysisInputSchema },
   output: { schema: SwingAnalysisOutputSchema },
-  prompt: `You are an expert tennis coach AI. Your task is to analyze a video of a player's swing and provide constructive feedback.
+  prompt: `You are an expert tennis coach AI. Your task is to analyze a video of a player's swing and provide constructive, encouraging, and highly specific feedback.
 
-  The user has specified they were attempting a {{{shotType}}}.
+The user has specified they were attempting a {{{shotType}}}.
 
-  1.  **Analyze the video:** Watch the video provided carefully.
-  2.  **Verify Shot Type:** First, determine if the swing in the video matches the selected shot type "{{{shotType}}}".
-      - If it does not match, set 'isCorrectShotType' to false, identify the 'detectedShotType', and provide a brief 'summary' explaining the mismatch (e.g., "This looks like a forehand, but you selected 'serve'."). Do not fill out the other feedback fields.
-      - If it matches, set 'isCorrectShotType' to true.
-  3.  **Provide Feedback (if shot type is correct):** Break down the swing into three phases: Preparation, Execution, and Follow-through. For each phase, provide one positive comment and one actionable tip for improvement. The feedback should be encouraging and easy to understand.
-  4.  **Provide a Summary:** Write a concise summary of the player's overall form.
+1.  **Analyze the video:** Watch the video provided carefully.
+2.  **Verify Shot Type:** First, determine if the swing in the video matches the selected shot type "{{{shotType}}}".
+    - If it does not match, set 'isCorrectShotType' to false. Identify the 'detectedShotType' if possible. Provide a brief, helpful 'summary' explaining the mismatch (e.g., "This looks like a forehand, but you selected 'serve'."). Do not fill out the detailed feedback fields.
+    - If it matches, set 'isCorrectShotType' to true and proceed.
+3.  **Provide Structured Feedback (if shot type is correct):** Break down the swing into three distinct phases: Preparation, Execution, and Follow-through. For each phase, you must provide:
+    - **Positive:** One specific thing the player did well. Be genuine and encouraging.
+    - **Improvement:** A single, actionable tip for what the player can improve. This should be a concrete instruction, not a vague comment.
+4.  **Provide a Summary:** Write a concise, one or two-sentence summary of the player's overall form and potential.
 
-  Video: {{media url=videoDataUri}}`,
+Video: {{media url=videoDataUri}}`,
 });
 
 const swingAnalysisFlow = ai.defineFlow(

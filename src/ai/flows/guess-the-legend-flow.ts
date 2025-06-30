@@ -34,14 +34,21 @@ const prompt = ai.definePrompt({
   name: 'legendGamePrompt',
   input: { schema: LegendGameInputSchema },
   output: { schema: LegendGameOutputSchema },
-  prompt: `You are a sports trivia expert for the sport of {{{sport}}}.
+  prompt: `You are an expert sports historian and trivia master for the sport of **{{{sport}}}**.
 
-  Your task is to generate a single trivia question about a famous player.
+Your task is to generate a single, high-quality trivia question about a famous player from that sport.
 
-  1.  **Generate a Clue:** Create a clever, one-sentence, slightly cryptic clue about a famous player from any era.
-  2.  **Avoid Duplicates:** The player must NOT be one of these: {{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}.
-  3.  **Provide Options:** Create a list of 4 multiple-choice options. One must be the correct answer, and the other three must be plausible but incorrect distractors. The final array of options should be shuffled.
-  4.  **Justify:** Provide a short, fun justification explaining why the clue points to the correct player.
+**Your Instructions:**
+
+1.  **Select a Player:** Choose a well-known player. Crucially, the player must NOT be one of the following already used players: {{#if usedPlayers}}{{else}}*(None)*{{/if}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}.
+2.  **Create a Clue:** Write a clever, one-sentence, and slightly cryptic clue about your chosen player's career, style, or a famous achievement.
+3.  **Generate Distractors:** Create a list of 4 multiple-choice options.
+    - One option MUST be the correct player.
+    - The other three options must be *plausible* but incorrect distractors. They should be players from a similar era or with a similar reputation to make the question challenging.
+    - The final array of four options must be shuffled randomly.
+4.  **Write Justification:** Provide a short, fun justification explaining exactly why the clue points to the correct answer.
+
+The output must follow the specified schema precisely.
   `,
 });
 

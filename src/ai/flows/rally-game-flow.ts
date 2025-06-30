@@ -48,35 +48,38 @@ const prompt = ai.definePrompt({
   name: 'rallyGamePrompt',
   input: { schema: RallyGameInputSchema },
   output: { schema: RallyGameOutputSchema },
-  prompt: `You are a tennis commentator AI that powers a turn-based rally game. Your analysis should consider player ranks (higher is better).
+  prompt: `You are a tennis strategy AI and commentator that powers a turn-based rally game. Your analysis must always consider the player ranks (a higher rank means a more skilled player).
 
-  {{#if (eq turn "serve")}}
-  The serving player (Rank: {{{player1Rank}}}) is about to serve. Generate three distinct and creative serve options for them. Each serve must have a name, a short description, and a risk/reward level (low, medium, high).
-  - A higher-ranked player should get slightly better options.
-  - The output must be an array of 3 serve options in the 'serveOptions' field.
+{{#if (eq turn "serve")}}
+**ROLE: Serve Strategist**
+The serving player (Rank: {{{player1Rank}}}) is preparing to serve against the returning player (Rank: {{{player2Rank}}}). Your task is to generate three distinct and creative serve options. Each serve must have a \`name\`, a \`description\`, a \`risk\` level, and a \`reward\` level.
+- Be creative with the names (e.g., "The Cannonball", "Wicked Slice", "The Ghoster").
+- A higher-ranked player should receive slightly more advantageous options.
+- The output MUST be an array of 3 serve options in the 'serveOptions' field.
+{{/if}}
+
+{{#if (eq turn "return")}}
+The serve has been hit! The serving player (Rank: {{{player1Rank}}}) used: **"{{{serveChoice.name}}}"** ({{serveChoice.description}}).
+
+  {{#if returnChoice}}
+    **ROLE: Point Evaluator**
+    The returning player (Rank: {{{player2Rank}}}) responded with a **"{{{returnChoice.name}}}"** ({{{returnChoice.description}}}).
+
+    Now, act as the game engine. Based on the serve and the return, decide who wins the point. The logic is a strategic contest, not random:
+    - High-risk serves are powerful but can be countered by smart, defensive returns.
+    - Safe serves are consistent but can be attacked by aggressive returns.
+    - Tricky serves rely on deception and can be beaten by a player who anticipates them well.
+    - **Rank Matters:** A higher-ranked player is more likely to successfully execute their shot and overcome a slight disadvantage in shot selection. A significant rank difference can turn a neutral situation into a winning one.
+
+    You must determine the \`pointWinner\` ('server' or 'returner') and write a short, exciting, one or two-sentence \`narrative\` of how the point played out.
+  {{else}}
+    **ROLE: Return Strategist**
+    The returning player (Rank: {{{player2Rank}}}) must react. Your task is to generate three distinct and logical return options to counter the serve. Each return must have a \`name\` and a \`description\`.
+    - The options must be logical counters. Against a power serve, offer a block or a chip. Against a wide slice, offer a sharp cross-court angle or a down-the-line surprise.
+    - A higher-ranked player should receive slightly better tactical options.
+    - The output MUST be an array of 3 return options in the 'returnOptions' field.
   {{/if}}
-
-  {{#if (eq turn "return")}}
-  The serving player (Rank: {{{player1Rank}}}) has just hit a "{{{serveChoice.name}}}" ({{serveChoice.description}}).
-  
-    {{#if returnChoice}}
-      The returning player (Rank: {{{player2Rank}}}) responded with a "{{{returnChoice.name}}}" ({{{returnChoice.description}}}).
-      
-      Now, act as the game engine. Based on the serve and return, and considering the player ranks, decide who wins the point. The logic should be like rock-paper-scissors:
-      - A high-risk, high-reward serve might beat a standard return but could be countered by a specific defensive shot.
-      - A safe serve is less likely to be an ace but is also harder to attack.
-      - A tricky serve might be beaten by a player who reads it well.
-      - A higher-ranked player has a better chance of executing their chosen shot successfully.
-
-      Determine the winner ('server' or 'returner') and write a short, exciting, one or two-sentence narrative of how the point played out.
-      - The output must have 'pointWinner' and 'narrative' fields.
-    {{else}}
-      The returning player (Rank: {{{player2Rank}}}) needs to respond. Generate three distinct and creative return options to counter the "{{{serveChoice.name}}}". Each return must have a name and a short description.
-      - The options should be logical counters to the serve type. For example, against a power serve, offer a block or a chip. Against a wide serve, offer a sharp angle back.
-      - A higher-ranked player should get slightly better return options.
-      - The output must be an array of 3 return options in the 'returnOptions' field.
-    {{/if}}
-  {{/if}}
+{{/if}}
   `,
 });
 

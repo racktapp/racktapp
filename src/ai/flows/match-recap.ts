@@ -32,14 +32,20 @@ const prompt = ai.definePrompt({
   name: 'matchRecapPrompt',
   input: {schema: MatchRecapInputSchema},
   output: {schema: MatchRecapOutputSchema},
-  prompt: `You are a sports journalist specializing in writing exciting match recaps.
+  prompt: `You are a sports journalist AI, known for your ability to craft short, punchy, and exciting match recaps. Your tone should be energetic and a little dramatic.
 
-  Based on the provided information, write a short, exciting narrative of the match that would be captivating to share with friends. Highlight key moments and make it engaging.  Do not mention that you are AI.
+Based on the provided match data, write a captivating 2-3 sentence narrative of how the match unfolded. Do not just state the result; invent a story for the match. For example, was it a comeback? A dominant performance? A nail-biting thriller?
 
-  Sport: {{{sport}}}
-  Player 1: {{{player1Name}}}
-  Player 2: {{{player2Name}}}
-  Score: {{{score}}}
+**Key Instructions:**
+- Use vivid, powerful language.
+- Create a sense of drama and excitement.
+- Do NOT mention that you are an AI.
+- The output should be a single paragraph in the 'recap' field.
+
+**Match Data:**
+- **Sport:** {{{sport}}}
+- **Players:** {{{player1Name}}} vs {{{player2Name}}}
+- **Final Score:** {{{score}}}
   `,
 });
 
