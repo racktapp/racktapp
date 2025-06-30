@@ -9,7 +9,6 @@ import { Match, User } from '@/lib/types';
 import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
-import { DateRange } from 'react-day-picker';
 import { useToast } from '@/hooks/use-toast';
 import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
@@ -25,7 +24,6 @@ export default function MatchHistoryPage() {
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<DateRange | undefined>();
 
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
@@ -61,13 +59,8 @@ export default function MatchHistoryPage() {
       .filter(match => {
         if (opponentFilter === 'all') return true;
         return match.participants.includes(opponentFilter);
-      })
-      .filter(match => {
-        if (!dateFilter?.from) return true;
-        const to = dateFilter.to ?? dateFilter.from;
-        return match.date >= dateFilter.from.getTime() && match.date <= new Date(to).setHours(23, 59, 59, 999);
       });
-  }, [matches, sport, opponentFilter, dateFilter]);
+  }, [matches, sport, opponentFilter]);
   
   const renderContent = () => {
     if (isLoading) {
@@ -114,8 +107,6 @@ export default function MatchHistoryPage() {
         friends={friends}
         opponentFilter={opponentFilter}
         setOpponentFilter={setOpponentFilter}
-        dateFilter={dateFilter}
-        setDateFilter={setDateFilter}
         className="mb-6"
       />
       
