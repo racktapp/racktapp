@@ -9,6 +9,7 @@ import { Swords, Shield, Zap } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { RallyCourt } from './rally-court';
 
 interface RallyGameViewProps {
   game: RallyGame;
@@ -50,7 +51,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
       />
       
       {/* Scoreboard */}
-      <div className="flex justify-center gap-8 items-center mb-8">
+      <div className="flex justify-center gap-8 items-center mb-4">
         <div className="flex flex-col items-center gap-2">
           <UserAvatar user={currentUser} className="h-16 w-16" />
           <p className="font-bold text-4xl">{game.score[currentUser.uid]}</p>
@@ -62,6 +63,9 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
         </div>
       </div>
       
+      {/* Animated Court */}
+      <RallyCourt game={game} currentUser={currentUser} />
+
       {/* Game State */}
       <Card>
         <CardHeader>
