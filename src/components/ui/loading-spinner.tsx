@@ -1,15 +1,10 @@
-import Image from 'next/image';
+import { TennisBall } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function LoadingSpinner({ className }: { className?: string }) {
   return (
-    <Image
-      src="/my-logo2.svg"
-      alt="Loading..."
-      width={24}
-      height={24}
+    <TennisBall
       className={cn("animate-spin", className)}
-      priority
     />
   );
 }
