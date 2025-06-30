@@ -227,11 +227,12 @@ export async function getChallengesAction(userId: string, sport: Sport): Promise
         ]);
         return { incoming, sent, open };
     } catch (error: any) {
-        console.error("Error fetching challenges data:", error);
-        // Propagate index-related errors to the client
-        if ((error as any).code === 'failed-precondition') {
+        // Propagate index-related errors to the client by re-throwing them
+        const errorMessage = (error as any).message || '';
+        if (errorMessage.toLowerCase().includes('query requires an index') || errorMessage.toLowerCase().includes('failed-precondition')) {
             throw error;
         }
+        console.error("Error fetching challenges data:", error);
         return { incoming: [], sent: [], open: [] };
     }
 }
@@ -495,10 +496,8 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
     try {
         return await getLeaderboard(sport);
     } catch (error: any) {
-        if ((error as any).code === 'failed-precondition') {
-            throw error;
-        }
-        console.error("Leaderboard action failed:", error);
-        return [];
+       // Re-throw the original error so the client can handle it.
+       // This preserves the full error object, including the code and message.
+       throw error;
     }
 }

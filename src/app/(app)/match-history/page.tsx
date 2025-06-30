@@ -37,8 +37,9 @@ export default function MatchHistoryPage() {
       const matchData = await getMatchHistoryAction();
       setMatches(matchData);
     } catch (error: any) {
-      // Check for the specific Firestore error code for missing indexes.
-      if (error.code === 'failed-precondition') {
+      const errorMessage = (error.message || '').toLowerCase();
+      // Check for keywords that indicate a missing index.
+      if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
           setIndexError(error.message);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });

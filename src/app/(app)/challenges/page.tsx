@@ -37,7 +37,8 @@ export default function ChallengesPage() {
       setSent(sent);
       setOpen(open);
     } catch (error: any) {
-       if (error.message && error.message.includes('query requires an index')) {
+      const errorMessage = (error.message || '').toLowerCase();
+      if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
           setIndexError(error.message);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to load challenges.' });
