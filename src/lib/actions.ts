@@ -398,13 +398,12 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<{ success: true, data: Match[] } | { success: false, error: string }> {
-    const user = auth.currentUser;
-    if (!user) {
+export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: Match[] } | { success: false, error: string }> {
+    if (!userId) {
         return { success: false, error: "Not authenticated" };
     }
     try {
-        const matches = await getMatchesFromFirestore(user.uid);
+        const matches = await getMatchesFromFirestore(userId);
         return { success: true, data: matches };
     } catch (error: any) {
         console.error("Failed to fetch match history:", error);
@@ -412,8 +411,7 @@ export async function getMatchHistoryAction(): Promise<{ success: true, data: Ma
     }
 }
 
-export async function seedMatchHistoryAction() {
-    const user = auth.currentUser;
+export async function seedMatchHistoryAction(user: User) {
     if (!user) {
         return { success: false, error: 'Not authenticated' };
     }
@@ -433,7 +431,7 @@ export async function seedMatchHistoryAction() {
                 sport: 'Tennis',
                 participants: [user.uid, mockOpponents[0].uid],
                 participantsData: {
-                    [user.uid]: { uid: user.uid, name: user.displayName || 'You', avatar: user.photoURL || '' },
+                    [user.uid]: { uid: user.uid, name: user.name || 'You', avatar: user.avatar || '' },
                     [mockOpponents[0].uid]: { uid: mockOpponents[0].uid, name: mockOpponents[0].name, avatar: mockOpponents[0].avatar },
                 },
                 teams: { team1: { playerIds: [user.uid] }, team2: { playerIds: [mockOpponents[0].uid] } },
@@ -447,7 +445,7 @@ export async function seedMatchHistoryAction() {
                 sport: 'Padel',
                 participants: [user.uid, mockOpponents[1].uid],
                 participantsData: {
-                    [user.uid]: { uid: user.uid, name: user.displayName || 'You', avatar: user.photoURL || '' },
+                    [user.uid]: { uid: user.uid, name: user.name || 'You', avatar: user.avatar || '' },
                     [mockOpponents[1].uid]: { uid: mockOpponents[1].uid, name: mockOpponents[1].name, avatar: mockOpponents[1].avatar },
                 },
                 teams: { team1: { playerIds: [user.uid] }, team2: { playerIds: [mockOpponents[1].uid] } },

@@ -32,7 +32,7 @@ export default function MatchHistoryPage() {
 
     const [friendsData, matchesResult] = await Promise.all([
         getFriendsAction(user.uid),
-        getMatchHistoryAction()
+        getMatchHistoryAction(user.uid)
     ]);
     
     setFriends(friendsData || []);
@@ -52,8 +52,12 @@ export default function MatchHistoryPage() {
   }, [fetchMatchData]);
 
   const handleSeedData = async () => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to seed data.' });
+        return;
+    }
     setIsSeeding(true);
-    const result = await seedMatchHistoryAction();
+    const result = await seedMatchHistoryAction(user);
     if (result.success) {
         toast({ title: 'Success', description: 'Mock data created. Refreshing...' });
         await fetchMatchData(); // Re-fetch data after seeding
