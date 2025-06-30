@@ -250,6 +250,7 @@ export type RallyGamePoint = z.infer<typeof rallyGamePointSchema>;
 
 export const rallyGameSchema = z.object({
     id: z.string(),
+    sport: Sport,
     participantIds: z.array(z.string()),
     participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional() })),
     score: z.record(z.number()),

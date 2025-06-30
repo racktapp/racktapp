@@ -1,4 +1,5 @@
 
+
 import {
   collection,
   doc,
@@ -684,6 +685,7 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
 
     const newGame: RallyGame = {
         id: newGameRef.id,
+        sport: 'Tennis',
         participantIds: [user1.uid, user2.uid],
         participantsData: {
             [user1.uid]: { name: user1.name, avatar: user1.avatar },
@@ -714,35 +716,49 @@ export async function playRallyTurn(gameId: string, playerId: string, choice: an
         if (!gameDoc.exists()) throw new Error("Game not found.");
 
         let game = gameDoc.data() as RallyGame;
+        if (game.status === 'complete') return; // Don't process turns for completed games
         if (game.currentPlayerId !== playerId) throw new Error("It's not your turn.");
         
-        const opponentId = game.participantIds.find(id => id !== playerId)!;
-        const playerRanks = {
-            [game.currentPoint.servingPlayer]: (game.participantsData[game.currentPoint.servingPlayer] as any)?.rank || 1200,
-            [game.currentPoint.returningPlayer]: (game.participantsData[game.currentPoint.returningPlayer] as any)?.rank || 1200,
-        };
-
+        // Use the sport stored on the game, default to 'Tennis' for older games
+        const sport = game.sport || 'Tennis'; 
         let aiResponse;
+
         if (game.turn === 'serving') {
+            const servingPlayerDoc = await transaction.get(doc(db, 'users', game.currentPoint.servingPlayer));
+            const returningPlayerDoc = await transaction.get(doc(db, 'users', game.currentPoint.returningPlayer));
+            if (!servingPlayerDoc.exists() || !returningPlayerDoc.exists()) throw new Error("Player data not found.");
+            
+            const servingPlayer = servingPlayerDoc.data() as User;
+            const returningPlayer = returningPlayerDoc.data() as User;
+
             game.turn = 'returning';
-            game.currentPlayerId = opponentId;
+            game.currentPlayerId = game.currentPoint.returningPlayer;
             game.currentPoint.serveChoice = choice;
+            
             aiResponse = await playRallyPoint({
                 turn: 'return',
-                player1Rank: playerRanks[game.currentPoint.servingPlayer],
-                player2Rank: playerRanks[game.currentPoint.returningPlayer],
+                player1Rank: servingPlayer.sports?.[sport]?.racktRank || 1200,
+                player2Rank: returningPlayer.sports?.[sport]?.racktRank || 1200,
                 serveChoice: choice,
             });
             game.currentPoint.returnOptions = aiResponse.returnOptions;
 
         } else if (game.turn === 'returning') {
+            const servingPlayerDoc = await transaction.get(doc(db, 'users', game.currentPoint.servingPlayer));
+            const returningPlayerDoc = await transaction.get(doc(db, 'users', game.currentPoint.returningPlayer));
+            if (!servingPlayerDoc.exists() || !returningPlayerDoc.exists()) throw new Error("Player data not found.");
+
+            const servingPlayer = servingPlayerDoc.data() as User;
+            const returningPlayer = returningPlayerDoc.data() as User;
+            
             game.turn = 'point_over';
-            game.currentPlayerId = game.currentPoint.servingPlayer; // Winner starts next point
+            game.currentPlayerId = game.currentPoint.servingPlayer; // Player who served can click to start next point
             game.currentPoint.returnChoice = choice;
+
             aiResponse = await playRallyPoint({
                 turn: 'return',
-                player1Rank: playerRanks[game.currentPoint.servingPlayer],
-                player2Rank: playerRanks[game.currentPoint.returningPlayer],
+                player1Rank: servingPlayer.sports?.[sport]?.racktRank || 1200,
+                player2Rank: returningPlayer.sports?.[sport]?.racktRank || 1200,
                 serveChoice: game.currentPoint.serveChoice as any,
                 returnChoice: choice,
             });
@@ -750,7 +766,7 @@ export async function playRallyTurn(gameId: string, playerId: string, choice: an
             const winnerId = aiResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
             game.score[winnerId]++;
             game.pointHistory.push({
-                ...game.currentPoint as any,
+                ...(game.currentPoint as any),
                 winner: winnerId,
                 narrative: aiResponse.narrative!,
             });
@@ -763,21 +779,28 @@ export async function playRallyTurn(gameId: string, playerId: string, choice: an
 
         } else if (game.turn === 'point_over') {
             game.turn = 'serving';
-            const nextServer = game.currentPoint.returningPlayer;
-            const nextReturner = game.currentPoint.servingPlayer;
+            const nextServerId = game.currentPoint.returningPlayer;
+            const nextReturnerId = game.currentPoint.servingPlayer;
+            
+            const nextServerDoc = await transaction.get(doc(db, 'users', nextServerId));
+            const nextReturnerDoc = await transaction.get(doc(db, 'users', nextReturnerId));
+            if (!nextServerDoc.exists() || !nextReturnerDoc.exists()) throw new Error("Player not found for next point.");
+            
+            const nextServer = nextServerDoc.data() as User;
+            const nextReturner = nextReturnerDoc.data() as User;
             
             aiResponse = await playRallyPoint({
                 turn: 'serve',
-                player1Rank: playerRanks[nextServer],
-                player2Rank: playerRanks[nextReturner],
+                player1Rank: nextServer.sports?.[sport]?.racktRank || 1200,
+                player2Rank: nextReturner.sports?.[sport]?.racktRank || 1200,
             });
 
             game.currentPoint = {
-                servingPlayer: nextServer,
-                returningPlayer: nextReturner,
+                servingPlayer: nextServerId,
+                returningPlayer: nextReturnerId,
                 serveOptions: aiResponse.serveOptions,
             };
-            game.currentPlayerId = nextServer;
+            game.currentPlayerId = nextServerId;
         }
 
         transaction.update(gameRef, { ...game, updatedAt: Timestamp.now().toMillis() });
