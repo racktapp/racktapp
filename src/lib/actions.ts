@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { reportMatchAndupdateRanks, searchUsers } from '@/lib/firebase/firestore';
+import { reportMatchAndupdateRanks, searchUsers, sendFriendRequest } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { type Sport, type User, MatchType, reportMatchSchema } from '@/lib/types';
 
@@ -62,16 +62,13 @@ export async function searchUsersAction(query: string, currentUserId: string): P
     }
 }
 
-// Placeholder action for adding a friend
-export async function addFriendAction(friendId: string) {
-    // This is a placeholder. In a full implementation, this would
-    // create a document in a `friend_requests` collection in Firestore.
-    console.log(`Friend request logic for user ID: ${friendId} would be implemented here.`);
-    
-    // For now, we'll just simulate a successful operation.
-    // In a real scenario, you'd want to revalidate paths if you were showing
-    // friend requests on this page or another.
-    // revalidatePath('/friends');
-
-    return { success: true, message: "Friend request sent." };
+// Action for sending a friend request
+export async function addFriendAction(fromUser: User, toId: string) {
+    try {
+        await sendFriendRequest(fromUser, toId);
+        revalidatePath('/friends');
+        return { success: true, message: "Friend request sent." };
+    } catch (error: any) {
+        return { success: false, message: error.message || "Failed to send friend request." };
+    }
 }

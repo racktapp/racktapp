@@ -87,11 +87,16 @@ export interface OpenChallenge {
   createdAt: number; // timestamp
 }
 
+export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
+
 export interface FriendRequest {
   id: string;
-  from: User;
-  to: User;
-  status: 'pending';
+  fromId: string;
+  toId: string;
+  fromName: string;
+  fromAvatar?: string;
+  status: FriendRequestStatus;
+  createdAt: number; // timestamp
 }
 
 export interface Chat {

@@ -12,12 +12,17 @@ import { UserAvatar } from '@/components/user-avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 
-const UserResultCard = ({ user, onAddFriend }: { user: User; onAddFriend: (userId: string, userName: string) => void }) => {
+const UserResultCard = ({ user, onAddFriend }: { user: User; onAddFriend: (userId: string, userName: string) => Promise<boolean> }) => {
+    const [isAdding, setIsAdding] = useState(false);
     const [isAdded, setIsAdded] = useState(false);
 
-    const handleAddClick = () => {
-        onAddFriend(user.uid, user.name);
-        setIsAdded(true);
+    const handleAddClick = async () => {
+        setIsAdding(true);
+        const success = await onAddFriend(user.uid, user.name);
+        if (success) {
+            setIsAdded(true);
+        }
+        setIsAdding(false);
     }
 
     return (
@@ -30,9 +35,9 @@ const UserResultCard = ({ user, onAddFriend }: { user: User; onAddFriend: (userI
                         <p className="text-sm text-muted-foreground">@{user.username}</p>
                     </div>
                 </div>
-                <Button onClick={handleAddClick} disabled={isAdded}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    {isAdded ? 'Request Sent' : 'Add Friend'}
+                <Button onClick={handleAddClick} disabled={isAdded || isAdding}>
+                    {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                    {isAdding ? 'Sending...' : isAdded ? 'Request Sent' : 'Add Friend'}
                 </Button>
             </CardContent>
         </Card>
@@ -70,12 +75,25 @@ export default function FriendsPage() {
         }
     };
     
-    const handleAddFriend = async (friendId: string, friendName: string) => {
-        await addFriendAction(friendId);
-        toast({
-            title: "Friend Request Sent",
-            description: `Your friend request has been sent to ${friendName}.`,
-        });
+    const handleAddFriend = async (friendId: string, friendName: string): Promise<boolean> => {
+        if (!currentUser) return false;
+
+        const result = await addFriendAction(currentUser, friendId);
+
+        if (result.success) {
+            toast({
+                title: "Friend Request Sent",
+                description: `Your friend request has been sent to ${friendName}.`,
+            });
+            return true;
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Failed to Add Friend',
+                description: result.message,
+            });
+            return false;
+        }
     }
 
   return (

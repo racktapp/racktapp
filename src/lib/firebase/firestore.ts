@@ -7,9 +7,10 @@ import {
   runTransaction,
   Timestamp,
   where,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 
 // Fetches a user's friends from Firestore
@@ -232,3 +233,48 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
         return matchRef.id;
     });
 };
+
+/**
+ * Creates a friend request document in Firestore.
+ * @param fromUser - The user object of the sender.
+ * @param toId - The UID of the user receiving the request.
+ */
+export async function sendFriendRequest(fromUser: User, toId: string) {
+  const friendRequestsRef = collection(db, 'friendRequests');
+
+  // Check if they are already friends
+  const toUserRef = doc(db, 'users', toId);
+  const toUserDoc = await getDoc(toUserRef);
+  if (toUserDoc.exists()) {
+    const toUserData = toUserDoc.data() as User;
+    if (toUserData.friendIds?.includes(fromUser.uid)) {
+      throw new Error("You are already friends with this user.");
+    }
+  }
+
+  // Check if a request already exists between these users (in either direction)
+  const q1 = query(friendRequestsRef, where('fromId', '==', fromUser.uid), where('toId', '==', toId));
+  const q2 = query(friendRequestsRef, where('fromId', '==', toId), where('toId', '==', fromUser.uid));
+  
+  const [snapshot1, snapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+
+  const existingRequest = [...snapshot1.docs, ...snapshot2.docs].find(doc => doc.data().status === 'pending');
+
+  if (existingRequest) {
+    throw new Error('A friend request is already pending.');
+  }
+
+  const newRequestRef = doc(collection(db, 'friendRequests'));
+  
+  const newRequest: FriendRequest = {
+    id: newRequestRef.id,
+    fromId: fromUser.uid,
+    fromName: fromUser.name,
+    fromAvatar: fromUser.avatar,
+    toId: toId,
+    status: 'pending',
+    createdAt: Timestamp.now().toMillis(),
+  };
+
+  await setDoc(newRequestRef, newRequest);
+}
