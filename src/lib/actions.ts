@@ -4,12 +4,12 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth, db } from '@/lib/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, writeBatch, collection } from 'firebase/firestore';
 import { 
     reportMatchAndupdateRanks, 
     searchUsers, 
     sendFriendRequest,
-    getFriends,
+    getFriends as getFriendsFromFirestore,
     getIncomingFriendRequests,
     getSentFriendRequests,
     acceptFriendRequest,
@@ -35,7 +35,7 @@ import {
     playRallyTurn,
     createLegendGame,
     submitLegendAnswer,
-    getMatchesForUser,
+    getMatchesForUser as getMatchesFromFirestore,
     getHeadToHeadRecord,
     getLeaderboard,
 } from '@/lib/firebase/firestore';
@@ -126,7 +126,7 @@ export async function addFriendAction(fromUser: User, toUser: User) {
 
 export async function getFriendsAction(userId: string): Promise<User[]> {
     if (!userId) return [];
-    return getFriends(userId);
+    return getFriendsFromFirestore(userId);
 }
 
 export async function getIncomingRequestsAction(userId: string): Promise<any[]> {
@@ -332,7 +332,7 @@ export async function sendMessageAction(chatId: string, text: string) {
     }
 }
 
-export async function markChatAsReadAction(chatId: string, userId: string) {
+export async function markChatAsReadAction(chatId: string) {
     const user = auth.currentUser;
     if (!user) {
         return { success: false, message: "Not authenticated." };
@@ -398,10 +398,84 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<Match[]> {
+export async function getMatchHistoryAction(): Promise<{ success: true, data: Match[] } | { success: false, error: string }> {
     const user = auth.currentUser;
-    if (!user) return [];
-    return await getMatchesForUser(user.uid);
+    if (!user) {
+        return { success: false, error: "Not authenticated" };
+    }
+    try {
+        const matches = await getMatchesFromFirestore(user.uid);
+        return { success: true, data: matches };
+    } catch (error: any) {
+        console.error("Failed to fetch match history:", error);
+        return { success: false, error: error.message || 'An unexpected error occurred.' };
+    }
+}
+
+export async function seedMatchHistoryAction() {
+    const user = auth.currentUser;
+    if (!user) {
+        return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+        const batch = writeBatch(db);
+        const now = Timestamp.now().toMillis();
+
+        const mockOpponents = [
+            { uid: 'mock-opponent-1', name: 'Ben Carter', avatar: 'https://placehold.co/100x100/E67700/FFFFFF.png?text=B' },
+            { uid: 'mock-opponent-2', name: 'Chloe Davis', avatar: 'https://placehold.co/100x100/7C3AED/FFFFFF.png?text=C' },
+        ];
+
+        const matchesToCreate: Omit<Match, 'id' | 'createdAt'>[] = [
+            {
+                type: 'Singles',
+                sport: 'Tennis',
+                participants: [user.uid, mockOpponents[0].uid],
+                participantsData: {
+                    [user.uid]: { uid: user.uid, name: user.displayName || 'You', avatar: user.photoURL || '' },
+                    [mockOpponents[0].uid]: { uid: mockOpponents[0].uid, name: mockOpponents[0].name, avatar: mockOpponents[0].avatar },
+                },
+                teams: { team1: { playerIds: [user.uid] }, team2: { playerIds: [mockOpponents[0].uid] } },
+                winner: [user.uid],
+                score: '6-4, 7-5',
+                date: now - (1000 * 60 * 60 * 24 * 2), // 2 days ago
+                rankChange: [],
+            },
+            {
+                type: 'Singles',
+                sport: 'Padel',
+                participants: [user.uid, mockOpponents[1].uid],
+                participantsData: {
+                    [user.uid]: { uid: user.uid, name: user.displayName || 'You', avatar: user.photoURL || '' },
+                    [mockOpponents[1].uid]: { uid: mockOpponents[1].uid, name: mockOpponents[1].name, avatar: mockOpponents[1].avatar },
+                },
+                teams: { team1: { playerIds: [user.uid] }, team2: { playerIds: [mockOpponents[1].uid] } },
+                winner: [mockOpponents[1].uid],
+                score: '3-6, 2-6',
+                date: now - (1000 * 60 * 60 * 24 * 5), // 5 days ago
+                rankChange: [],
+            }
+        ];
+
+        for (const matchData of matchesToCreate) {
+            const matchRef = doc(collection(db, 'matches'));
+            const newMatch: Match = {
+                ...matchData,
+                id: matchRef.id,
+                createdAt: matchData.date, // Use match date for created at for sorting
+            };
+            batch.set(matchRef, newMatch);
+        }
+
+        await batch.commit();
+        revalidatePath('/match-history');
+        return { success: true, message: 'Mock matches created!' };
+
+    } catch (error: any) {
+        console.error("Failed to seed match data:", error);
+        return { success: false, error: error.message || 'Failed to seed data.' };
+    }
 }
 
 

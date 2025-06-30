@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
-import { getMatchHistoryAction, getFriendsAction } from '@/lib/actions';
+import { getMatchHistoryAction, getFriendsAction, seedMatchHistoryAction } from '@/lib/actions';
 import { Match, User } from '@/lib/types';
-import { Loader2, History } from 'lucide-react';
+import { Loader2, History, Sparkles } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { useToast } from '@/hooks/use-toast';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
+import { Button } from '@/components/ui/button';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
@@ -17,6 +19,8 @@ export default function MatchHistoryPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -24,31 +28,40 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    setError(null);
 
-    try {
-      const [friendsData, matchData] = await Promise.all([
+    const [friendsData, matchesResult] = await Promise.all([
         getFriendsAction(user.uid),
         getMatchHistoryAction()
-      ]);
-      setFriends(friendsData);
-      setMatches(matchData || []);
-
-    } catch (error) {
-      console.error("Failed to fetch match data:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not load match history. This may be due to a missing database index.'
-      });
+    ]);
+    
+    setFriends(friendsData || []);
+    
+    if (matchesResult.success) {
+      setMatches(matchesResult.data);
+    } else {
+      setError(matchesResult.error);
       setMatches([]);
-    } finally {
-      setIsLoading(false);
     }
-  }, [user, toast]);
+
+    setIsLoading(false);
+  }, [user]);
 
   useEffect(() => {
     fetchMatchData();
   }, [fetchMatchData]);
+
+  const handleSeedData = async () => {
+    setIsSeeding(true);
+    const result = await seedMatchHistoryAction();
+    if (result.success) {
+        toast({ title: 'Success', description: 'Mock data created. Refreshing...' });
+        await fetchMatchData(); // Re-fetch data after seeding
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+    setIsSeeding(false);
+  }
 
   const filteredMatches = useMemo(() => {
     return matches
@@ -73,6 +86,10 @@ export default function MatchHistoryPage() {
         </div>
       );
     }
+
+    if (error) {
+      return <FirestoreIndexAlert message={error} />;
+    }
     
     if (filteredMatches.length > 0) {
       return (
@@ -88,7 +105,11 @@ export default function MatchHistoryPage() {
       <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
           <History className="h-12 w-12 text-muted-foreground" />
           <p className="mt-4 text-muted-foreground">No matches found.</p>
-           <p className="text-sm text-muted-foreground">Report a match to see your history.</p>
+           <p className="text-sm text-muted-foreground">Report a match or seed some mock data to get started.</p>
+           <Button onClick={handleSeedData} disabled={isSeeding} variant="outline" className="mt-4">
+                {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Seed Mock Matches
+           </Button>
       </div>
     );
   };
