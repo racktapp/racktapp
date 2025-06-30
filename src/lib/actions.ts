@@ -412,9 +412,8 @@ export async function getMatchHistoryAction(userId: string): Promise<{ success: 
 }
 
 // --- AI Coach Actions ---
-export async function analyzeSwingAction(input: SwingAnalysisInput) {
-    const user = auth.currentUser;
-    if (!user) throw new Error("Not authenticated");
+export async function analyzeSwingAction(input: SwingAnalysisInput, userId: string) {
+    if (!userId) throw new Error("Not authenticated");
     
     try {
         const result = await analyzeSwing(input);

@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useRef } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -10,6 +11,7 @@ import { Upload, Video, CheckCircle, Lightbulb, TriangleAlert } from 'lucide-rea
 import { analyzeSwingAction } from '@/lib/actions';
 import { SwingAnalysisOutput } from '@/ai/flows/swing-analysis-flow';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const SHOT_TYPES = ['Forehand', 'Backhand', 'Serve'];
@@ -23,6 +25,7 @@ export default function CoachPage() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -43,6 +46,10 @@ export default function CoachPage() {
       toast({ variant: 'destructive', title: 'Missing information', description: 'Please upload a video and select a shot type.' });
       return;
     }
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Not Authenticated', description: 'You must be logged in to use the AI Coach.' });
+        return;
+    }
     
     setIsLoading(true);
     setAnalysis(null);
@@ -57,7 +64,7 @@ export default function CoachPage() {
           throw new Error('Could not read video file.');
         }
 
-        const result = await analyzeSwingAction({ videoDataUri, shotType });
+        const result = await analyzeSwingAction({ videoDataUri, shotType }, user.uid);
         setAnalysis(result);
         setIsLoading(false);
       };
@@ -118,7 +125,7 @@ export default function CoachPage() {
                             {SHOT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Button onClick={handleAnalyze} disabled={isLoading || !videoFile || !shotType}>
+                    <Button onClick={handleAnalyze} disabled={isLoading || !videoFile || !shotType || !user}>
                         {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
                         {isLoading ? 'Analyzing...' : 'Analyze Video'}
                     </Button>
