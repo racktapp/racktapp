@@ -424,11 +424,9 @@ export async function getMatchHistoryAction(): Promise<Match[]> {
     try {
         return await getMatchesForUser(user.uid);
     } catch (error: any) {
-        if ((error as any).code === 'failed-precondition') {
-            throw error;
-        }
-        console.error("getMatchHistoryAction failed:", error);
-        return [];
+        // Re-throw the original error so the client can handle it.
+        // This preserves the full error object, including the code and message.
+        throw error;
     }
 }
 
