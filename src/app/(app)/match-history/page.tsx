@@ -8,6 +8,7 @@ import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
 import { useToast } from '@/hooks/use-toast';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function MatchHistoryPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [indexError, setIndexError] = useState<string | null>(null);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -23,26 +25,29 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    
+    setIndexError(null);
+
+    // Fetch friends separately first.
     try {
-      // Fetch friends and matches in parallel for efficiency
-      const [friendsData, matchData] = await Promise.all([
-          getFriendsAction(user.uid),
-          getMatchHistoryAction()
-      ]);
-
-      setFriends(friendsData);
-      // Sort the matches by date (newest first) after fetching
-      const sortedMatches = matchData.sort((a, b) => b.date - a.date);
-      setMatches(sortedMatches);
-
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch match history.' });
-      console.error('Failed to fetch match history:', error);
-    } finally {
-      setIsLoading(false);
+        const friendsData = await getFriendsAction(user.uid);
+        setFriends(friendsData);
+    } catch (error) {
+        console.error("Failed to fetch friends for filter:", error);
     }
-  }, [user, toast]);
+    
+    // Then, fetch match history and robustly handle index errors.
+    const result = await getMatchHistoryAction();
+
+    if (result.error) {
+        setIndexError(result.error);
+        setMatches([]); // Clear any stale matches
+    } else if (result.matches) {
+        // The database query sorts by date, so no need to sort again here.
+        setMatches(result.matches);
+    }
+    
+    setIsLoading(false);
+  }, [user]);
 
   useEffect(() => {
     fetchMatchData();
@@ -63,6 +68,10 @@ export default function MatchHistoryPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       );
+    }
+
+    if (indexError) {
+      return <FirestoreIndexAlert message={indexError} />;
     }
     
     if (filteredMatches.length > 0) {

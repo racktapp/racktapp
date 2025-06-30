@@ -38,19 +38,16 @@ export default function LeaderboardPage() {
     if (!user) return;
     setIsLoading(true);
     setIndexError(null);
-    try {
-      const data = await getLeaderboardAction(sport);
-      setLeaderboard(data);
-    } catch (error: any) {
-      const errorMessage = (error.message || '').toLowerCase();
-      if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
-          setIndexError(error.message);
-      } else {
-          console.error('Failed to fetch leaderboard:', error);
-      }
-    } finally {
-      setIsLoading(false);
+    
+    const result = await getLeaderboardAction(sport);
+    if (result.error) {
+        setIndexError(result.error);
+        setLeaderboard([]);
+    } else if (result.users) {
+        setLeaderboard(result.users);
     }
+    
+    setIsLoading(false);
   }, [user, sport]);
 
   useEffect(() => {

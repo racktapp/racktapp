@@ -215,9 +215,10 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
 }
 
 export async function getChallengesAction(userId: string, sport: Sport): Promise<{
-    incoming: Challenge[],
-    sent: Challenge[],
-    open: OpenChallenge[]
+    incoming?: Challenge[],
+    sent?: Challenge[],
+    open?: OpenChallenge[],
+    error?: string,
 }> {
     try {
         const [incoming, sent, open] = await Promise.all([
@@ -227,13 +228,12 @@ export async function getChallengesAction(userId: string, sport: Sport): Promise
         ]);
         return { incoming, sent, open };
     } catch (error: any) {
-        // Propagate index-related errors to the client by re-throwing them
         const errorMessage = (error as any).message || '';
         if (errorMessage.toLowerCase().includes('query requires an index') || errorMessage.toLowerCase().includes('failed-precondition')) {
-            throw error;
+            return { error: error.message };
         }
         console.error("Error fetching challenges data:", error);
-        return { incoming: [], sent: [], open: [] };
+        return { error: 'An unexpected error occurred while fetching challenges.' };
     }
 }
 
@@ -419,11 +419,20 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<Match[]> {
+export async function getMatchHistoryAction(): Promise<{ matches?: Match[], error?: string }> {
     const user = auth.currentUser;
-    if (!user) return [];
-    // The page component will handle any errors.
-    return await getMatchesForUser(user.uid);
+    if (!user) return { error: "Not authenticated" };
+    try {
+        const matches = await getMatchesForUser(user.uid);
+        return { matches };
+    } catch (error: any) {
+        const errorMessage = (error.message || '').toLowerCase();
+        if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
+            return { error: error.message };
+        }
+        console.error('getMatchHistoryAction failed:', error);
+        return { error: 'An unexpected error occurred while fetching match history.' };
+    }
 }
 
 // --- AI Coach Actions ---
@@ -487,12 +496,16 @@ export async function predictFriendMatchAction(friendId: string, sport: Sport): 
 }
 
 // --- Leaderboard Actions ---
-export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
+export async function getLeaderboardAction(sport: Sport): Promise<{ users?: User[], error?: string }> {
     try {
-        return await getLeaderboard(sport);
+        const users = await getLeaderboard(sport);
+        return { users };
     } catch (error: any) {
-       // Re-throw the original error so the client can handle it.
-       // This preserves the full error object, including the code and message.
-       throw error;
+        const errorMessage = (error.message || '').toLowerCase();
+        if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
+            return { error: error.message };
+        }
+        console.error('getLeaderboardAction failed:', error);
+        return { error: 'An unexpected error occurred while fetching leaderboard.' };
     }
 }

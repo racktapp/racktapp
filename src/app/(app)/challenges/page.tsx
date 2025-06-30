@@ -31,22 +31,23 @@ export default function ChallengesPage() {
     if (!user) return;
     setIsLoading(true);
     setIndexError(null);
-    try {
-      const { incoming, sent, open } = await getChallengesAction(user.uid, sport);
-      setIncoming(incoming);
-      setSent(sent);
-      setOpen(open);
-    } catch (error: any) {
-      const errorMessage = (error.message || '').toLowerCase();
-      if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
-          setIndexError(error.message);
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load challenges.' });
-      }
-    } finally {
-      setIsLoading(false);
+    
+    const result = await getChallengesAction(user.uid, sport);
+    
+    if (result.error) {
+        setIndexError(result.error);
+        setIncoming([]);
+        setSent([]);
+        setOpen([]);
+    } else {
+        setIncoming(result.incoming || []);
+        setSent(result.sent || []);
+        setOpen(result.open || []);
     }
-  }, [user, sport, toast]);
+    
+    setIsLoading(false);
+  }, [user, sport]);
+
 
   useEffect(() => {
     fetchChallenges();
