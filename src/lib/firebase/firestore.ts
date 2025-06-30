@@ -71,14 +71,11 @@ export async function getFriends(userId: string): Promise<User[]> {
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
   try {
     const usersRef = collection(db, 'users');
-    const q = query(usersRef); // Fetch all users
+    const q = query(usersRef, where('uid', '!=', currentUserId));
     const querySnapshot = await getDocs(q);
     const users: User[] = [];
     querySnapshot.forEach((doc) => {
-        const user = doc.data() as User;
-        if (user.uid !== currentUserId) { // Filter client-side
-            users.push(user);
-        }
+        users.push(doc.data() as User);
     });
     return users;
   } catch (error) {
@@ -86,6 +83,7 @@ export async function getAllUsers(currentUserId: string): Promise<User[]> {
     return [];
   }
 }
+
 
 /**
  * Searches for users by their username.
@@ -106,14 +104,8 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
         );
 
         const querySnapshot = await getDocs(q);
-        const users: User[] = [];
-        querySnapshot.forEach((doc) => {
-            const user = doc.data() as User;
-            if (user.uid !== currentUserId) {
-                users.push(user);
-            }
-        });
-        return users;
+        const users: User[] = querySnapshot.docs.map(doc => doc.data() as User);
+        return users.filter(user => user.uid !== currentUserId);
     } catch (error) {
         console.error("Error searching users:", error);
         throw new Error("Failed to search for users in the database.");
@@ -152,22 +144,23 @@ export const createUserDocument = async (user: {
 };
 
 
-interface PlayerData {
-    id: string;
-    score: number;
-}
 interface ReportMatchData {
     sport: Sport;
     matchType: MatchType;
-    team1: PlayerData[];
-    team2: PlayerData[];
+    team1Ids: string[];
+    team2Ids: string[];
+    allPlayers: User[];
     score: string;
+    reportedById: string;
+    date: number;
 }
 
 // The core logic for reporting a match and updating ranks
 export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<string> => {
     return await runTransaction(db, async (transaction) => {
-        const allPlayerIds = [...data.team1.map(p => p.id), ...data.team2.map(p => p.id)];
+        const allPlayerIds = [...data.team1Ids, ...data.team2Ids];
+        
+        // This is slightly redundant if allPlayers is passed in, but ensures data integrity
         const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
         const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
 
@@ -176,19 +169,20 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             return doc.data() as User;
         });
 
-        const getTeamAvgElo = (team: PlayerData[]): number => {
-            const totalElo = team.reduce((sum, p) => {
-                const player = players.find(pl => pl.uid === p.id);
+        const getTeamAvgElo = (teamIds: string[]): number => {
+            const totalElo = teamIds.reduce((sum, pId) => {
+                const player = players.find(pl => pl.uid === pId);
                 const sportStats = player?.sports?.[data.sport] ?? { racktRank: 1200 };
                 return sum + sportStats.racktRank;
             }, 0);
-            return totalElo / team.length;
+            return totalElo / teamIds.length;
         };
 
-        const team1AvgElo = getTeamAvgElo(data.team1);
-        const team2AvgElo = getTeamAvgElo(data.team2);
+        const team1AvgElo = getTeamAvgElo(data.team1Ids);
+        const team2AvgElo = getTeamAvgElo(data.team2Ids);
 
-        const team1GameScore = data.team1[0].score > data.team2[0].score ? 1 : 0;
+        const [team1Score, team2Score] = data.score.split('-').map(Number);
+        const team1GameScore = team1Score > team2Score ? 1 : 0;
         const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
         
         const team1EloChange = newTeam1Elo - team1AvgElo;
@@ -198,7 +192,7 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
         const matchRef = doc(collection(db, 'matches'));
         
         for (const player of players) {
-            const team = data.team1.some(p => p.id === player.uid) ? 'team1' : 'team2';
+            const team = data.team1Ids.includes(player.uid) ? 'team1' : 'team2';
             const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
             const isWinner = (team === 'team1' && team1GameScore === 1) || (team === 'team2' && team1GameScore === 0);
 
@@ -217,7 +211,7 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
                 wins: newWins,
                 losses: newLosses,
                 streak: newStreak,
-                matchHistory: [matchRef.id, ...(currentSportStats.matchHistory || [])],
+                matchHistory: [matchRef.id, ...(currentSportStats.matchHistory || [])].slice(0, 50),
             };
 
             const playerRef = doc(db, 'users', player.uid);
@@ -228,18 +222,24 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
             rankChanges.push({ userId: player.uid, before: oldRank, after: newRank });
         }
 
+        const participantsData = players.reduce((acc, player) => {
+            acc[player.uid] = { uid: player.uid, name: player.name, avatar: player.avatar };
+            return acc;
+        }, {} as Match['participantsData']);
+
         const newMatch: Match = {
             id: matchRef.id,
             type: data.matchType,
             sport: data.sport,
             participants: allPlayerIds,
+            participantsData,
             teams: {
-                team1: { players: players.filter(p => data.team1.some(d => d.id === p.uid)), score: data.team1[0].score },
-                team2: { players: players.filter(p => data.team2.some(d => d.id === p.uid)), score: data.team2[0].score },
+                team1: { playerIds: data.team1Ids, score: team1Score },
+                team2: { playerIds: data.team2Ids, score: team2Score },
             },
-            winner: team1GameScore === 1 ? data.team1.map(p => p.id) : data.team2.map(p => p.id),
+            winner: team1GameScore === 1 ? data.team1Ids : data.team2Ids,
             score: data.score,
-            date: Timestamp.now().toMillis(),
+            date: data.date,
             createdAt: Timestamp.now().toMillis(),
             rankChange: rankChanges,
         };
@@ -248,6 +248,22 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
         return matchRef.id;
     });
 };
+
+/**
+ * Fetches all confirmed matches for a given user.
+ * @param userId The UID of the user.
+ * @returns A promise that resolves to an array of Match objects.
+ */
+export async function getMatchesForUser(userId: string): Promise<Match[]> {
+    const matchesRef = collection(db, 'matches');
+    const q = query(
+        matchesRef,
+        where('participants', 'array-contains', userId),
+        orderBy('date', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as Match);
+}
 
 /**
  * Creates a friend request document in Firestore.
@@ -397,6 +413,7 @@ export async function getOpenChallenges(userId: string, sport: Sport): Promise<O
         limit(50)
     );
     const snapshot = await getDocs(q);
+    // Additional client-side filter because Firestore doesn't support two '!=' clauses
     return snapshot.docs.map(doc => doc.data() as OpenChallenge);
 }
 

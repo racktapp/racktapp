@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Match, User } from '@/lib/types';
+import { Match } from '@/lib/types';
 import { UserAvatar } from '../user-avatar';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
@@ -14,15 +14,14 @@ interface RecentMatchesProps {
 
 const MatchItem = ({ match, currentUserId }: { match: Match, currentUserId: string }) => {
     const isWinner = match.winner.includes(currentUserId);
-    const opponent = match.participants
-        .map(id => match.teams.team1.players.find(p => p.uid === id) || match.teams.team2.players.find(p => p.uid === id))
-        .find(p => p && p.uid !== currentUserId);
+    const opponentId = match.participants.find(pId => pId !== currentUserId);
+    const opponent = opponentId ? match.participantsData[opponentId] : null;
 
     return (
         <div className="flex items-center gap-4">
             <UserAvatar user={opponent} className="h-10 w-10" />
             <div className="flex-1">
-                <p className="font-medium">vs {opponent?.name}</p>
+                <p className="font-medium">vs {opponent?.name || 'Unknown'}</p>
                 <p className="text-sm text-muted-foreground">{match.score}</p>
             </div>
             <Badge variant={isWinner ? 'default' : 'destructive'} className={isWinner ? 'bg-green-500/20 text-green-700 border-transparent' : 'bg-red-500/20 text-red-700 border-transparent'}>
@@ -33,6 +32,25 @@ const MatchItem = ({ match, currentUserId }: { match: Match, currentUserId: stri
 }
 
 export function RecentMatches({ matches, currentUserId }: RecentMatchesProps) {
+  if (matches.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Matches</CardTitle>
+          <CardDescription>Your last few games.</CardDescription>
+        </CardHeader>
+        <CardContent>
+           <div className="h-[280px] flex items-center justify-center text-center">
+              <p className="text-sm text-muted-foreground">No recent matches to display.<br/>Report a match to get started!</p>
+           </div>
+           <Button asChild variant="outline" className="mt-4 w-full">
+              <Link href="/match-history">View All Matches</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

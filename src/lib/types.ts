@@ -51,15 +51,18 @@ export interface Match {
   type: MatchType;
   sport: Sport;
   participants: string[]; // All user IDs in the match
+  participantsData: {
+    [key: string]: { name: string; avatar?: string; uid: string };
+  };
   teams: {
     team1: {
-      players: User[];
+      playerIds: string[];
       score: number;
-    }
+    };
     team2: {
-      players: User[];
+      playerIds: string[];
       score: number;
-    }
+    };
   };
   winner: string[]; // User IDs of the winners
   score: string;

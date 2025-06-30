@@ -33,9 +33,10 @@ import {
     playRallyTurn,
     createLegendGame,
     submitLegendAnswer,
+    getMatchesForUser,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { redirect } from 'next/navigation';
 
@@ -44,43 +45,48 @@ import { redirect } from 'next/navigation';
 export async function handleReportMatchAction(
     values: z.infer<typeof reportMatchSchema>, 
     sport: Sport, 
-    user: { uid: string, name: string }
+    user: User
 ) {
-    const team1 = [{ id: user.uid, score: values.myScore }];
-    if (values.matchType === 'Doubles' && values.partner) {
-        team1.push({ id: values.partner, score: values.myScore });
-    }
+    const allPlayers = [
+        user,
+        ...(values.partner ? [await getDoc(doc(db, 'users', values.partner)).then(d => d.data() as User)] : []),
+        await getDoc(doc(db, 'users', values.opponent1)).then(d => d.data() as User),
+        ...(values.opponent2 ? [await getDoc(doc(db, 'users', values.opponent2)).then(d => d.data() as User)] : []),
+    ];
 
-    const team2 = [{ id: values.opponent1, score: values.opponentScore }];
-    if (values.matchType === 'Doubles' && values.opponent2) {
-        team2.push({ id: values.opponent2, score: values.opponentScore });
-    }
+    const team1Ids = [user.uid, ...(values.partner ? [values.partner] : [])];
+    const team2Ids = [values.opponent1, ...(values.opponent2 ? [values.opponent2] : [])];
     
     await reportMatchAndupdateRanks({
         sport,
         matchType: values.matchType as MatchType,
-        team1,
-        team2,
-        score: `${values.myScore}-${values.opponentScore}`,
+        team1Ids,
+        team2Ids,
+        score: `${values.myScore}-${values.myScore > values.opponentScore ? values.opponentScore : values.myScore + 2}-${values.opponentScore}`,
+        allPlayers,
+        reportedById: user.uid,
+        date: new Date().getTime(),
     });
     
     revalidatePath('/dashboard');
     revalidatePath('/match-history');
 }
 
-
 // Action to get match recap
-export async function handleRecapAction() {
-    // In a real implementation, you would pass actual match data.
+export async function handleRecapAction(match: Match) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+
+    const player1Name = match.participantsData[match.teams.team1.playerIds[0]].name;
+    const player2Name = match.participantsData[match.teams.team2.playerIds[0]].name;
+    
     const recap = await getMatchRecap({
-        player1Name: "Alex",
-        player2Name: "Ben",
-        score: "6-4, 7-5",
-        sport: "Tennis"
+        player1Name,
+        player2Name,
+        score: match.score,
+        sport: match.sport,
     });
-    console.log(recap);
-    // You would then display this recap in a dialog or toast.
-    // For this example, we just log it.
+    
     return recap;
 }
 
@@ -389,4 +395,11 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to submit answer.' };
     }
+}
+
+// --- Match History Actions ---
+export async function getMatchHistoryAction(): Promise<Match[]> {
+    const user = auth.currentUser;
+    if (!user) return [];
+    return getMatchesForUser(user.uid);
 }
