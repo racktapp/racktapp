@@ -9,7 +9,6 @@ import { StatsCard } from '@/components/dashboard/stats-card';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
-import { MOCK_ELO_HISTORY } from '@/lib/mock-data';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getMatchHistoryAction } from '@/lib/actions';
@@ -132,7 +131,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <EloChart data={MOCK_ELO_HISTORY} />
+            <EloChart data={[]} />
           </div>
           <div className="lg:col-span-1">
             <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
