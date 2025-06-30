@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -7,17 +8,13 @@ import { Match, User } from '@/lib/types';
 import { Loader2, History } from 'lucide-react';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { MatchHistoryFilters } from '@/components/match-history/match-history-filters';
-import { useToast } from '@/hooks/use-toast';
-import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 export default function MatchHistoryPage() {
   const { user } = useAuth();
-  const { toast } = useToast();
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [friends, setFriends] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [indexError, setIndexError] = useState<string | null>(null);
 
   // Filter states
   const [opponentFilter, setOpponentFilter] = useState<string>('all');
@@ -25,25 +22,18 @@ export default function MatchHistoryPage() {
   const fetchMatchData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    setIndexError(null);
 
-    // Fetch friends separately first.
-    try {
-        const friendsData = await getFriendsAction(user.uid);
-        setFriends(friendsData);
-    } catch (error) {
-        console.error("Failed to fetch friends for filter:", error);
-    }
-    
-    // Then, fetch match history and robustly handle index errors.
-    const result = await getMatchHistoryAction();
+    const [friendsData, matchResult] = await Promise.all([
+      getFriendsAction(user.uid),
+      getMatchHistoryAction(),
+    ]);
 
-    if (result.error) {
-        setIndexError(result.error);
-        setMatches([]); // Clear any stale matches
-    } else if (result.matches) {
-        // The database query sorts by date, so no need to sort again here.
-        setMatches(result.matches);
+    setFriends(friendsData);
+
+    if (matchResult.matches) {
+      // Sort the matches on the client-side
+      const sortedMatches = matchResult.matches.sort((a, b) => b.createdAt - a.createdAt);
+      setMatches(sortedMatches);
     }
     
     setIsLoading(false);
@@ -68,10 +58,6 @@ export default function MatchHistoryPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       );
-    }
-
-    if (indexError) {
-      return <FirestoreIndexAlert message={indexError} />;
     }
     
     if (filteredMatches.length > 0) {

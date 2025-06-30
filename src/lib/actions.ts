@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -419,20 +420,13 @@ export async function submitLegendAnswerAction(gameId: string, answer: string) {
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(): Promise<{ matches?: Match[], error?: string }> {
+export async function getMatchHistoryAction(): Promise<{ matches?: Match[] }> {
     const user = auth.currentUser;
-    if (!user) return { error: "Not authenticated" };
-    try {
-        const matches = await getMatchesForUser(user.uid);
-        return { matches };
-    } catch (error: any) {
-        const errorMessage = (error.message || '').toLowerCase();
-        if (errorMessage.includes('query requires an index') || errorMessage.includes('failed-precondition')) {
-            return { error: error.message };
-        }
-        console.error('getMatchHistoryAction failed:', error);
-        return { error: 'An unexpected error occurred while fetching match history.' };
-    }
+    if (!user) return { matches: [] };
+    
+    // This action is now robust and does not require a complex index.
+    const matches = await getMatchesForUser(user.uid);
+    return { matches };
 }
 
 // --- AI Coach Actions ---

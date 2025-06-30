@@ -256,27 +256,19 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
 
 /**
  * Fetches all confirmed matches for a given user.
- * This query requires a composite index on (`participants`, `createdAt`).
+ * This query is simple and does not require a composite index. Sorting is done on the client.
  * @param userId The UID of the user.
- * @returns A promise that resolves to an array of Match objects, sorted by most recent.
- * @throws An error if the required Firestore index is missing.
+ * @returns A promise that resolves to an array of Match objects.
  */
 export async function getMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
     const q = query(
         matchesRef,
-        where('participants', 'array-contains', userId),
-        orderBy('createdAt', 'desc')
+        where('participants', 'array-contains', userId)
     );
-    try {
-        const snapshot = await getDocs(q);
-        const matches = snapshot.docs.map(doc => doc.data() as Match);
-        return matches;
-    } catch(e) {
-        // Re-throw the error so the server action can catch it
-        // and return the message to the UI.
-        throw e;
-    }
+    const snapshot = await getDocs(q);
+    const matches = snapshot.docs.map(doc => doc.data() as Match);
+    return matches;
 }
 
 
