@@ -840,9 +840,13 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     const now = Timestamp.now().toMillis();
     const newGameRef = doc(collection(db, 'legendGames'));
 
-    const initialRound = await getLegendGameRound({ sport, usedPlayers: [] });
-    if (!initialRound?.correctAnswer) {
+    const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
+    if (!initialRoundData?.correctAnswer) {
         throw new Error("Failed to generate a valid first round from the AI.");
+    }
+    const initialRound: LegendGameRound = {
+        ...initialRoundData,
+        guesses: {},
     }
 
     let newGame: LegendGame;
@@ -863,7 +867,7 @@ export async function createLegendGame(userId: string, friendId: string | null, 
             score: { [userId]: 0, [friendId]: 0 },
             currentPlayerId: firstPlayer,
             turnState: 'playing',
-            currentRound: { ...initialRound, guesses: {} },
+            currentRound: initialRound,
             roundHistory: [], status: 'ongoing', usedPlayers: [initialRound.correctAnswer],
             createdAt: now, updatedAt: now,
         };
@@ -879,7 +883,7 @@ export async function createLegendGame(userId: string, friendId: string | null, 
             score: { [userId]: 0 },
             currentPlayerId: userId,
             turnState: 'playing',
-            currentRound: { ...initialRound, guesses: {} },
+            currentRound: initialRound,
             roundHistory: [],
             status: 'ongoing',
             usedPlayers: [initialRound.correctAnswer],
@@ -919,6 +923,36 @@ export async function submitLegendAnswerInFirestore(gameId: string, playerId: st
         if (allPlayersAnswered) {
             updatePayload.turnState = 'round_over';
             updatePayload.currentPlayerId = game.mode === 'solo' ? playerId : opponentId!;
+            
+            // Check for game over condition
+            const roundsPlayed = game.roundHistory.length + 1;
+            let isGameOver = false;
+            let winnerId: string | null = null;
+            
+            if (game.mode === 'solo') {
+                if (newScore[playerId] >= 5) {
+                    isGameOver = true;
+                    winnerId = playerId;
+                } else if (roundsPlayed - newScore[playerId] >= 3) {
+                    isGameOver = true;
+                    winnerId = null; // AI wins
+                }
+            } else { // Friend mode
+                const score1 = newScore[game.participantIds[0]];
+                const score2 = newScore[game.participantIds[1]];
+                if (score1 >= 5 || score2 >= 5) {
+                    isGameOver = true;
+                    winnerId = score1 > score2 ? game.participantIds[0] : game.participantIds[1];
+                } else if (roundsPlayed >= 10) {
+                    isGameOver = true;
+                    if (score1 > score2) winnerId = game.participantIds[0];
+                    else if (score2 > score1) winnerId = game.participantIds[1];
+                    else winnerId = null; // Draw
+                }
+            }
+            if (isGameOver) {
+                await completeLegendGame(gameId, winnerId, transaction);
+            }
         } else {
             updatePayload.currentPlayerId = opponentId;
         }
@@ -927,14 +961,20 @@ export async function submitLegendAnswerInFirestore(gameId: string, playerId: st
     });
 }
 
-export async function completeLegendGame(gameId: string, winnerId: string | null) {
+export async function completeLegendGame(gameId: string, winnerId: string | null, transaction?: Transaction) {
     const gameRef = doc(db, 'legendGames', gameId);
-    await updateDoc(gameRef, {
-        status: 'complete',
-        turnState: 'game_over',
+    const updatePayload = {
+        status: 'complete' as 'complete',
+        turnState: 'game_over' as 'game_over',
         winnerId: winnerId,
         updatedAt: Timestamp.now().toMillis()
-    });
+    };
+
+    if (transaction) {
+        transaction.update(gameRef, updatePayload);
+    } else {
+        await updateDoc(gameRef, updatePayload);
+    }
 }
 
 export async function startNextLegendRoundInFirestore(gameId: string, playerId: string) {
@@ -946,25 +986,28 @@ export async function startNextLegendRoundInFirestore(gameId: string, playerId: 
 
         if (game.status !== 'ongoing') throw new Error("Game is not ongoing.");
         if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
-        if (game.currentPlayerId !== playerId) throw new Error("Not your turn to start the next round.");
+        
+        // In friend mode, the player who went second in the previous round starts the next round.
+        if (game.mode === 'friend' && game.currentPlayerId !== playerId) {
+            throw new Error("Not your turn to start the next round.");
+        }
 
         const usedPlayers = [...game.usedPlayers, game.currentRound.correctAnswer];
         
-        // AI call MUST be outside transaction. We get the data first.
         const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers });
         if (!nextRoundData?.correctAnswer) {
             throw new Error("Failed to generate next round from AI.");
         }
-
-        const nextCurrentPlayerId = game.mode === 'solo' ? playerId : game.participantIds.find(id => id !== playerId)!;
         
-        // Then we update the document in the transaction.
+        // The player who starts this action becomes the next current player.
+        const nextCurrentPlayerId = playerId;
+        
         transaction.update(gameRef, {
             roundHistory: arrayUnion(game.currentRound),
             usedPlayers: arrayUnion(nextRoundData.correctAnswer),
             currentRound: { ...nextRoundData, guesses: {} },
             turnState: 'playing',
-            currentPlayerId: nextCurrentPlayerId, // Set the current player for the new round
+            currentPlayerId: nextCurrentPlayerId,
             updatedAt: Timestamp.now().toMillis(),
         });
     });
