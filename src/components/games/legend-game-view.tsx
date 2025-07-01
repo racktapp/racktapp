@@ -12,11 +12,27 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '../ui/skeleton';
 
 interface LegendGameViewProps {
   game: LegendGame;
   currentUser: User;
 }
+
+const GameSkeleton = () => (
+    <Card>
+        <CardHeader>
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-5 w-full mt-2" />
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+        </CardContent>
+    </Card>
+)
 
 export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const { toast } = useToast();
@@ -26,8 +42,22 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
   const isMyTurn = game.currentPlayerId === currentUser.uid;
-  const myGuess = game.currentRound.guesses[currentUser.uid];
-  const opponentGuess = opponentId ? game.currentRound.guesses[opponentId] : null;
+  
+  // Defensive checks for game data
+  const currentRound = game.currentRound;
+  if (!currentRound?.clue || !currentRound?.options) {
+      return (
+        <div className="container mx-auto p-4 md:p-6 lg:p-8">
+            <PageHeader
+                title="Guess the Legend"
+                description="Loading game..."
+            />
+            <GameSkeleton />
+        </div>
+      )
+  }
+  const myGuess = currentRound.guesses[currentUser.uid];
+  const opponentGuess = opponentId ? currentRound.guesses[opponentId] : null;
 
   const handleAnswerSubmit = async (answer: string) => {
     setSelectedAnswer(answer);
@@ -35,11 +65,10 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     const result = await submitLegendAnswerAction(game.id, answer, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
-      setIsProcessing(false);
+      // Only set processing to false on error, otherwise onSnapshot will handle the re-render
+      setIsProcessing(false); 
       setSelectedAnswer(null);
     }
-    // Let onSnapshot handle state changes, which will set isProcessing to false implicitly
-    // by re-rendering the component without the loading state.
   };
 
   const handleNextRound = async () => {
@@ -47,13 +76,14 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     const result = await startNextLegendRoundAction(game.id, currentUser.uid);
     if (!result.success) {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
+        setIsProcessing(false);
     }
-    setIsProcessing(false);
+    // onSnapshot will handle UI update and set isProcessing to false implicitly
   };
   
   const getButtonState = (option: string) => {
     if (!myGuess) return 'default'; // Not answered yet
-    if (option === game.currentRound.correctAnswer) return 'correct';
+    if (option === currentRound.correctAnswer) return 'correct';
     if (option === myGuess) return 'incorrect';
     return 'disabled';
   };
@@ -61,7 +91,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const getOpponentGuessState = (option: string) => {
     if (!opponentGuess) return 'none';
     if (option === opponentGuess) {
-        return opponentGuess === game.currentRound.correctAnswer ? 'correct' : 'incorrect';
+        return opponentGuess === currentRound.correctAnswer ? 'correct' : 'incorrect';
     }
     return 'none';
   }
@@ -123,11 +153,11 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
       {game.status === 'complete' ? renderFinalScreen() : (
         <Card>
             <CardHeader>
-            <CardTitle>Round {game.roundHistory.length + 1}: Who am I?</CardTitle>
-            <CardDescription className="text-lg italic pt-2">"{game.currentRound.clue}"</CardDescription>
+            <CardTitle>Round {(game.roundHistory?.length || 0) + 1}: Who am I?</CardTitle>
+            <CardDescription className="text-lg italic pt-2">"{currentRound.clue}"</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {game.currentRound.options.map(option => {
+                {currentRound.options.map(option => {
                     const myState = getButtonState(option);
                     const oppState = getOpponentGuessState(option);
                     return (
@@ -163,8 +193,8 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                 
                 {game.turnState === 'round_over' && (
                     <Alert className="w-full">
-                        <AlertTitle className="font-bold">Answer: {game.currentRound.correctAnswer}</AlertTitle>
-                        <AlertDescription className="italic mt-1">{game.currentRound.justification}</AlertDescription>
+                        <AlertTitle className="font-bold">Answer: {currentRound.correctAnswer}</AlertTitle>
+                        <AlertDescription className="italic mt-1">{currentRound.justification}</AlertDescription>
                     </Alert>
                 )}
 

@@ -11,6 +11,7 @@ import { UserAvatar } from '../user-avatar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RallyCourt } from './rally-court';
+import { Skeleton } from '../ui/skeleton';
 
 interface RallyGameViewProps {
   game: RallyGame;
@@ -23,6 +24,23 @@ const riskIcons = {
   high: Zap,
 };
 
+const GameSkeleton = () => (
+    <Card>
+        <CardHeader>
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-3/4 mt-2" />
+        </CardHeader>
+        <CardContent className="min-h-[150px] space-y-4">
+            <Skeleton className="h-5 w-1/3 mx-auto" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+            </div>
+        </CardContent>
+    </Card>
+)
+
 export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -31,17 +49,19 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const opponent = opponentId ? game.participantsData[opponentId] : null;
   const isMyTurn = game.currentPlayerId === currentUser.uid;
   const lastPoint = game.pointHistory[game.pointHistory.length - 1];
+  
+  const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
 
   const handleAction = async (choice: any) => {
     setIsProcessing(true);
     const result = await playRallyTurnAction(game.id, choice, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
+      setIsProcessing(false);
     }
-    // Let onSnapshot handle the state update
-    setIsProcessing(false);
+    // Let onSnapshot handle the state update and implicitly set isProcessing to false
   };
-
+  
   if (!opponent || !opponentId) {
     return (
         <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -50,32 +70,13 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     )
   }
 
-  const options = game.turn === 'serving' ? game.currentPoint.serveOptions : game.currentPoint.returnOptions;
+  const renderContent = () => {
+    // Show a skeleton loader if the options for the current turn aren't loaded yet
+    if (isMyTurn && game.turn !== 'point_over' && !options) {
+        return <GameSkeleton />;
+    }
 
-  return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <PageHeader
-        title="Rally Game"
-        description={`A turn-based Tennis point simulator vs ${opponent.name}.`}
-      />
-      
-      {/* Scoreboard */}
-      <div className="flex justify-center gap-8 items-center mb-4">
-        <div className="flex flex-col items-center gap-2">
-          <UserAvatar user={currentUser} className="h-16 w-16" />
-          <p className="font-bold text-4xl">{game.score[currentUser.uid]}</p>
-        </div>
-        <p className="text-4xl font-bold text-muted-foreground">-</p>
-         <div className="flex flex-col items-center gap-2">
-          <UserAvatar user={opponent} className="h-16 w-16" />
-          <p className="font-bold text-4xl">{game.score[opponentId]}</p>
-        </div>
-      </div>
-      
-      {/* Animated Court */}
-      <RallyCourt game={game} currentUser={currentUser} />
-
-      {/* Game State */}
+    return (
       <Card>
         <CardHeader>
           <CardTitle>
@@ -90,7 +91,9 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                 <div className="bg-muted/50 p-4 rounded-lg text-center opacity-0 animate-fade-in-slide-up">
                     <p className="font-bold text-lg">{lastPoint.winner === currentUser.uid ? 'You won the point!' : `${game.participantsData[lastPoint.winner]?.name} won the point!`}</p>
                     <p className="text-muted-foreground italic mt-2">"{lastPoint.narrative}"</p>
-                    {isMyTurn && <Button className="mt-4" onClick={() => handleAction(null)}>Start Next Point</Button>}
+                    {isMyTurn && <Button className="mt-4" onClick={() => handleAction(null)} disabled={isProcessing}>
+                        {isProcessing ? <LoadingSpinner className="mr-2" /> : "Start Next Point"}
+                    </Button>}
                 </div>
             )}
              {game.turn !== 'point_over' && game.turn !== 'game_over' && (
@@ -118,6 +121,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                         })}
                     </div>
                     {isProcessing && <div className="flex justify-center pt-4"><LoadingSpinner className="h-6 w-6" /></div>}
+                    {!isMyTurn && <p className="text-muted-foreground text-center pt-4">Waiting for opponent...</p>}
                 </div>
             )}
         </CardContent>
@@ -129,6 +133,34 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
             )}
         </CardFooter>
       </Card>
+    )
+  }
+
+  return (
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      <PageHeader
+        title="Rally Game"
+        description={`A turn-based Tennis point simulator vs ${opponent.name}.`}
+      />
+      
+      {/* Scoreboard */}
+      <div className="flex justify-center gap-8 items-center mb-4">
+        <div className="flex flex-col items-center gap-2">
+          <UserAvatar user={currentUser} className="h-16 w-16" />
+          <p className="font-bold text-4xl">{game.score[currentUser.uid]}</p>
+        </div>
+        <p className="text-4xl font-bold text-muted-foreground">-</p>
+         <div className="flex flex-col items-center gap-2">
+          <UserAvatar user={opponent} className="h-16 w-16" />
+          <p className="font-bold text-4xl">{game.score[opponentId]}</p>
+        </div>
+      </div>
+      
+      {/* Animated Court */}
+      <RallyCourt game={game} currentUser={currentUser} />
+
+      {/* Game State */}
+      {renderContent()}
 
     </div>
   );

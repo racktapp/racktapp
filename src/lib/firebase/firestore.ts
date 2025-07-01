@@ -841,6 +841,9 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     const newGameRef = doc(collection(db, 'legendGames'));
 
     const initialRound = await getLegendGameRound({ sport, usedPlayers: [] });
+    if (!initialRound?.correctAnswer) {
+        throw new Error("Failed to generate a valid first round from the AI.");
+    }
 
     let newGame: LegendGame;
     const firstPlayer = friendId ? (Math.random() < 0.5 ? userId : friendId) : userId;
@@ -866,15 +869,22 @@ export async function createLegendGame(userId: string, friendId: string | null, 
         };
     } else { // Solo mode
          newGame = {
-            id: newGameRef.id, mode: 'solo', sport,
+            id: newGameRef.id,
+            mode: 'solo',
+            sport,
             participantIds: [userId],
-            participantsData: { [userId]: { name: user.name, avatar: user.avatar, uid: user.uid } },
+            participantsData: {
+                [userId]: { name: user.name, avatar: user.avatar, uid: user.uid }
+            },
             score: { [userId]: 0 },
             currentPlayerId: userId,
             turnState: 'playing',
             currentRound: { ...initialRound, guesses: {} },
-            roundHistory: [], status: 'ongoing', usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
+            roundHistory: [],
+            status: 'ongoing',
+            usedPlayers: [initialRound.correctAnswer],
+            createdAt: now,
+            updatedAt: now,
         };
     }
 
@@ -882,25 +892,23 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     return newGameRef.id;
 }
 
-export async function submitLegendAnswer(gameId: string, playerId: string, answer: string) {
-    await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'legendGames', gameId);
+export async function submitLegendAnswerInFirestore(gameId: string, playerId: string, answer: string) {
+    const gameRef = doc(db, 'legendGames', gameId);
+    return runTransaction(db, async (transaction) => {
         const gameDoc = await transaction.get(gameRef);
         if (!gameDoc.exists()) throw new Error("Game not found.");
-        let game = gameDoc.data() as LegendGame;
-
+        const game = gameDoc.data() as LegendGame;
+        
         if (game.status !== 'ongoing') throw new Error("Game is already over.");
         if (game.currentPlayerId !== playerId) throw new Error("It is not your turn.");
         if (game.currentRound.guesses[playerId]) throw new Error("You have already answered this round.");
 
-        // Update guess and score
         const isCorrect = answer === game.currentRound.correctAnswer;
         const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
         const newScore = isCorrect ? { ...game.score, [playerId]: (game.score[playerId] || 0) + 1 } : game.score;
 
-        // Determine next state
         const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
-        const nextPlayerId = game.participantIds.find(id => id !== playerId);
+        const opponentId = game.participantIds.find(id => id !== playerId);
         
         const updatePayload: any = {
             'currentRound.guesses': newGuesses,
@@ -910,56 +918,57 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
 
         if (allPlayersAnswered) {
             updatePayload.turnState = 'round_over';
-            // In solo mode, player always starts next round. In friend mode, the other player starts.
-            updatePayload.currentPlayerId = game.mode === 'solo' ? playerId : nextPlayerId!;
+            updatePayload.currentPlayerId = game.mode === 'solo' ? playerId : opponentId!;
         } else {
-            updatePayload.currentPlayerId = nextPlayerId;
+            updatePayload.currentPlayerId = opponentId;
         }
         
         transaction.update(gameRef, updatePayload);
     });
 }
 
-export async function completeLegendGame(gameId: string, winnerId: string | null | undefined) {
+export async function completeLegendGame(gameId: string, winnerId: string | null) {
     const gameRef = doc(db, 'legendGames', gameId);
     await updateDoc(gameRef, {
         status: 'complete',
         turnState: 'game_over',
-        winnerId: winnerId, // can be null for a draw
+        winnerId: winnerId,
         updatedAt: Timestamp.now().toMillis()
     });
 }
 
-
-export async function startNextLegendRound(gameId: string, currentUserId: string) {
-    await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'legendGames', gameId);
+export async function startNextLegendRoundInFirestore(gameId: string, playerId: string) {
+    const gameRef = doc(db, 'legendGames', gameId);
+    return runTransaction(db, async (transaction) => {
         const gameDoc = await transaction.get(gameRef);
         if (!gameDoc.exists()) throw new Error("Game not found.");
         const game = gameDoc.data() as LegendGame;
 
         if (game.status !== 'ongoing') throw new Error("Game is not ongoing.");
         if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
-        if (game.currentPlayerId !== currentUserId) throw new Error("Not your turn to start the next round.");
+        if (game.currentPlayerId !== playerId) throw new Error("Not your turn to start the next round.");
 
         const usedPlayers = [...game.usedPlayers, game.currentRound.correctAnswer];
         
-        // This AI call is outside the transaction, which is good.
-        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: usedPlayers });
-        if (!nextRoundData) throw new Error("Failed to generate next round from AI.");
+        // AI call MUST be outside transaction. We get the data first.
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers });
+        if (!nextRoundData?.correctAnswer) {
+            throw new Error("Failed to generate next round from AI.");
+        }
+
+        const nextCurrentPlayerId = game.mode === 'solo' ? playerId : game.participantIds.find(id => id !== playerId)!;
         
-        // Update the document in the transaction
+        // Then we update the document in the transaction.
         transaction.update(gameRef, {
             roundHistory: arrayUnion(game.currentRound),
             usedPlayers: arrayUnion(nextRoundData.correctAnswer),
             currentRound: { ...nextRoundData, guesses: {} },
             turnState: 'playing',
+            currentPlayerId: nextCurrentPlayerId, // Set the current player for the new round
             updatedAt: Timestamp.now().toMillis(),
         });
     });
 }
-
-
 
 export async function getHeadToHeadRecord(userId1: string, userId2: string, sport: Sport): Promise<{ player1Wins: number; player2Wins: number }> {
     const matchesRef = collection(db, 'matches');
