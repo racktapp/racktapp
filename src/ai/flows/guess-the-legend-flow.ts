@@ -40,7 +40,22 @@ const prompt = ai.definePrompt({
   output: { schema: LegendGameOutputSchema },
   prompt: `You are an expert sports historian and trivia master for the sport of **{{{sport}}}**.
 
-Your task is to generate a single, high-quality trivia question about a famous player from that sport. Your output **MUST** be a single, valid JSON object and nothing else. Do not add any text before or after the JSON object. Your response must start with \`{\` and end with \`}\`.
+Your task is to generate a single, high-quality trivia question about a famous player from that sport. Your output **MUST** be a single, valid JSON object that conforms to the specified schema, and nothing else. Do not add any text before or after the JSON object. Your response must start with \`{\` and end with \`}\`.
+
+**Example JSON Output:**
+\`\`\`json
+{
+  "clue": "I was a dominant force in the 90s, known for my one-handed backhand and winning the French Open without dropping a set.",
+  "correctAnswer": "Gustavo Kuerten",
+  "options": [
+    "Andre Agassi",
+    "Gustavo Kuerten",
+    "Pete Sampras",
+    "Marat Safin"
+  ],
+  "justification": "Gustavo 'Guga' Kuerten famously won his first of three French Open titles in 1997 as an unseeded player, and his powerful one-handed backhand was his signature shot."
+}
+\`\`\`
 
 The JSON object must have the following structure and content:
 - **\`clue\` (string):** A clever, one-sentence, slightly cryptic clue about your chosen player's career, style, or a famous achievement.
@@ -57,17 +72,20 @@ const legendGameFlow = ai.defineFlow(
   {
     name: 'legendGameFlow',
     inputSchema: LegendGameInputSchema,
-    outputSchema: LegendGameOutputSchema,
+    outputSchema: LegendGameOutputSchema.nullable(),
   },
   async (input) => {
     let attempts = 0;
     while (attempts < 3) {
       const { output } = await prompt(input);
-      if (output && output.clue && output.correctAnswer && output.options?.length === 4) {
+      // The definePrompt's outputSchema will handle parsing and validation.
+      // If output is defined, it's valid according to the schema.
+      if (output) {
         return output;
       }
       attempts++;
       if (attempts < 3) {
+        // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
