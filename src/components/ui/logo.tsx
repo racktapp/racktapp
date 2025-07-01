@@ -1,19 +1,25 @@
 import * as React from "react"
-import Image from "next/image"
 import { cn } from "@/lib/utils"
 
 export const Logo = React.forwardRef<
-  HTMLImageElement,
-  Omit<React.ComponentProps<typeof Image>, "src" | "alt">
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <Image
+  <div
     ref={ref}
-    src="/my-logo.svg"
-    alt="Rackt Logo"
-    width={28}
-    height={28}
-    className={cn("h-7 w-7", className)}
-    unoptimized
+    role="img"
+    aria-label="Rackt Logo"
+    className={cn("h-7 w-7 bg-primary", className)}
+    style={{
+      maskImage: "url('/my-logo.svg')",
+      maskSize: 'contain',
+      maskRepeat: 'no-repeat',
+      maskPosition: 'center',
+      WebkitMaskImage: "url('/my-logo.svg')",
+      WebkitMaskSize: 'contain',
+      WebkitMaskRepeat: 'no-repeat',
+      WebkitMaskPosition: 'center',
+    }}
     {...props}
   />
 ));
