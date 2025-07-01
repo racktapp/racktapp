@@ -34,7 +34,7 @@ export function PendingMatchCard({ match, currentUserId, onAction }: PendingMatc
 
   const handleConfirm = async () => {
     setProcessingAction('confirm');
-    const result = await confirmMatchResultAction(match.id);
+    const result = await confirmMatchResultAction(match.id, currentUserId);
     if (result.success) {
       toast({ title: 'Result Confirmed', description: result.message });
       onAction();
@@ -46,7 +46,7 @@ export function PendingMatchCard({ match, currentUserId, onAction }: PendingMatc
 
   const handleDecline = async () => {
     setProcessingAction('decline');
-    const result = await declineMatchResultAction(match.id);
+    const result = await declineMatchResultAction(match.id, currentUserId);
     if (result.success) {
       toast({ title: 'Result Declined', description: 'The match result has been declined.' });
       onAction();

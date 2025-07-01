@@ -422,12 +422,11 @@ export async function getMatchHistoryAction(userId: string): Promise<{ success: 
     }
 }
 
-export async function confirmMatchResultAction(matchId: string) {
-    const user = auth.currentUser;
-    if (!user) return { success: false, message: 'You must be logged in to confirm a result.' };
+export async function confirmMatchResultAction(matchId: string, userId: string) {
+    if (!userId) return { success: false, message: 'You must be logged in to confirm a result.' };
     
     try {
-        const result = await confirmMatchResult(matchId, user.uid);
+        const result = await confirmMatchResult(matchId, userId);
         revalidatePath('/match-history');
         if (result.finalized) {
             revalidatePath('/dashboard');
@@ -439,12 +438,11 @@ export async function confirmMatchResultAction(matchId: string) {
     }
 }
 
-export async function declineMatchResultAction(matchId: string) {
-    const user = auth.currentUser;
-    if (!user) return { success: false, message: 'You must be logged in to decline a result.' };
+export async function declineMatchResultAction(matchId: string, userId: string) {
+    if (!userId) return { success: false, message: 'You must be logged in to decline a result.' };
 
     try {
-        await declineMatchResult(matchId, user.uid);
+        await declineMatchResult(matchId, userId);
         revalidatePath('/match-history');
         return { success: true, message: 'Result declined.' };
     } catch (error: any) {
