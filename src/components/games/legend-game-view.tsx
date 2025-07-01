@@ -47,7 +47,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
     if (game.error) {
         title = "Could not load game";
-        description = `Failed to generate game round: ${game.error}`;
+        description = `Failed to generate game round. ${game.error}`;
     } else if (game.status !== 'initializing') {
         title = "Could not load game";
         description = "There was a problem loading the current round data.";

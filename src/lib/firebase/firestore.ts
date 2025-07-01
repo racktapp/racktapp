@@ -936,6 +936,7 @@ export async function getGameForNextRound(gameId: string): Promise<LegendGame | 
     return gameDoc.exists() ? gameDoc.data() as LegendGame : null;
 }
 
+// This is an internal helper and should not be exported directly
 async function completeLegendGame(gameId: string, transaction: Transaction): Promise<LegendGame> {
     const gameRef = doc(db, 'legendGames', gameId);
     const gameDoc = await transaction.get(gameRef);
