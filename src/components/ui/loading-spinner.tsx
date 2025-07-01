@@ -1,10 +1,15 @@
-import { Logo } from './logo';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 export function LoadingSpinner({ className }: { className?: string }) {
   return (
-    <Logo
-      className={cn("animate-spin", className)}
+    <Image
+      src="/tennis_icon.png"
+      alt="Loading..."
+      width={28}
+      height={28}
+      className={cn('animate-spin h-7 w-7', className)}
+      unoptimized
     />
   );
 }

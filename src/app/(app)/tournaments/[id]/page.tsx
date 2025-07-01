@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -5,12 +6,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { getTournamentByIdAction } from '@/lib/actions';
-import { Tournament } from '@/lib/types';
+import { Tournament, Sport } from '@/lib/types';
 import { Trophy, ArrowLeft } from 'lucide-react';
 import { TournamentBracket } from '@/components/tournaments/tournament-bracket';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import Image from 'next/image';
+import { SPORT_ICONS } from '@/lib/constants';
 
 export default function TournamentPage() {
   const params = useParams();
@@ -63,7 +66,12 @@ export default function TournamentPage() {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
         title={tournament.name}
-        description={`A ${tournament.sport} single-elimination tournament.`}
+        description={
+            <div className="flex items-center gap-2">
+                <Image src={SPORT_ICONS[tournament.sport as Sport]} alt={tournament.sport} width={20} height={20} unoptimized />
+                <span>A {tournament.sport} single-elimination tournament.</span>
+            </div>
+        }
         actions={
           <Button asChild variant="outline">
             <Link href="/tournaments">

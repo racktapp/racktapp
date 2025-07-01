@@ -10,10 +10,12 @@ import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getMatchHistoryAction } from '@/lib/actions';
 import { Match, Sport } from '@/lib/types';
 import { UserAvatar } from '@/components/user-avatar';
+import { SPORT_ICONS } from '@/lib/constants';
 
 const ActionButton = ({ href, children, icon: Icon, onClick }: { href?: string, children: React.ReactNode, icon: React.ElementType, onClick?: () => void }) => {
     const content = (
@@ -47,7 +49,9 @@ const WelcomeBanner = ({ user, sport }: { user: any, sport: Sport}) => (
     <div className="flex justify-between items-start">
         <div>
             <h1 className="text-2xl md:text-3xl font-bold">Welcome, {user.name.split(' ')[0]}!</h1>
-            <p className="mt-1 text-primary-foreground/80">Ready to conquer the court? Here's your {sport} dashboard.</p>
+             <p className="mt-1 text-primary-foreground/80">
+                Ready to conquer the court? Here's your <span className="font-semibold inline-flex items-center gap-1.5">{sport} <Image src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} unoptimized/></span> dashboard.
+            </p>
         </div>
         <UserAvatar user={user} className="h-12 w-12 md:h-16 md:w-16 border-2 border-primary-foreground/50" />
     </div>

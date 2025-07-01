@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Bot, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import Image from 'next/image';
+import { SPORT_ICONS } from '@/lib/constants';
 
 interface MatchHistoryCardProps {
   match: Match;
@@ -70,7 +72,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
             <div className="space-y-4">
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
                     <div><span className="font-medium text-foreground">Date:</span> {format(new Date(match.date), 'PPP')}</div>
-                    <div><span className="font-medium text-foreground">Sport:</span> {match.sport}</div>
+                    <div><span className="font-medium text-foreground">Sport:</span> <span className="inline-flex items-center gap-1.5">{match.sport} <Image src={SPORT_ICONS[match.sport]} alt={match.sport} width={16} height={16} unoptimized/></span></div>
                     <div><span className="font-medium text-foreground">Type:</span> {match.type}</div>
                     {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> {match.participantsData[partner]?.name || 'Unknown'}</div>}
                 </div>

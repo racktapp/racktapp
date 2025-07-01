@@ -18,6 +18,13 @@ import {
 
 export const SPORTS: Sport[] = ['Tennis', 'Padel', 'Badminton', 'Table Tennis'];
 
+export const SPORT_ICONS: Record<Sport, string> = {
+  'Tennis': '/tennis_icon.png',
+  'Padel': '/padel_icon.png',
+  'Badminton': '/badminton_icon.png',
+  'Table Tennis': '/tabletennis_icon.png',
+};
+
 export interface NavItem {
   href: string;
   label: string;

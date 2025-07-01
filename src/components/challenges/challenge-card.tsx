@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -6,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
 import { Challenge, User } from '@/lib/types';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Swords, Check, X } from 'lucide-react';
+import { Calendar, MapPin, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { acceptChallengeAction, declineChallengeAction, cancelChallengeAction } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import Image from 'next/image';
+import { SPORT_ICONS } from '@/lib/constants';
 
 interface ChallengeCardProps {
   challenge: Challenge;
@@ -67,7 +70,10 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction }: Chal
           <div className="space-y-1">
             <p className="font-semibold text-lg">{type === 'incoming' ? 'From:' : 'To:'} {opponent.name}</p>
             <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="flex items-center gap-1.5"><Swords className="h-4 w-4" /> {challenge.sport}</span>
+              <span className="flex items-center gap-1.5">
+                <Image src={SPORT_ICONS[challenge.sport]} alt={challenge.sport} width={16} height={16} unoptimized/>
+                {challenge.sport}
+              </span>
               <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> {format(new Date(challenge.matchDateTime), 'PPp')}</span>
               {challenge.location && <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {challenge.location}</span>}
             </div>

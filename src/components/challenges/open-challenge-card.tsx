@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -10,6 +11,8 @@ import { MapPin, Swords } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { challengeFromOpenAction } from '@/lib/actions';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import Image from 'next/image';
+import { SPORT_ICONS } from '@/lib/constants';
 
 interface OpenChallengeCardProps {
   challenge: OpenChallenge;
@@ -41,7 +44,10 @@ export function OpenChallengeCard({ challenge, challenger, onAction }: OpenChall
           <div className="space-y-1">
             <p className="font-semibold text-lg">{challenge.posterName}</p>
             <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="flex items-center gap-1.5"><Swords className="h-4 w-4" /> {challenge.sport}</span>
+              <span className="flex items-center gap-1.5">
+                 <Image src={SPORT_ICONS[challenge.sport]} alt={challenge.sport} width={16} height={16} unoptimized/>
+                 {challenge.sport}
+              </span>
               <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {challenge.location}</span>
             </div>
             {challenge.note && <p className="text-sm italic text-muted-foreground">"{challenge.note}"</p>}

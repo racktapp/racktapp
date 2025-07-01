@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { getLeaderboardAction } from '@/lib/actions';
-import { User, SportStats } from '@/lib/types';
+import { User, SportStats, Sport } from '@/lib/types';
 import { Trophy, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import Image from 'next/image';
+import { SPORT_ICONS } from '@/lib/constants';
+
 
 const getRankDisplay = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
@@ -141,7 +144,12 @@ export default function LeaderboardPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
-        title={`${sport} Leaderboard`}
+        title={
+            <div className="flex items-center gap-3">
+                <span>{sport} Leaderboard</span>
+                <Image src={SPORT_ICONS[sport as Sport]} alt={sport} width={32} height={32} unoptimized />
+            </div>
+        }
         description={`See how you stack up against the competition.`}
       />
       {renderContent()}
