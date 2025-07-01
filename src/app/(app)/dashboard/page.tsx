@@ -71,7 +71,7 @@ export default function DashboardPage() {
     try {
       const result = await getMatchHistoryAction(user.uid);
       if (result.success) {
-        setRecentMatches(result.data.slice(0, 5));
+        setRecentMatches(result.data.confirmed.slice(0, 5));
       } else {
         console.error("Failed to fetch recent matches:", result.error);
         setRecentMatches([]);
