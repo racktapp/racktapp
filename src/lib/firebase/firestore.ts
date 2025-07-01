@@ -312,7 +312,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             transaction.update(matchRef, { 
                 participantsToConfirm: updatedParticipantsToConfirm,
                 status: 'confirmed',
-                rankChange,
+                rankChange: rankChanges,
             });
 
             return { finalized: true };
