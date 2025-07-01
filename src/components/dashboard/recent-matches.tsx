@@ -2,7 +2,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Match } from '@/lib/types';
 import { UserAvatar } from '../user-avatar';
 import { Badge } from '../ui/badge';
@@ -36,7 +35,10 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
             <div className="flex-1">
                 <p className="font-medium">vs {opponentDisplay}</p>
                 <div className='flex items-center gap-2'>
-                    <Badge variant={isWinner ? 'default' : 'destructive'} className={isWinner ? 'bg-green-600/20 text-green-700 border-green-600/30' : 'bg-red-600/20 text-red-700 border-red-600/30'}>
+                    <Badge variant={isWinner ? 'default' : 'destructive'} className={cn(
+                        'border-transparent', 
+                        isWinner ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
+                    )}>
                         {isWinner ? 'Win' : 'Loss'}
                     </Badge>
                     <p className="text-sm text-muted-foreground">{match.score}</p>
@@ -91,7 +93,7 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
             <CardDescription>Your last few games.</CardDescription>
         </div>
         <Button asChild variant="ghost" size="sm">
-            <Link href="/match-history">View All <ArrowRight className='ml-2' /></Link>
+            <Link href="/match-history">View All <ArrowRight className='ml-2 h-4 w-4' /></Link>
         </Button>
       </CardHeader>
       <CardContent>

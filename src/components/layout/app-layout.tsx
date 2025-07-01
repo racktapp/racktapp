@@ -116,7 +116,7 @@ const AppSidebar = ({ user }: { user: User }) => {
                   <item.icon />
                   <span>{item.label}</span>
                   {item.href === '/chat' && hasUnreadChats && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-orange-500 group-data-[collapsible=icon]:right-1.5" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary" />
                   )}
                 </Link>
               </SidebarMenuButton>

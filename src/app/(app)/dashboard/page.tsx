@@ -109,7 +109,7 @@ export default function DashboardPage() {
 
   const statCards = [
     { title: "RacktRank", value: sportStats?.racktRank ?? 'N/A', icon: Flame },
-    { title: "Win Rate", value: `${winRate}%`, icon: Trophy, progress: winRate },
+    { title: "Win Rate", value: `${winRate}%`, icon: Trophy },
     { title: "Win Streak", value: sportStats?.streak ?? 0, icon: Activity },
     { title: "Total Wins", value: sportStats?.wins ?? 0, icon: BarChart },
   ];
@@ -144,7 +144,6 @@ export default function DashboardPage() {
                             title={card.title}
                             value={card.value}
                             icon={card.icon}
-                            progress={card.progress}
                             className="opacity-0 animate-fade-in-slide-up"
                             style={{ animationDelay: `${i * 100}ms` }}
                         />
