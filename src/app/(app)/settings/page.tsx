@@ -9,9 +9,14 @@ import { UserAvatar } from '@/components/user-avatar';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase/config';
+import { LogOut } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
+  const router = useRouter();
 
   if (loading || !user) {
     return (
@@ -20,6 +25,11 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -38,6 +48,15 @@ export default function SettingsPage() {
         <Separator />
 
         <SettingsForm user={user} />
+        
+        <Separator />
+
+        <div className="pt-4">
+            <Button variant="outline" onClick={handleLogout} className="w-full">
+                <LogOut className="mr-2 h-4 w-4" />
+                Log Out
+            </Button>
+        </div>
       </div>
     </div>
   );
