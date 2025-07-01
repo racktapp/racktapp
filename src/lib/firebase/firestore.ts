@@ -875,15 +875,28 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     return newGameRef.id;
 }
 
-export async function submitLegendAnswerInFirestore(gameId: string, playerId: string, answer: string) {
-    return runTransaction(db, async (transaction) => {
+export function checkLegendGameOver(game: LegendGame): boolean {
+    const roundCount = game.roundHistory.length + 1;
+    if (game.mode === 'friend') {
+        const isGameOver = (roundCount >= 10 || Object.values(game.score).some(s => s >= 5));
+        return isGameOver;
+    } else { // solo mode
+        const soloPlayerScore = game.score[game.participantIds[0]] || 0;
+        const incorrectSoloAnswers = (game.roundHistory.length) - soloPlayerScore;
+        const isGameOver = (soloPlayerScore >= 5 || incorrectSoloAnswers >= 3);
+        return isGameOver;
+    }
+}
+
+export async function submitLegendAnswerInFirestore(gameId: string, playerId: string, answer: string): Promise<LegendGame> {
+    let updatedGame: LegendGame | null = null;
+    await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, 'legendGames', gameId);
         const gameDoc = await transaction.get(gameRef);
 
         if (!gameDoc.exists()) throw new Error("Game not found.");
         const game = gameDoc.data() as LegendGame;
 
-        // Validation
         if (game.status !== 'ongoing') throw new Error("Game is over.");
         if (game.currentPlayerId !== playerId) throw new Error("It is not your turn.");
         if (game.currentRound.guesses[playerId]) throw new Error("You have already answered this round.");
@@ -892,87 +905,75 @@ export async function submitLegendAnswerInFirestore(gameId: string, playerId: st
         const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
         const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
         
-        // Prepare update data
-        const updateData: any = {
-            [`currentRound.guesses.${playerId}`]: answer,
+        const updateData: Partial<LegendGame> = {
+            currentRound: {
+                ...game.currentRound,
+                guesses: newGuesses,
+            },
             updatedAt: Timestamp.now().toMillis(),
         };
 
         if (isCorrect) {
-            updateData[`score.${playerId}`] = (game.score[playerId] || 0) + 1;
+            updateData.score = {
+                ...game.score,
+                [playerId]: (game.score[playerId] || 0) + 1,
+            };
         }
 
         if (allPlayersAnswered) {
             updateData.turnState = 'round_over';
-            // The player who answered last gets to click "Next Round"
-            updateData.currentPlayerId = playerId;
+            updateData.currentPlayerId = game.mode === 'friend' ? game.participantIds.find(id => id !== playerId)! : playerId;
         } else {
-            // Friend mode only: pass turn to the other player
             updateData.currentPlayerId = game.participantIds.find(id => id !== playerId)!;
         }
 
         transaction.update(gameRef, updateData);
+        updatedGame = { ...game, ...updateData } as LegendGame;
     });
+    if (!updatedGame) throw new Error("Transaction failed to update game.");
+    return updatedGame;
 }
 
-export async function startNextLegendRoundInFirestore(gameId: string, newRound: LegendGameRound) {
-    return runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'legendGames', gameId);
-        const gameDoc = await transaction.get(gameRef);
-
-        if (!gameDoc.exists()) throw new Error("Game not found during transaction.");
-        const game = gameDoc.data() as LegendGame;
-
-        const updatedRoundHistory = [...game.roundHistory, game.currentRound];
-        const updatedUsedPlayers = [...game.usedPlayers, newRound.correctAnswer];
-        
-        const nextPlayerId = game.mode === 'friend' 
-            ? game.participantIds.find(id => id !== game.currentPlayerId)! 
-            : game.currentPlayerId;
-
-        const updateData = {
-            roundHistory: updatedRoundHistory,
-            usedPlayers: updatedUsedPlayers,
-            currentRound: { ...newRound, guesses: {} },
-            turnState: 'playing',
-            currentPlayerId: nextPlayerId,
-            updatedAt: Timestamp.now().toMillis(),
-        };
-
-        transaction.update(gameRef, updateData);
-    });
-}
-
-export async function completeLegendGame(gameId: string) {
-    return runTransaction(db, async (transaction) => {
+export async function startNextLegendRound(gameId: string, currentUserId: string) {
+    await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, 'legendGames', gameId);
         const gameDoc = await transaction.get(gameRef);
         if (!gameDoc.exists()) throw new Error("Game not found.");
         
         const game = gameDoc.data() as LegendGame;
-        let winnerId: string | undefined = undefined;
-
-        if (game.mode === 'friend') {
-            const p1 = game.participantIds[0];
-            const p2 = game.participantIds[1];
-            if (game.score[p1] > game.score[p2]) winnerId = p1;
-            if (game.score[p2] > game.score[p1]) winnerId = p2;
-            // if scores are equal, winnerId remains undefined (a draw)
-        } else { // Solo mode winner check
-            const soloPlayerId = game.participantIds[0];
-            const correctAnswers = game.score[soloPlayerId] || 0;
-            if (correctAnswers >= 5) { // WIN_SCORE_SOLO
-                winnerId = soloPlayerId;
-            }
-        }
+        if (game.status === 'complete') throw new Error("Game is already over.");
+        if (game.turnState !== 'round_over') throw new Error("Round is not over.");
         
-        const updateData = {
-            status: 'complete',
-            turnState: 'game_over',
-            winnerId: winnerId || null, // Use null for Firestore instead of undefined
-            updatedAt: Timestamp.now().toMillis(),
-        };
-        transaction.update(gameRef, updateData);
+        const isGameOver = checkLegendGameOver(game);
+
+        if (isGameOver) {
+            let winnerId: string | undefined | null = null;
+            if (game.mode === 'friend') {
+                const p1 = game.participantIds[0];
+                const p2 = game.participantIds[1];
+                if (game.score[p1] > game.score[p2]) winnerId = p1;
+                else if (game.score[p2] > game.score[p1]) winnerId = p2;
+            } else {
+                winnerId = game.score[currentUserId] >= 5 ? currentUserId : null;
+            }
+            transaction.update(gameRef, {
+                status: 'complete',
+                winnerId: winnerId,
+                turnState: 'game_over',
+                updatedAt: Timestamp.now().toMillis(),
+            });
+
+        } else {
+            const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
+            transaction.update(gameRef, {
+                roundHistory: arrayUnion(game.currentRound),
+                usedPlayers: arrayUnion(nextRound.correctAnswer),
+                currentRound: { ...nextRound, guesses: {} },
+                turnState: 'playing',
+                currentPlayerId: game.currentPlayerId,
+                updatedAt: Timestamp.now().toMillis(),
+            });
+        }
     });
 }
 

@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth, db } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, collection, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, collection, runTransaction, updateDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -36,15 +36,15 @@ import {
     createRallyGame,
     createLegendGame,
     submitLegendAnswerInFirestore,
-    completeLegendGame,
-    startNextLegendRoundInFirestore,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
     getLeaderboard,
     updateUserProfile,
     getFriendshipStatus,
-    deleteGame
+    deleteGame,
+    startNextLegendRound,
+    checkLegendGameOver
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -379,18 +379,16 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, "rallyGames", gameId);
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) throw new Error("Game not found.");
-        const game = gameDoc.data() as RallyGame;
+        // Step 1: Get current game state BEFORE AI call
+        const initialGameDoc = await getDoc(doc(db, "rallyGames", gameId));
+        if (!initialGameDoc.exists()) throw new Error("Game not found.");
+        const game = initialGameDoc.data() as RallyGame;
 
+        // Step 2: Validation
         if (game.status === 'complete') throw new Error('Game is already over.');
         if (game.currentPlayerId !== currentUserId) throw new Error("It's not your turn.");
 
-        const opponentId = game.participantIds.find(p => p !== currentUserId)!;
-
-        // Fetch player ranks needed for AI call
+        // Step 3: Prepare and execute AI call (outside transaction)
         const serverDoc = await getDoc(doc(db, 'users', game.currentPoint.servingPlayer));
         const returnerDoc = await getDoc(doc(db, 'users', game.currentPoint.returningPlayer));
         if (!serverDoc.exists() || !returnerDoc.exists()) throw new Error("Player data not found.");
@@ -401,32 +399,14 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         const serverRank = server.sports?.[game.sport]?.racktRank || 1200;
         const returnerRank = returner.sports?.[game.sport]?.racktRank || 1200;
 
-        let aiInput;
-        const updateData: Partial<RallyGame> = { updatedAt: Timestamp.now().toMillis() };
+        let aiResponse;
         
-        // Determine AI call and prepare update based on current turn
         if (game.turn === 'serving') {
-            aiInput = { turn: 'return', player1Rank: serverRank, player2Rank: returnerRank, serveChoice: choice };
-            const aiResponse = await playRallyPoint(aiInput as any);
-            updateData.turn = 'returning';
-            updateData.currentPlayerId = opponentId;
-            updateData.currentPoint = { ...game.currentPoint, serveChoice: choice, returnOptions: aiResponse.returnOptions };
+            const aiInput = { turn: 'return', player1Rank: serverRank, player2Rank: returnerRank, serveChoice: choice };
+            aiResponse = await playRallyPoint(aiInput as any);
         } else if (game.turn === 'returning') {
-            aiInput = { turn: 'return', player1Rank: serverRank, player2Rank: returnerRank, serveChoice: game.currentPoint.serveChoice, returnChoice: choice };
-            const aiResponse = await playRallyPoint(aiInput as any);
-            const winnerId = aiResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
-            const newScore = { ...game.score, [winnerId]: (game.score[winnerId] || 0) + 1 };
-
-            updateData.turn = 'point_over';
-            updateData.currentPlayerId = game.currentPoint.servingPlayer;
-            updateData.score = newScore;
-            updateData.pointHistory = [...game.pointHistory, { ...game.currentPoint, returnChoice: choice, winner: winnerId, narrative: aiResponse.narrative! } as any];
-
-            if (newScore[winnerId]! >= 5) {
-                updateData.status = 'complete';
-                updateData.winnerId = winnerId;
-                updateData.turn = 'game_over';
-            }
+            const aiInput = { turn: 'return', player1Rank: serverRank, player2Rank: returnerRank, serveChoice: game.currentPoint.serveChoice, returnChoice: choice };
+            aiResponse = await playRallyPoint(aiInput as any);
         } else if (game.turn === 'point_over') {
             const nextServerId = game.currentPoint.returningPlayer;
             const nextReturnerId = game.currentPoint.servingPlayer;
@@ -434,17 +414,65 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
             const nextReturnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
             if (!nextServerDoc.exists() || !nextReturnerDoc.exists()) throw new Error("Next players not found.");
             
-            aiInput = { turn: 'serve', player1Rank: nextServerDoc.data().sports?.[game.sport]?.racktRank || 1200, player2Rank: nextReturnerDoc.data().sports?.[game.sport]?.racktRank || 1200 };
-            const aiResponse = await playRallyPoint(aiInput as any);
-            updateData.turn = 'serving';
-            updateData.currentPlayerId = nextServerId;
-            updateData.currentPoint = { servingPlayer: nextServerId, returningPlayer: nextReturnerId, serveOptions: aiResponse.serveOptions };
+            const nextServerRank = nextServerDoc.data().sports?.[game.sport]?.racktRank || 1200;
+            const nextReturnerRank = nextReturnerDoc.data().sports?.[game.sport]?.racktRank || 1200;
+            
+            const aiInput = { turn: 'serve', player1Rank: nextServerRank, player2Rank: nextReturnerRank };
+            aiResponse = await playRallyPoint(aiInput as any);
         } else {
             throw new Error('Invalid game state.');
         }
 
-        transaction.update(gameRef, updateData);
-      });
+        // Step 4: Run the database update in a transaction
+        await runTransaction(db, async (transaction) => {
+            const gameRef = doc(db, "rallyGames", gameId);
+            const freshGameDoc = await transaction.get(gameRef);
+            if (!freshGameDoc.exists()) throw new Error("Game not found in transaction.");
+            
+            const freshGame = freshGameDoc.data() as RallyGame;
+
+            // Concurrency check
+            if (freshGame.updatedAt !== game.updatedAt) {
+                console.log("Rally game state changed, aborting transaction.");
+                return;
+            }
+
+            // Step 5: Calculate new game state based on the AI response
+            const updateData: Partial<RallyGame> = { updatedAt: Timestamp.now().toMillis() };
+            const opponentId = freshGame.participantIds.find(p => p !== currentUserId)!;
+            const pointServerId = freshGame.currentPoint.servingPlayer;
+            const pointReturnerId = freshGame.currentPoint.returningPlayer;
+
+            if (freshGame.turn === 'serving') {
+                updateData.turn = 'returning';
+                updateData.currentPlayerId = opponentId;
+                updateData.currentPoint = { ...freshGame.currentPoint, serveChoice: choice, returnOptions: aiResponse.returnOptions };
+            } else if (freshGame.turn === 'returning') {
+                const winnerId = aiResponse.pointWinner === 'server' ? pointServerId : pointReturnerId;
+                const newScore = { ...freshGame.score, [winnerId]: (freshGame.score[winnerId] || 0) + 1 };
+
+                updateData.turn = 'point_over';
+                updateData.currentPlayerId = pointServerId;
+                updateData.score = newScore;
+                updateData.pointHistory = [...freshGame.pointHistory, { ...freshGame.currentPoint, returnChoice: choice, winner: winnerId, narrative: aiResponse.narrative! } as any];
+
+                if (newScore[winnerId]! >= 5) {
+                    updateData.status = 'complete';
+                    updateData.winnerId = winnerId;
+                    updateData.turn = 'game_over';
+                }
+            } else if (freshGame.turn === 'point_over') {
+                const nextServerId = freshGame.currentPoint.returningPlayer;
+                const nextReturnerId = freshGame.currentPoint.servingPlayer;
+                updateData.turn = 'serving';
+                updateData.currentPlayerId = nextServerId;
+                updateData.currentPoint = { servingPlayer: nextServerId, returningPlayer: nextReturnerId, serveOptions: aiResponse.serveOptions };
+            }
+
+            // Step 6: Commit the update
+            transaction.update(gameRef, updateData);
+        });
+
       revalidatePath(`/games/rally/${gameId}`);
       return { success: true };
     } catch (error: any) {
@@ -470,43 +498,30 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
     try {
-        await submitLegendAnswerInFirestore(gameId, currentUserId, answer);
+        // Step 1: Submit the answer
+        const updatedGame = await submitLegendAnswerInFirestore(gameId, currentUserId, answer);
+        
+        // Step 2: Check if the game is over
+        const isGameOver = checkLegendGameOver(updatedGame);
+        
+        if (isGameOver) {
+            // No action needed here, handled by UI, but could be extended
+        }
+
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
+        console.error("Error submitting legend answer:", error);
         return { success: false, message: error.message || 'Failed to submit answer.' };
     }
 }
 
+
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
-    const gameRef = doc(db, 'legendGames', gameId);
-    
     try {
-        const gameDoc = await getDoc(gameRef);
-        if (!gameDoc.exists()) return { success: false, message: 'Game not found.' };
-        const game = gameDoc.data() as LegendGame;
-        
-        if (game.currentPlayerId !== currentUserId) return { success: false, message: "It's not your turn to start the next round." };
-        if (game.turnState !== 'round_over') return { success: false, message: "The current round is not over yet." };
-        if (game.status === 'complete') return { success: false, message: "The game is already complete." };
-
-        // --- Game Over Logic ---
-        const roundCount = game.roundHistory.length + 1;
-        const isFriendModeGameOver = game.mode === 'friend' && (roundCount >= 10 || Object.values(game.score).some(s => s >= 5));
-        const soloPlayerScore = game.score[game.participantIds[0]] || 0;
-        const incorrectSoloAnswers = roundCount - soloPlayerScore;
-        const isSoloModeGameOver = game.mode === 'solo' && (soloPlayerScore >= 5 || incorrectSoloAnswers >= 3);
-
-        if (isFriendModeGameOver || isSoloModeGameOver) {
-            await completeLegendGame(gameId);
-        } else {
-            // --- Continue to Next Round ---
-            const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
-            await startNextLegendRoundInFirestore(gameId, nextRound);
-        }
-
+        await startNextLegendRound(gameId, currentUserId);
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
@@ -514,6 +529,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
         return { success: false, message: error.message || 'Failed to start next round.' };
     }
 }
+
 
 
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
