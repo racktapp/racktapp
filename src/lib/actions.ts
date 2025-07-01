@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -465,12 +466,11 @@ export async function analyzeSwingAction(input: SwingAnalysisInput, userId: stri
 
 // --- AI Prediction Actions ---
 
-export async function predictFriendMatchAction(friendId: string, sport: Sport): Promise<PredictMatchOutput> {
-    const user = auth.currentUser;
-    if (!user) throw new Error("Not authenticated");
+export async function predictFriendMatchAction(currentUserId: string, friendId: string, sport: Sport): Promise<PredictMatchOutput> {
+    if (!currentUserId) throw new Error("Not authenticated");
     
     const [currentUserDoc, friendDoc] = await Promise.all([
-        getDoc(doc(db, 'users', user.uid)),
+        getDoc(doc(db, 'users', currentUserId)),
         getDoc(doc(db, 'users', friendId))
     ]);
 
@@ -481,10 +481,10 @@ export async function predictFriendMatchAction(friendId: string, sport: Sport): 
     const currentUserData = currentUserDoc.data() as User;
     const friendData = friendDoc.data() as User;
 
-    const currentUserStats = currentUserData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0 };
-    const friendStats = friendData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0 };
+    const currentUserStats = currentUserData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
+    const friendStats = friendData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
 
-    const headToHead = await getHeadToHeadRecord(user.uid, friendId, sport);
+    const headToHead = await getHeadToHeadRecord(currentUserId, friendId, sport);
 
     const currentUserTotalGames = currentUserStats.wins + currentUserStats.losses;
     const friendTotalGames = friendStats.wins + friendStats.losses;

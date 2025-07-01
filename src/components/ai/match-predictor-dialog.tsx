@@ -42,6 +42,10 @@ export function MatchPredictorDialog({ children }: { children: ReactNode }) {
   }, [open, user]);
 
   async function handlePredict() {
+    if (!user) {
+        toast({variant: 'destructive', title: 'Authentication error.'});
+        return;
+    }
     if (!selectedFriendId) {
         toast({variant: 'destructive', title: 'Please select a friend.'})
         return;
@@ -49,7 +53,7 @@ export function MatchPredictorDialog({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setResult(null);
     try {
-      const prediction = await predictFriendMatchAction(selectedFriendId, sport);
+      const prediction = await predictFriendMatchAction(user.uid, selectedFriendId, sport);
       const winnerName = prediction.predictedWinner === 'player1' 
         ? user!.name 
         : friends.find(f => f.uid === selectedFriendId)!.name;
