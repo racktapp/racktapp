@@ -1,13 +1,9 @@
-import Image from 'next/image';
+import { Logo } from './logo';
 import { cn } from '@/lib/utils';
 
 export function LoadingSpinner({ className }: { className?: string }) {
   return (
-    <Image
-      src="/my-logo1.svg"
-      alt="Loading..."
-      width={50}
-      height={50}
+    <Logo
       className={cn("animate-spin", className)}
     />
   );

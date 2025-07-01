@@ -2,6 +2,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Logo } from '@/components/ui/logo';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -9,7 +10,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       {/* Left side with image - hidden on mobile */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-muted relative">
           <Link href="/" className="absolute top-8 left-8 flex items-center gap-2 text-2xl font-bold text-primary z-10">
-              <Image src="/my-logo1.svg" alt="Rackt Logo" width={28} height={28} />
+              <Logo />
               <h1 className="font-headline">Rackt</h1>
           </Link>
           <Image 
@@ -26,7 +27,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       {/* Right side with form */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-4">
           <Link href="/" className="lg:hidden mb-8 flex items-center gap-2 text-2xl font-bold text-primary">
-              <Image src="/my-logo1.svg" alt="Rackt Logo" width={28} height={28} />
+              <Logo />
               <h1 className="font-headline">Rackt</h1>
           </Link>
           {children}

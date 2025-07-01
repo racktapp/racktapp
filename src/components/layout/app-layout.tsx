@@ -4,9 +4,8 @@
 import { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, Search, Settings, ChevronDown, Check, User as UserIcon } from 'lucide-react';
+import { LogOut, Settings, User as UserIcon } from 'lucide-react';
 import { signOut } from 'firebase/auth';
-import Image from 'next/image';
 
 import { type User } from '@/lib/types';
 import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/constants';
@@ -24,7 +23,6 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
@@ -44,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSport } from '../providers/sport-provider';
 import { SPORTS } from '@/lib/constants';
+import { Logo } from '../ui/logo';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -66,7 +65,7 @@ const AppSidebar = ({ user }: { user: User }) => {
       <SidebarHeader>
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
-            <Image src="/my-logo1.svg" alt="Rackt Logo" width={28} height={28} />
+            <Logo />
             <span className="font-headline group-data-[collapsible=icon]:hidden">Rackt</span>
           </Link>
           <div className="group-data-[collapsible=icon]:hidden">
