@@ -94,6 +94,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
                          <div className="flex items-center gap-2">
                              <Sparkles className="h-5 w-5 text-primary"/>
                              <h4 className="font-semibold">AI Match Recap</h4>
+                             <Badge variant="outline" className="font-medium">Beta</Badge>
                          </div>
                         <p className="text-sm italic">"{recap}"</p>
                     </div>

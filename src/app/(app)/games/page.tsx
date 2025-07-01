@@ -1,3 +1,4 @@
+
 'use client';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { ActiveGamesList } from '@/components/games/active-games-list';
 import { StartLegendSoloDialog } from '@/components/games/start-legend-solo-dialog';
 import { Gamepad2, Brain, Swords } from 'lucide-react';
 import { StartRallyFriendDialog } from '@/components/games/start-rally-friend-dialog';
+import { Badge } from '@/components/ui/badge';
 
 export default function GamesPage() {
   const { user } = useAuth();
@@ -28,7 +30,10 @@ export default function GamesPage() {
                             <Swords className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <CardTitle>Rally Game</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                <span>Rally Game</span>
+                                <Badge variant="outline">Beta</Badge>
+                            </CardTitle>
                             <CardDescription>A turn-based tennis point simulator. Outsmart your opponent!</CardDescription>
                         </div>
                     </div>
@@ -47,7 +52,10 @@ export default function GamesPage() {
                             <Brain className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <CardTitle>Guess the Legend</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                <span>Guess the Legend</span>
+                                <Badge variant="outline">Beta</Badge>
+                            </CardTitle>
                             <CardDescription>Test your sports trivia knowledge against friends or the AI.</CardDescription>
                         </div>
                     </div>

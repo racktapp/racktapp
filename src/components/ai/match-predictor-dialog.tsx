@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ReactNode, useState, useEffect } from 'react';
@@ -20,6 +21,7 @@ import { BrainCircuit, Star, Users, BarChart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Badge } from '../ui/badge';
 
 export function MatchPredictorDialog({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -77,7 +79,10 @@ export function MatchPredictorDialog({ children }: { children: ReactNode }) {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>AI Match Predictor</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <span>AI Match Predictor</span>
+            <Badge variant="outline">Beta</Badge>
+          </DialogTitle>
           <DialogDescription>
             Select a friend to get an AI-powered prediction for a {sport} match.
           </DialogDescription>

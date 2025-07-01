@@ -13,6 +13,7 @@ import { SwingAnalysisOutput } from '@/ai/flows/swing-analysis-flow';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Badge } from '@/components/ui/badge';
 
 const SHOT_TYPES = ['Forehand', 'Backhand', 'Serve'];
 
@@ -93,7 +94,7 @@ export default function CoachPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
-        title="AI Coach"
+        title={<><span>AI Coach</span><Badge variant="outline">Beta</Badge></>}
         description="Upload a video of your swing for AI-powered analysis."
       />
       <Card>
