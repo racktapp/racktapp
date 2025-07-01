@@ -39,18 +39,26 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
 
-  // Since the parent page component handles loading, we can be sure `game` exists.
-  // We add a safeguard for `currentRound` for robustness.
-  if (!game.currentRound) {
+  // Safeguard against incomplete game data. If the game is initializing, or the
+  // current round or its options aren't loaded, display a loading/error state.
+  if (game.status === 'initializing' || !game.currentRound || !game.currentRound.options || game.currentRound.options.length === 0) {
+    let title = "Guess the Legend";
+    let description = "Generating the first round...";
+
+    if (game.error) {
+        title = "Could not load game";
+        description = `Failed to generate game round: ${game.error}`;
+    } else if (game.status !== 'initializing') {
+        title = "Could not load game";
+        description = "There was a problem loading the current round data.";
+    }
+
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
-          <PageHeader
-              title="Guess the Legend"
-              description="Loading game round..."
-          />
-          <GameSkeleton />
+        <PageHeader title={title} description={description} />
+        {title === "Guess the Legend" && <GameSkeleton />}
       </div>
-    )
+    );
   }
   
   const currentRound = game.currentRound;
