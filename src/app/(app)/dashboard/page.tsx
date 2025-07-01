@@ -3,60 +3,33 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
-import { Button } from '@/components/ui/button';
 import { Bot, BarChart, History, Plus, Users, Swords, Trophy, Activity, Flame, ChevronRight, Gamepad2, BrainCircuit } from 'lucide-react';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { getMatchHistoryAction } from '@/lib/actions';
 import { Match, Sport } from '@/lib/types';
 import { UserAvatar } from '@/components/user-avatar';
-import { SPORT_ICONS } from '@/lib/constants';
 import { format } from 'date-fns';
 
-const ActionButton = ({ href, children, icon: Icon, onClick }: { href?: string, children: React.ReactNode, icon: React.ElementType, onClick?: () => void }) => {
-    const content = (
-        <div className="flex h-full flex-col items-center justify-center text-center p-4">
-            <div className="mb-4 rounded-full bg-primary/10 p-4 text-primary">
-                <Icon className="h-8 w-8" />
-            </div>
-            <h3 className="text-base font-semibold">{children}</h3>
+
+const ActionCard = ({ icon: Icon, title, description, href, ...props }: { icon: React.ElementType, title: string, description: string, href: string, [key:string]: any }) => (
+  <Link href={href} className="block group" {...props}>
+    <Card className="h-full transition-all duration-200 group-hover:border-primary group-hover:-translate-y-1">
+      <CardHeader className="flex-row items-center gap-4 p-4">
+        <div className="bg-primary/10 p-3 rounded-lg text-primary">
+          <Icon className="h-6 w-6" />
         </div>
-    );
-
-    const className = "rounded-xl bg-card hover:bg-muted border transition-all hover:border-primary/50 h-full";
-
-    if (href) {
-        return (
-            <Link href={href} className={className}>
-                {content}
-            </Link>
-        );
-    }
-
-    return (
-        <button onClick={onClick} className={className}>
-            {content}
-        </button>
-    )
-};
-
-const WelcomeBanner = ({ user, sport }: { user: any, sport: Sport}) => (
-  <div className="rounded-xl bg-gradient-to-r from-primary/80 to-primary p-6 md:p-8 text-primary-foreground">
-    <div className="flex justify-between items-start">
         <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Welcome, {user.name.split(' ')[0]}!</h1>
-             <p className="mt-1 text-primary-foreground/80">
-                Ready to conquer the court? Here's your <span className="font-semibold inline-flex items-center gap-1.5">{sport} <Image src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} unoptimized/></span> dashboard.
-            </p>
+          <CardTitle className="text-base">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </div>
-        <UserAvatar user={user} className="h-12 w-12 md:h-16 md:w-16 border-2 border-primary-foreground/50" />
-    </div>
-  </div>
+      </CardHeader>
+    </Card>
+  </Link>
 );
 
 
@@ -115,58 +88,74 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <div className="grid gap-6">
-        <WelcomeBanner user={user} sport={sport} />
-        
-         <Card>
-            <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <ActionButton icon={Plus} href="/report-match">Report Match</ActionButton>
-                    <ActionButton icon={Users} href="/friends">Find Players</ActionButton>
-                    <ActionButton icon={Swords} href="/challenges">Challenges</ActionButton>
-                    <ActionButton icon={Trophy} href="/tournaments">Tournaments</ActionButton>
-                    <ActionButton icon={Gamepad2} href="/games">AI Games</ActionButton>
-                    <ActionButton icon={Bot} href="/coach">AI Coach</ActionButton>
-                    <ActionButton icon={History} href="/match-history">Match History</ActionButton>
-                    <MatchPredictorDialog><ActionButton icon={BrainCircuit}>AI Predictor</ActionButton></MatchPredictorDialog>
+    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+        <Card>
+            <div className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold">Welcome, {user.name.split(' ')[0]}!</h1>
+                    <p className="mt-1 text-muted-foreground">
+                        Here's your <span className="font-semibold text-primary">{sport}</span> dashboard.
+                    </p>
                 </div>
-            </CardContent>
+                <UserAvatar user={user} className="h-16 w-16" />
+            </div>
         </Card>
 
-        <div>
-            {sportStats ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {statCards.map((card, i) => (
-                        <StatsCard
-                            key={card.title}
-                            title={card.title}
-                            value={card.value}
-                            icon={card.icon}
-                            className="opacity-0 animate-fade-in-slide-up"
-                            style={{ animationDelay: `${i * 100}ms` }}
-                        />
-                    ))}
-                </div>
-            ) : (
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-center text-muted-foreground">No stats for {sport} yet. Report a match to get started!</p>
-                </CardContent>
-              </Card>
-            )}
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3 space-y-6">
+                {sportStats ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {statCards.map((card, i) => (
+                            <StatsCard
+                                key={card.title}
+                                title={card.title}
+                                value={card.value}
+                                icon={card.icon}
+                                className="opacity-0 animate-fade-in-slide-up"
+                                style={{ animationDelay: `${i * 100}ms` }}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                <Card>
+                    <CardContent className="pt-6">
+                    <p className="text-center text-muted-foreground">No stats for {sport} yet. Report a match to get started!</p>
+                    </CardContent>
+                </Card>
+                )}
+                <EloChart data={eloHistoryData} />
+            </div>
+            <div className="lg:col-span-2 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Play</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <ActionCard icon={Plus} title="Report Match" description="Log a completed game." href="/report-match" />
+                        <ActionCard icon={Swords} title="Challenges" description="Accept or post challenges." href="/challenges" />
+                        <ActionCard icon={Gamepad2} title="AI Games" description="Test your skills." href="/games" />
+                         <MatchPredictorDialog>
+                            <div className="block group cursor-pointer">
+                                <Card className="h-full transition-all duration-200 group-hover:border-primary group-hover:-translate-y-1">
+                                    <CardHeader className="flex-row items-center gap-4 p-4">
+                                        <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                                        <BrainCircuit className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                        <CardTitle className="text-base">AI Predictor</CardTitle>
+                                        <CardDescription>Get AI-powered match predictions.</CardDescription>
+                                        </div>
+                                    </CardHeader>
+                                </Card>
+                            </div>
+                        </MatchPredictorDialog>
+                    </CardContent>
+                </Card>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <EloChart data={eloHistoryData} />
-          </div>
-          <div className="lg:col-span-1">
-            <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
-          </div>
+                <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
+            </div>
         </div>
-      </div>
     </div>
   );
 }
+

@@ -15,8 +15,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </Link>
           <Image 
             src="https://placehold.co/1000x1200.png" 
-            data-ai-hint="tennis player"
-            alt="A tennis player serving" 
+            data-ai-hint="tennis court"
+            alt="A tennis court from above" 
             width={1000} 
             height={1200} 
             className="object-cover h-full w-full"

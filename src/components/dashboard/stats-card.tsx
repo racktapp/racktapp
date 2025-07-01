@@ -13,15 +13,15 @@ interface StatsCardProps {
 
 export function StatsCard({ title, value, icon: Icon, className, style }: StatsCardProps) {
   return (
-    <Card className={cn("p-1", className)} style={style}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-            <div className="bg-primary/10 p-2.5 rounded-full">
-                <Icon className="h-5 w-5 text-primary" />
-            </div>
+    <Card className={cn(className)} style={style}>
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className="bg-primary/10 p-3 rounded-full">
+            <Icon className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-2xl font-bold">{value}</p>
         </div>
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
       </CardContent>
     </Card>
   );
