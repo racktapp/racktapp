@@ -41,7 +41,12 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
   // Safeguard against incomplete game data. If the game is initializing, or the
   // current round or its options aren't loaded, display a loading/error state.
-  if (game.status === 'initializing' || !game.currentRound || !game.currentRound.options || game.currentRound.options.length === 0) {
+  if (
+    game.status === 'initializing' ||
+    !game.currentRound ||
+    !game.currentRound.options ||
+    game.currentRound.options.length === 0
+  ) {
     let title = "Guess the Legend";
     let description = "Generating the first round...";
 
@@ -219,3 +224,5 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     </div>
   );
 }
+
+    

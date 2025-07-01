@@ -49,8 +49,8 @@ import {
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
-import type { SwingAnalysisInput, LegendGameOutput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema, LegendGame } from '@/lib/types';
+import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameOutput } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -519,7 +519,6 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
     }
 }
 
-
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
     try {
@@ -687,3 +686,5 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
         return { success: false, message: error.message || 'Failed to update profile.' };
     }
 }
+
+    
