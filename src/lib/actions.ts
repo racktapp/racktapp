@@ -43,7 +43,8 @@ import {
     getHeadToHeadRecord,
     getLeaderboard,
     updateUserProfile,
-    getFriendshipStatus
+    getFriendshipStatus,
+    deleteGame
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -470,6 +471,34 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to start next round.' };
+    }
+}
+
+export async function deleteGameAction(gameId: string, gameType: 'rally' | 'legend', currentUserId: string) {
+    if (!currentUserId) {
+        return { success: false, message: 'You must be logged in to delete a game.' };
+    }
+
+    const collectionName = gameType === 'rally' ? 'rallyGames' : 'legendGames';
+    const gameRef = doc(db, collectionName, gameId);
+
+    try {
+        const gameDoc = await getDoc(gameRef);
+
+        if (!gameDoc.exists()) {
+            return { success: false, message: "Game not found." };
+        }
+
+        const gameData = gameDoc.data() as RallyGame | LegendGame;
+        if (!gameData.participantIds.includes(currentUserId)) {
+            return { success: false, message: "You are not a participant in this game and cannot delete it." };
+        }
+
+        await deleteGame(gameId, gameType);
+        revalidatePath('/games');
+        return { success: true, message: 'Game deleted successfully.' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to delete game.' };
     }
 }
 

@@ -1091,3 +1091,9 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
 
     await updateDoc(userRef, updateData);
 }
+
+export async function deleteGame(gameId: string, gameType: 'rally' | 'legend') {
+    const collectionName = gameType === 'rally' ? 'rallyGames' : 'legendGames';
+    const gameRef = doc(db, collectionName, gameId);
+    await deleteDoc(gameRef);
+}

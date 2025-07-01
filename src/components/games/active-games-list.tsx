@@ -7,11 +7,25 @@ import { db } from '@/lib/firebase/config';
 import { type RallyGame, type LegendGame, type User } from '@/lib/types';
 import { UserAvatar } from '@/components/user-avatar';
 import { formatDistanceToNow } from 'date-fns';
-import { Swords, Brain, Bot } from 'lucide-react';
+import { Swords, Brain, Bot, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { deleteGameAction } from '@/lib/actions';
+import { useToast } from '@/hooks/use-toast';
 
 interface GameListItemProps {
   game: RallyGame | LegendGame;
@@ -25,14 +39,29 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
   const isMyTurn = game.currentPlayerId === currentUserId;
   const gameStatus = game.status;
   const link = gameType === 'Rally' ? `/games/rally/${game.id}` : `/games/legend/${game.id}`;
+  const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const title = opponent ? `vs ${opponent.name}` : 'Solo Game';
   const score = opponent ? `${game.score[currentUserId]} - ${game.score[opponentId]}` : `${game.score[currentUserId]}`;
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDeleting(true);
+    const result = await deleteGameAction(game.id, gameType, currentUserId);
+    if (!result.success) {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+      setIsDeleting(false);
+    } else {
+      toast({ title: 'Game Deleted', description: 'The game has been removed.' });
+    }
+  };
+
+
   return (
-    <Link href={link}>
-      <Card className="hover:bg-muted/50 transition-colors">
-        <CardContent className="p-4 flex items-center gap-4">
+    <Card className="transition-colors group">
+      <CardContent className="p-0 flex items-center justify-between">
+        <Link href={link} className="flex-1 p-4 flex items-center gap-4 overflow-hidden rounded-l-md group-hover:bg-muted/50">
           {opponent ? <UserAvatar user={opponent as User} className="h-10 w-10" /> : <div className="bg-primary/10 p-2 rounded-full"><Bot className="h-6 w-6 text-primary" /></div>}
           <div className="flex-1 overflow-hidden">
             <div className="flex justify-between items-start">
@@ -42,16 +71,41 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
               </p>
             </div>
             <div className="flex items-center gap-2 mt-1">
-                {isMyTurn && gameStatus === 'ongoing' && <Badge>Your Turn</Badge>}
-                {gameStatus === 'complete' && <Badge variant="secondary">Complete</Badge>}
-                <p className="text-sm text-muted-foreground truncate">
-                    Score: {score}
-                </p>
+              {isMyTurn && gameStatus === 'ongoing' && <Badge>Your Turn</Badge>}
+              {gameStatus === 'complete' && <Badge variant="secondary">Complete</Badge>}
+              <p className="text-sm text-muted-foreground truncate">
+                Score: {score}
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+        </Link>
+        <div className="pr-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Delete Game</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Game?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently remove this game for all participants. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                  {isDeleting && <LoadingSpinner className="mr-2" />}
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

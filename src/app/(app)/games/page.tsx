@@ -1,4 +1,3 @@
-
 'use client';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
@@ -6,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { ActiveGamesList } from '@/components/games/active-games-list';
 import { StartLegendSoloDialog } from '@/components/games/start-legend-solo-dialog';
-import { Gamepad2, Brain, Swords, ArrowRight } from 'lucide-react';
+import { Gamepad2, Brain, Swords, ArrowRight, Users } from 'lucide-react';
 import { StartRallyFriendDialog } from '@/components/games/start-rally-friend-dialog';
 import { Badge } from '@/components/ui/badge';
+import { StartLegendFriendDialog } from '@/components/games/start-legend-friend-dialog';
 
 export default function GamesPage() {
   const { user } = useAuth();
@@ -62,13 +62,19 @@ export default function GamesPage() {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="mt-auto bg-muted/50 px-6 py-4">
+                <CardFooter className="mt-auto bg-muted/50 px-6 py-4 flex items-center gap-2">
                     <StartLegendSoloDialog>
                         <Button>
                             Play Solo
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                     </StartLegendSoloDialog>
+                    <StartLegendFriendDialog>
+                        <Button variant="secondary">
+                            Challenge Friend
+                            <Users className="ml-2 h-4 w-4" />
+                        </Button>
+                    </StartLegendFriendDialog>
                 </CardFooter>
             </Card>
         </div>
