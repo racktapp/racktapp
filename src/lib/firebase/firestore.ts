@@ -824,59 +824,6 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
     return newGameRef.id;
 }
 
-export async function updateRallyGameTurn(
-    gameId: string, 
-    nextTurn: 'returning' | 'point_over' | 'serving', 
-    choice: any, 
-    options?: any, 
-    winner?: string, 
-    narrative?: string
-) {
-    return runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'rallyGames', gameId);
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) throw new Error("Game not found.");
-        
-        const game = gameDoc.data() as RallyGame;
-        const updateData: Partial<RallyGame> = {
-            turn: nextTurn,
-            updatedAt: Timestamp.now().toMillis(),
-        };
-
-        if (nextTurn === 'returning') {
-            updateData.currentPlayerId = game.currentPoint.returningPlayer;
-            updateData.currentPoint = {
-                ...game.currentPoint,
-                serveChoice: choice,
-                returnOptions: options,
-            };
-        } else if (nextTurn === 'point_over') {
-            const winnerId = winner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
-            updateData.score = { ...game.score, [winnerId]: game.score[winnerId] + 1 };
-            updateData.pointHistory = [
-                ...game.pointHistory,
-                { ...game.currentPoint, returnChoice: choice, winner: winnerId, narrative: narrative! } as any
-            ];
-            updateData.currentPlayerId = game.currentPoint.servingPlayer; // Server starts next point
-            if (updateData.score[winnerId]! >= 5) {
-                updateData.status = 'complete';
-                updateData.winnerId = winnerId;
-                updateData.turn = 'game_over';
-            }
-        } else if (nextTurn === 'serving') {
-            updateData.currentPlayerId = game.currentPoint.returningPlayer;
-            updateData.currentPoint = {
-                servingPlayer: game.currentPoint.returningPlayer,
-                returningPlayer: game.currentPoint.servingPlayer,
-                serveOptions: options,
-            };
-        }
-
-        transaction.update(gameRef, updateData);
-    });
-}
-
-
 export async function createLegendGame(userId: string, friendId: string | null, sport: Sport): Promise<string> {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) throw new Error("User not found.");
@@ -980,7 +927,10 @@ export async function startNextLegendRound(gameId: string, newRound: LegendGameR
         const updatedUsedPlayers = [...game.usedPlayers, newRound.correctAnswer];
         
         const WIN_SCORE = 5;
-        const playerReachedWinScore = Object.values(game.score).some(score => score >= WIN_SCORE);
+        
+        const newScore = { ...game.score };
+
+        const playerReachedWinScore = Object.values(newScore).some(score => score >= WIN_SCORE);
 
         const updateData: Partial<LegendGame> = {
             roundHistory: updatedRoundHistory,
@@ -988,7 +938,6 @@ export async function startNextLegendRound(gameId: string, newRound: LegendGameR
             usedPlayers: updatedUsedPlayers,
             turnState: 'playing',
             updatedAt: Timestamp.now().toMillis(),
-            // In friend mode, alternate who starts the round. In solo, it's always the same player.
             currentPlayerId: game.mode === 'friend' 
                 ? game.participantIds.find(id => id !== game.currentPlayerId)! 
                 : game.currentPlayerId,
@@ -998,15 +947,13 @@ export async function startNextLegendRound(gameId: string, newRound: LegendGameR
              updateData.status = 'complete';
              updateData.turnState = 'game_over';
              if (game.mode === 'friend') {
-                const score1 = game.score[game.participantIds[0]];
-                const score2 = game.score[game.participantIds[1]];
-                if (score1 >= WIN_SCORE && score1 > score2) {
+                const score1 = newScore[game.participantIds[0]];
+                const score2 = newScore[game.participantIds[1]];
+                
+                if (score1 > score2) {
                     updateData.winnerId = game.participantIds[0];
-                } else if (score2 >= WIN_SCORE && score2 > score1) {
+                } else if (score2 > score1) {
                     updateData.winnerId = game.participantIds[1];
-                } else if (updatedRoundHistory.length >= 10) {
-                    if (score1 > score2) updateData.winnerId = game.participantIds[0];
-                    else if (score2 > score1) updateData.winnerId = game.participantIds[1];
                 }
              }
         }
@@ -1109,8 +1056,18 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
     await updateDoc(userRef, updateData);
 }
 
-export async function deleteGame(gameId: string, gameType: 'Rally' | 'Legend') {
-    const collectionName = gameType === 'Rally' ? 'rallyGames' : 'legendGames';
+export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
     const gameRef = doc(db, collectionName, gameId);
+    const gameDoc = await getDoc(gameRef);
+
+    if (!gameDoc.exists()) {
+        throw new Error("Game not found.");
+    }
+
+    const gameData = gameDoc.data() as RallyGame | LegendGame;
+    if (!gameData.participantIds.includes(userId)) {
+        throw new Error("You are not a participant in this game and cannot delete it.");
+    }
+    
     await deleteDoc(gameRef);
 }
