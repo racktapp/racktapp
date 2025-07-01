@@ -259,6 +259,26 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             });
 
             // 2. Perform all calculations
+            
+            // --- DYNAMIC K-FACTOR LOGIC ---
+            const getKFactor = (playerStats: SportStats): number => {
+                const totalGames = (playerStats.wins || 0) + (playerStats.losses || 0);
+                return totalGames < 30 ? 40 : 20; // 40 for provisional, 20 for established
+            };
+
+            const getMatchKFactor = (playerIds: string[]): number => {
+                const totalK = playerIds.reduce((sum, pId) => {
+                    const player = players.find(pl => pl.uid === pId);
+                    const playerStats = player?.sports?.[match.sport] ?? { wins: 0, losses: 0 };
+                    return sum + getKFactor(playerStats);
+                }, 0);
+                return totalK / playerIds.length;
+            }
+
+            const matchKFactor = getMatchKFactor(allPlayerIds);
+            // --- END DYNAMIC K-FACTOR LOGIC ---
+
+
             const getTeamAvgElo = (teamIds: string[]): number => {
                 const totalElo = teamIds.reduce((sum, pId) => {
                     const player = players.find(pl => pl.uid === pId);
@@ -272,7 +292,12 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             const team2AvgElo = getTeamAvgElo(match.teams.team2.playerIds);
             const team1Won = match.winner.some(id => match.teams.team1.playerIds.includes(id));
             const team1GameScore = team1Won ? 1 : 0;
-            const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
+            const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(
+                team1AvgElo, 
+                team2AvgElo, 
+                team1GameScore as (0|1),
+                matchKFactor
+            );
             const team1EloChange = newTeam1Elo - team1AvgElo;
             const team2EloChange = newTeam2Elo - team2AvgElo;
             const rankChanges: Match['rankChange'] = [];
@@ -872,6 +897,9 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     (async () => {
         try {
             const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
+            if (!initialRoundData || !initialRoundData.correctAnswer) {
+                 throw new Error("AI failed to return valid round data.");
+            }
             const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
 
             await updateDoc(newGameRef, {
@@ -1101,3 +1129,4 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
     
     await deleteDoc(gameRef);
 }
+
