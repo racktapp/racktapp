@@ -36,7 +36,8 @@ import {
     createRallyGame,
     createLegendGame,
     submitLegendAnswer as submitLegendAnswerInFirestore,
-    startNextLegendRound as startNextLegendRoundInFirestore,
+    completeLegendGame,
+    startNextLegendRoundInFirestore,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
@@ -523,14 +524,41 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
     if (game.status === 'complete') return { success: false, message: "The game is already complete." };
 
     try {
+        // --- Game Over Logic ---
+        const isGameOver = () => {
+            // +1 because we are evaluating the round that just finished
+            const roundCount = game.roundHistory.length + 1;
+            if (roundCount >= 10) return true;
+            if (game.mode === 'friend') {
+                const WIN_SCORE = 5;
+                return Object.values(game.score).some(s => s >= WIN_SCORE);
+            } else { // solo
+                const WIN_SCORE_SOLO = 5;
+                const LOSE_SCORE_SOLO = 3;
+                const soloPlayerId = game.participantIds[0];
+                const correctAnswers = game.score[soloPlayerId] || 0;
+                // We use roundCount because score only tracks wins
+                const incorrectAnswers = roundCount - correctAnswers;
+                return correctAnswers >= WIN_SCORE_SOLO || incorrectAnswers >= LOSE_SCORE_SOLO;
+            }
+        };
+
+        if (isGameOver()) {
+            await completeLegendGame(gameId, game);
+            revalidatePath(`/games/legend/${gameId}`);
+            return { success: true };
+        }
+
+        // --- Continue to Next Round ---
         const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
-        await startNextLegendRoundInFirestore(gameId, nextRound);
+        await startNextLegendRoundInFirestore(gameId, game, nextRound);
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to start next round.' };
     }
 }
+
 
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
     if (!currentUserId) {

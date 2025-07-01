@@ -43,7 +43,13 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const title = opponent ? `vs ${opponent.name}` : 'Solo Game';
-  const score = opponent ? `${game.score[currentUserId]} - ${game.score[opponentId]}` : `${game.score[currentUserId]}`;
+  
+  const myScore = game.score[currentUserId] ?? 0;
+  const opponentScore = opponentId ? (game.score[opponentId] ?? 0) : null;
+  const scoreDisplay = opponentId !== undefined && opponentScore !== null 
+    ? `${myScore} - ${opponentScore}` 
+    : `${myScore}`;
+
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -74,7 +80,7 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
               {isMyTurn && gameStatus === 'ongoing' && <Badge>Your Turn</Badge>}
               {gameStatus === 'complete' && <Badge variant="secondary">Complete</Badge>}
               <p className="text-sm text-muted-foreground truncate">
-                Score: {score}
+                Score: {scoreDisplay}
               </p>
             </div>
           </div>
