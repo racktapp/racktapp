@@ -38,12 +38,17 @@ const prompt = ai.definePrompt({
   name: 'legendGamePrompt',
   input: { schema: LegendGameInputSchema },
   output: { schema: LegendGameOutputSchema },
-  prompt: `You are an expert sports historian and trivia master for the sport of **{{{sport}}}**.
+  prompt: `Generate a single, high-quality trivia question about a famous player from the sport of **{{{sport}}}**.
 
-Your task is to generate a single, high-quality trivia question about a famous player from that sport. Your output **MUST** be a single, valid JSON object that conforms to the specified schema, and nothing else. Do not add any text before or after the JSON object. Your response must start with \`{\` and end with \`}\`.
+**RULES:**
+1. Your entire response MUST be a single, valid JSON object. Do not include any text, notes, or apologies before or after the JSON object. The response must start with '{' and end with '}'.
+2. The JSON object must strictly adhere to the provided output schema.
+3. The "correctAnswer" player **MUST NOT** be any of these names: {{#if usedPlayers}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}{{else}}None{{/if}}.
+4. The "options" array MUST contain exactly 4 strings: the "correctAnswer" and three plausible distractors. The order must be random.
+5. The "clue" must be a single, clever sentence.
+6. The "justification" must be a short, fun explanation.
 
-**Example JSON Output:**
-\`\`\`json
+**EXAMPLE of a PERFECT RESPONSE:**
 {
   "clue": "I was a dominant force in the 90s, known for my one-handed backhand and winning the French Open without dropping a set.",
   "correctAnswer": "Gustavo Kuerten",
@@ -55,17 +60,7 @@ Your task is to generate a single, high-quality trivia question about a famous p
   ],
   "justification": "Gustavo 'Guga' Kuerten famously won his first of three French Open titles in 1997 as an unseeded player, and his powerful one-handed backhand was his signature shot."
 }
-\`\`\`
-
-The JSON object must have the following structure and content:
-- **\`clue\` (string):** A clever, one-sentence, slightly cryptic clue about your chosen player's career, style, or a famous achievement.
-- **\`correctAnswer\` (string):** The full name of the correct player. This player must NOT be one of the following already used players: {{#if usedPlayers}}{{else}}*(None)*{{/if}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}.
-- **\`options\` (array of 4 strings):** An array containing exactly four player names.
-    - One of the names MUST be the value from the \`correctAnswer\` field.
-    - The other three names must be *plausible* but incorrect distractors from a similar era or with a similar reputation.
-    - The array of four options must be shuffled randomly.
-- **\`justification\` (string):** A short, fun explanation of why the \`clue\` points to the \`correctAnswer\`.
-  `,
+`,
 });
 
 const legendGameFlow = ai.defineFlow(

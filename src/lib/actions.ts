@@ -48,10 +48,11 @@ import {
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
-import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
+import type { SwingAnalysisInput, LegendGameOutput } from '@/ai/flows/swing-analysis-flow';
 import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema, LegendGame } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
+import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 
 // Action to report a match
 export async function handleReportMatchAction(
@@ -482,14 +483,26 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
 
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
-    if (!currentUserId) return { success: false, message: 'You must be logged in to start a game.' };
+    if (!currentUserId) {
+        return { success: false, message: 'You must be logged in to start a game.' };
+    }
     
     try {
-        const gameId = await createLegendGame(currentUserId, friendId, sport);
+        // Step 1: Get the game round from the AI first.
+        const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
+        if (!initialRoundData?.correctAnswer) {
+             throw new Error("The AI failed to generate a valid game round. Please try again.");
+        }
+        
+        // Step 2: If successful, create the game document in Firestore.
+        const gameId = await createLegendGame(currentUserId, friendId, sport, initialRoundData);
+        
         revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
+
     } catch (error: any) {
-        return { success: false, message: error.message || 'Failed to start game.' };
+        console.error("Error creating legend game:", error);
+        return { success: false, message: error.message || 'Could not start the game. Please try again.' };
     }
 }
 

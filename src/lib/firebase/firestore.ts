@@ -22,7 +22,7 @@ import {
   Transaction,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -842,7 +842,7 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
     return newGameRef.id;
 }
 
-export async function createLegendGame(userId: string, friendId: string | null, sport: Sport): Promise<string> {
+export async function createLegendGame(userId: string, friendId: string | null, sport: Sport, initialRoundData: LegendGameOutput): Promise<string> {
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) throw new Error("User not found.");
     const user = userDoc.data() as User;
@@ -850,9 +850,9 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     const now = Timestamp.now().toMillis();
     const newGameRef = doc(collection(db, 'legendGames'));
 
+    const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
     let newGame: LegendGame;
-    const firstPlayer = friendId ? (Math.random() < 0.5 ? userId : friendId) : userId;
-
+    
     if (friendId) { // Friend mode
         const friendDoc = await getDoc(doc(db, 'users', friendId));
         if (!friendDoc.exists()) throw new Error("Friend not found.");
@@ -866,11 +866,12 @@ export async function createLegendGame(userId: string, friendId: string | null, 
                 [friendId]: { name: friend.name, avatar: friend.avatar, uid: friend.uid },
             },
             score: { [userId]: 0, [friendId]: 0 },
-            currentPlayerId: firstPlayer,
+            currentPlayerId: Math.random() < 0.5 ? userId : friendId,
             turnState: 'playing',
+            currentRound: initialRound,
             roundHistory: [], 
-            status: 'initializing',
-            usedPlayers: [],
+            status: 'ongoing',
+            usedPlayers: [initialRound.correctAnswer],
             createdAt: now, updatedAt: now,
         };
     } else { // Solo mode
@@ -883,37 +884,15 @@ export async function createLegendGame(userId: string, friendId: string | null, 
             score: { [userId]: 0 },
             currentPlayerId: userId,
             turnState: 'playing',
+            currentRound: initialRound,
             roundHistory: [],
-            status: 'initializing',
-            usedPlayers: [],
+            status: 'ongoing',
+            usedPlayers: [initialRound.correctAnswer],
             createdAt: now, updatedAt: now,
         };
     }
 
-    // Create the game document immediately in an "initializing" state
     await setDoc(newGameRef, newGame);
-
-    // In the background, fetch the first round and update the document.
-    (async () => {
-        try {
-            const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-            if (!initialRoundData || !initialRoundData.correctAnswer) {
-                 throw new Error("AI failed to return valid round data.");
-            }
-            const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-
-            await updateDoc(newGameRef, {
-                currentRound: initialRound,
-                status: 'ongoing',
-                usedPlayers: arrayUnion(initialRound.correctAnswer),
-                updatedAt: Timestamp.now().toMillis()
-            });
-        } catch (error) {
-            console.error(`Failed to initialize round for game ${newGameRef.id}:`, error);
-            await updateDoc(newGameRef, { status: 'error', 'currentRound.clue': 'Failed to generate game round.' });
-        }
-    })();
-
     return newGameRef.id;
 }
 
@@ -949,39 +928,6 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
         }
         
         transaction.update(gameRef, updatePayload);
-    });
-}
-
-export async function startNextLegendRound(gameId: string, currentUserId: string) {
-    const gameRef = doc(db, 'legendGames', gameId);
-    return runTransaction(db, async (transaction) => {
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) throw new Error("Game not found.");
-        let game = gameDoc.data() as LegendGame;
-
-        if (game.status !== 'ongoing' || !game.currentRound) throw new Error("Game is not ongoing.");
-        if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
-        
-        const updatedGame = await completeLegendGame(gameId, transaction);
-        if (updatedGame.status === 'complete') {
-             return; // Game over, no new round
-        }
-        game = updatedGame; // Use the updated game state for the next step
-
-        const usedPlayers = [...game.usedPlayers, game.currentRound.correctAnswer];
-        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers });
-        
-        let nextPlayerId = game.participantIds.find(id => id !== game.currentPlayerId);
-        if (!nextPlayerId) nextPlayerId = currentUserId;
-        
-        transaction.update(gameRef, {
-            roundHistory: arrayUnion(game.currentRound),
-            usedPlayers: arrayUnion(nextRoundData.correctAnswer),
-            currentRound: { ...nextRoundData, guesses: {} },
-            turnState: 'playing',
-            currentPlayerId: nextPlayerId,
-            updatedAt: Timestamp.now().toMillis(),
-        });
     });
 }
 
@@ -1033,6 +979,46 @@ export async function completeLegendGame(gameId: string, transaction: Transactio
         return finalDoc.data() as LegendGame;
     }
     return game;
+}
+
+export async function startNextLegendRound(gameId: string, currentUserId: string) {
+    const gameRef = doc(db, 'legendGames', gameId);
+    return runTransaction(db, async (transaction) => {
+        let gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) throw new Error("Game not found.");
+        let game = gameDoc.data() as LegendGame;
+
+        if (game.status !== 'ongoing' || !game.currentRound) throw new Error("Game is not ongoing.");
+        if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
+        
+        transaction.update(gameRef, {
+            roundHistory: arrayUnion(game.currentRound),
+            updatedAt: Timestamp.now().toMillis()
+        });
+
+        // Re-get the document after the first update to have the most recent state
+        gameDoc = await transaction.get(gameRef);
+        game = gameDoc.data() as LegendGame;
+
+        const updatedGame = await completeLegendGame(gameId, transaction);
+        if (updatedGame.status === 'complete') {
+             return; // Game over, no new round
+        }
+        game = updatedGame; // Use the updated game state for the next step
+
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
+        
+        let nextPlayerId = game.participantIds.find(id => id !== game.currentPlayerId);
+        if (!nextPlayerId) nextPlayerId = currentUserId;
+        
+        transaction.update(gameRef, {
+            usedPlayers: arrayUnion(nextRoundData.correctAnswer),
+            currentRound: { ...nextRoundData, guesses: {} },
+            turnState: 'playing',
+            currentPlayerId: nextPlayerId,
+            updatedAt: Timestamp.now().toMillis(),
+        });
+    });
 }
 
 export async function getHeadToHeadRecord(userId1: string, userId2: string, sport: Sport): Promise<{ player1Wins: number; player2Wins: number }> {

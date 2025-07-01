@@ -211,10 +211,10 @@ export interface LegendGame {
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
-    currentRound?: LegendGameRound;
+    currentRound: LegendGameRound;
     roundHistory: LegendGameRound[];
-    status: 'initializing' | 'ongoing' | 'complete' | 'error';
-    winnerId?: string;
+    status: 'ongoing' | 'complete';
+    winnerId?: string | 'draw' | null;
     usedPlayers: string[];
     createdAt: number;
     updatedAt: number;
@@ -340,10 +340,17 @@ export const legendGameRoundSchema = z.object({
     correctAnswer: z.string(),
     justification: z.string(),
     guesses: z.record(z.string()), // { userId: guess }
-    opponentGuess: z.string().optional(),
-    winner: z.string().optional(),
 });
 export type LegendGameRoundZod = z.infer<typeof legendGameRoundSchema>;
+
+export const LegendGameOutputSchema = z.object({
+  clue: z.string().describe("A clever, one-sentence, slightly cryptic clue about a famous player."),
+  correctAnswer: z.string().describe("The name of the correct player."),
+  options: z.array(z.string()).length(4).describe("An array of four player names, including the correct answer and three plausible distractors."),
+  justification: z.string().describe("A short, fun justification for why the clue points to the correct player."),
+});
+export type LegendGameOutput = z.infer<typeof LegendGameOutputSchema>;
+
 
 export const legendGameSchema = z.object({
     id: z.string(),
@@ -354,10 +361,10 @@ export const legendGameSchema = z.object({
     score: z.record(z.number()),
     currentPlayerId: z.string(),
     turnState: z.enum(['playing', 'round_over', 'game_over']),
-    currentRound: legendGameRoundSchema.optional(),
+    currentRound: legendGameRoundSchema,
     roundHistory: z.array(legendGameRoundSchema),
-    status: z.enum(['initializing', 'ongoing', 'complete', 'error']),
-    winnerId: z.string().optional(), // only in friend mode
+    status: z.enum(['ongoing', 'complete']),
+    winnerId: z.union([z.string(), z.literal('draw'), z.null()]).optional(),
     usedPlayers: z.array(z.string()),
     createdAt: z.number(),
     updatedAt: z.number(),
