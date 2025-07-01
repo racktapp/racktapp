@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS as sportValues } from './constants';
@@ -288,6 +287,7 @@ export const legendGameRoundSchema = z.object({
     correctAnswer: z.string(),
     justification: z.string(),
     guesses: z.record(z.string()), // { userId: guess }
+    opponentGuess: z.string().optional(),
     winner: z.string().optional(),
 });
 export type LegendGameRound = z.infer<typeof legendGameRoundSchema>;
@@ -299,7 +299,8 @@ export const legendGameSchema = z.object({
     participantIds: z.array(z.string()),
     participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional() })),
     score: z.record(z.number()),
-    turn: z.string().optional(), // only in friend mode
+    currentPlayerId: z.string(),
+    turnState: z.enum(['playing', 'round_over', 'game_over']),
     currentRound: legendGameRoundSchema,
     roundHistory: z.array(legendGameRoundSchema),
     status: z.enum(['ongoing', 'complete']),

@@ -1,12 +1,12 @@
 
 'use client';
 import { PageHeader } from '@/components/page-header';
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { ActiveGamesList } from '@/components/games/active-games-list';
 import { StartLegendSoloDialog } from '@/components/games/start-legend-solo-dialog';
-import { Gamepad2, Brain, Swords } from 'lucide-react';
+import { Gamepad2, Brain, Swords, ArrowRight } from 'lucide-react';
 import { StartRallyFriendDialog } from '@/components/games/start-rally-friend-dialog';
 import { Badge } from '@/components/ui/badge';
 
@@ -18,15 +18,15 @@ export default function GamesPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
-        title="Games"
-        description="Challenge your friends to fun, AI-powered minigames."
+        title="AI Games"
+        description="Challenge your friends or test your skills against AI-powered minigames."
       />
       <div className="grid gap-8">
         <div className="grid gap-6 md:grid-cols-2">
-            <Card className="flex flex-col">
-                <CardHeader>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 p-3 rounded-lg">
+            <Card className="flex flex-col group overflow-hidden">
+                <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-primary/10 p-3 rounded-lg flex-shrink-0">
                             <Swords className="h-6 w-6 text-primary" />
                         </div>
                         <div>
@@ -34,21 +34,23 @@ export default function GamesPage() {
                                 <span>Rally Game</span>
                                 <Badge variant="outline">Beta</Badge>
                             </CardTitle>
-                            <CardDescription>A turn-based tennis point simulator. Outsmart your opponent!</CardDescription>
+                            <CardDescription className="mt-1">A turn-based tennis point simulator. Outsmart your opponent with tactical shot choices.</CardDescription>
                         </div>
                     </div>
-                </CardHeader>
-                <CardFooter className="mt-auto flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Challenge a friend to a game.</p>
-                    <StartRallyFriendDialog>
-                        <Button variant="outline">Challenge Friend</Button>
+                </CardContent>
+                <CardFooter className="mt-auto bg-muted/50 px-6 py-4">
+                     <StartRallyFriendDialog>
+                        <Button>
+                            Challenge a Friend
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
                     </StartRallyFriendDialog>
                 </CardFooter>
             </Card>
-            <Card className="flex flex-col">
-                <CardHeader>
-                     <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 p-3 rounded-lg">
+             <Card className="flex flex-col group overflow-hidden">
+                <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-primary/10 p-3 rounded-lg flex-shrink-0">
                             <Brain className="h-6 w-6 text-primary" />
                         </div>
                         <div>
@@ -56,14 +58,16 @@ export default function GamesPage() {
                                 <span>Guess the Legend</span>
                                 <Badge variant="outline">Beta</Badge>
                             </CardTitle>
-                            <CardDescription>Test your sports trivia knowledge against friends or the AI.</CardDescription>
+                            <CardDescription className="mt-1">Test your sports trivia knowledge against friends with AI-generated questions.</CardDescription>
                         </div>
                     </div>
-                </CardHeader>
-                <CardFooter className="mt-auto flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">Challenge friends or play solo.</p>
+                </CardContent>
+                <CardFooter className="mt-auto bg-muted/50 px-6 py-4">
                     <StartLegendSoloDialog>
-                        <Button variant="outline">Play Solo</Button>
+                        <Button>
+                            Play Solo
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
                     </StartLegendSoloDialog>
                 </CardFooter>
             </Card>

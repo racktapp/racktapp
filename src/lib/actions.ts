@@ -1,11 +1,10 @@
 
-
 'use server';
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth, db } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, writeBatch, collection } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, collection } from 'firebase/firestore';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -35,9 +34,10 @@ import {
     getChatsForUser,
     getChallengeById,
     createRallyGame,
-    playRallyTurn,
+    updateRallyGameTurn,
     createLegendGame,
-    submitLegendAnswer,
+    submitLegendAnswer as submitLegendAnswerInFirestore,
+    startNextLegendRound as startNextLegendRoundInFirestore,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
@@ -49,9 +49,10 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema, LegendGame } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
-import { redirect } from 'next/navigation';
+import { playRallyPoint } from '@/ai/flows/rally-game-flow';
+import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 
 
 // Action to report a match
@@ -374,11 +375,55 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
 
 export async function playRallyTurnAction(gameId: string, choice: any, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
+    
+    const gameRef = doc(db, 'rallyGames', gameId);
+    const gameDoc = await getDoc(gameRef);
+    if (!gameDoc.exists()) throw new Error("Game not found.");
+
+    let game = gameDoc.data() as RallyGame;
+    if (game.status === 'complete') return { success: false, message: 'Game is already over.' };
+    if (game.currentPlayerId !== currentUserId) return { success: false, message: "It's not your turn." };
 
     try {
-        await playRallyTurn(gameId, currentUserId, choice);
+        let aiResponse;
+        const sport = game.sport || 'Tennis';
+
+        const servingPlayerDoc = await getDoc(doc(db, 'users', game.currentPoint.servingPlayer));
+        const returningPlayerDoc = await getDoc(doc(db, 'users', game.currentPoint.returningPlayer));
+        if (!servingPlayerDoc.exists() || !returningPlayerDoc.exists()) throw new Error("Player data not found.");
+        const servingPlayer = servingPlayerDoc.data() as User;
+        const returningPlayer = returningPlayerDoc.data() as User;
+
+        if (game.turn === 'serving') {
+            aiResponse = await playRallyPoint({
+                turn: 'return',
+                player1Rank: servingPlayer.sports?.[sport]?.racktRank || 1200,
+                player2Rank: returningPlayer.sports?.[sport]?.racktRank || 1200,
+                serveChoice: choice,
+            });
+            await updateRallyGameTurn(gameId, 'returning', choice, aiResponse.returnOptions);
+        } else if (game.turn === 'returning') {
+            aiResponse = await playRallyPoint({
+                turn: 'return',
+                player1Rank: servingPlayer.sports?.[sport]?.racktRank || 1200,
+                player2Rank: returningPlayer.sports?.[sport]?.racktRank || 1200,
+                serveChoice: game.currentPoint.serveChoice as any,
+                returnChoice: choice,
+            });
+            await updateRallyGameTurn(gameId, 'point_over', choice, null, aiResponse.pointWinner, aiResponse.narrative);
+        } else if (game.turn === 'point_over') {
+            const nextServer = await getDoc(doc(db, 'users', game.currentPoint.returningPlayer));
+            const nextReturner = await getDoc(doc(db, 'users', game.currentPoint.servingPlayer));
+            aiResponse = await playRallyPoint({
+                turn: 'serve',
+                player1Rank: nextServer.data()?.sports?.[sport]?.racktRank || 1200,
+                player2Rank: nextReturner.data()?.sports?.[sport]?.racktRank || 1200,
+            });
+            await updateRallyGameTurn(gameId, 'serving', null, aiResponse.serveOptions);
+        }
         return { success: true };
     } catch (error: any) {
+        console.error("Error playing rally turn:", error);
         return { success: false, message: error.message || 'Failed to play turn.' };
     }
 }
@@ -396,15 +441,38 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 }
 
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
-     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
+    if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
     try {
-        await submitLegendAnswer(gameId, currentUserId, answer);
+        await submitLegendAnswerInFirestore(gameId, currentUserId, answer);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to submit answer.' };
     }
 }
+
+export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
+    if (!currentUserId) return { success: false, message: 'You must be logged in.' };
+
+    const gameRef = doc(db, 'legendGames', gameId);
+    const gameDoc = await getDoc(gameRef);
+
+    if (!gameDoc.exists()) return { success: false, message: 'Game not found.' };
+    const game = gameDoc.data() as LegendGame;
+    
+    if (game.currentPlayerId !== currentUserId) return { success: false, message: "It's not your turn to start the next round." };
+    if (game.turnState !== 'round_over') return { success: false, message: "The current round is not over yet." };
+    if (game.status === 'complete') return { success: false, message: "The game is already complete." };
+
+    try {
+        const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
+        await startNextLegendRoundInFirestore(gameId, nextRound);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to start next round.' };
+    }
+}
+
 
 // --- Match History Actions ---
 export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: { confirmed: Match[], pending: Match[] } } | { success: false, error: string }> {
