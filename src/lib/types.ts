@@ -1,3 +1,4 @@
+
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS as sportValues } from './constants';
@@ -152,19 +153,71 @@ export interface Chat {
 }
 
 
-export interface Minigame {
-  id: string;
-  // ... fields for minigames
+export type RallyGameTurn = 'serving' | 'returning' | 'point_over' | 'game_over';
+
+export interface RallyGamePoint {
+  servingPlayer: string;
+  serveChoice: any;
+  returningPlayer: string;
+  returnChoice: any;
+  winner: string; // The UID of the player who won the point
+  narrative: string;
 }
 
 export interface RallyGame {
   id: string;
-  // ... fields for rally games
+  sport: Sport;
+  participantIds: string[];
+  participantsData: {
+    [key: string]: { name: string; avatar?: string; uid: string };
+  };
+  score: {
+    [key: string]: number;
+  };
+  turn: RallyGameTurn;
+  currentPlayerId: string;
+  currentPoint: {
+    servingPlayer: string;
+    returningPlayer: string;
+    serveChoice?: any;
+    returnChoice?: any;
+    serveOptions?: any[];
+    returnOptions?: any[];
+  };
+  pointHistory: RallyGamePoint[];
+  status: 'ongoing' | 'complete';
+  winnerId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+
+export type LegendGameTurnState = 'playing' | 'round_over' | 'game_over';
+
+export interface LegendGameRound {
+    clue: string;
+    options: string[];
+    correctAnswer: string;
+    justification: string;
+    guesses: { [key: string]: string }; // { userId: guess }
 }
 
 export interface LegendGame {
-  id: string;
-  // ... fields for legend games
+    id: string;
+    mode: 'solo' | 'friend';
+    sport: Sport;
+    participantIds: string[];
+    participantsData: { [key: string]: { name: string; avatar?: string; uid: string } };
+    score: { [key: string]: number };
+    currentPlayerId: string;
+    turnState: LegendGameTurnState;
+    currentRound: LegendGameRound;
+    roundHistory: LegendGameRound[];
+    status: 'ongoing' | 'complete';
+    winnerId?: string;
+    usedPlayers: string[];
+    createdAt: number;
+    updatedAt: number;
 }
 
 export interface TournamentMatch {
@@ -254,7 +307,7 @@ export const rallyGamePointSchema = z.object({
     winner: z.string(),
     narrative: z.string(),
 });
-export type RallyGamePoint = z.infer<typeof rallyGamePointSchema>;
+export type RallyGamePointZod = z.infer<typeof rallyGamePointSchema>;
 
 export const rallyGameSchema = z.object({
     id: z.string(),
@@ -278,7 +331,7 @@ export const rallyGameSchema = z.object({
     createdAt: z.number(),
     updatedAt: z.number(),
 });
-export type RallyGame = z.infer<typeof rallyGameSchema>;
+export type RallyGameZod = z.infer<typeof rallyGameSchema>;
 
 // Guess The Legend Game
 export const legendGameRoundSchema = z.object({
@@ -290,7 +343,7 @@ export const legendGameRoundSchema = z.object({
     opponentGuess: z.string().optional(),
     winner: z.string().optional(),
 });
-export type LegendGameRound = z.infer<typeof legendGameRoundSchema>;
+export type LegendGameRoundZod = z.infer<typeof legendGameRoundSchema>;
 
 export const legendGameSchema = z.object({
     id: z.string(),
@@ -309,7 +362,7 @@ export const legendGameSchema = z.object({
     createdAt: z.number(),
     updatedAt: z.number(),
 });
-export type LegendGame = z.infer<typeof legendGameSchema>;
+export type LegendGameZod = z.infer<typeof legendGameSchema>;
 
 // AI Prediction Schemas
 export const PredictMatchInputSchema = z.object({

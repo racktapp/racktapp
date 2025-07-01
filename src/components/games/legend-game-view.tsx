@@ -68,13 +68,22 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
   const renderFinalScreen = () => {
     const isWinner = game.winnerId === currentUser.uid;
+    const isDraw = game.status === 'complete' && !game.winnerId;
     const finalScore = opponent ? `${game.score[currentUser.uid]} - ${game.score[opponentId!]}` : game.score[currentUser.uid];
+    
+    let titleText = 'Game Over!';
+    if (game.mode === 'friend') {
+        if (isDraw) titleText = "It's a Draw!";
+        else if (isWinner) titleText = 'You Win!';
+        else titleText = 'You Lost!';
+    }
+
 
     return (
         <Alert className="mt-8 text-center">
             <Trophy className="mx-auto h-6 w-6" />
             <AlertTitle className="text-2xl font-bold mt-2">
-                {game.mode === 'solo' ? 'Game Over!' : (isWinner ? 'You Win!' : 'You Lost!')}
+                {titleText}
             </AlertTitle>
             <AlertDescription>
                 Final Score: {finalScore}
@@ -109,7 +118,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
         </CardContent>
       </Card>
       
-      {game.turnState === 'game_over' ? renderFinalScreen() : (
+      {game.status === 'complete' ? renderFinalScreen() : (
         <Card>
             <CardHeader>
             <CardTitle>Round {game.roundHistory.length + 1}: Who am I?</CardTitle>

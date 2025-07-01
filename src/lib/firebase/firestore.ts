@@ -935,32 +935,33 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
         if (!gameDoc.exists()) throw new Error("Game not found.");
 
         const game = gameDoc.data() as LegendGame;
-        if (game.mode === 'friend' && game.currentPlayerId !== playerId) throw new Error("It's not your turn.");
         if (game.currentRound.guesses[playerId]) throw new Error("You have already answered.");
+        if (game.mode === 'friend' && game.currentPlayerId !== playerId) throw new Error("It's not your turn.");
+
+        const isCorrect = answer === game.currentRound.correctAnswer;
         
+        // Prepare updates
+        const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
+        const newScore = { ...game.score };
+        if (isCorrect) {
+            newScore[playerId]++;
+        }
+
         const updateData: Partial<LegendGame> = {
-            score: { ...game.score },
-            currentRound: { ...game.currentRound, guesses: { ...game.currentRound.guesses, [playerId]: answer } },
+            score: newScore,
+            currentRound: { ...game.currentRound, guesses: newGuesses },
             updatedAt: Timestamp.now().toMillis(),
         };
 
-        const isCorrect = answer === game.currentRound.correctAnswer;
-        if (isCorrect) {
-            updateData.score![playerId]++;
-        }
-        
-        let roundOver = false;
-        if (game.mode === 'solo' || Object.keys(updateData.currentRound!.guesses).length === game.participantIds.length) {
-            roundOver = true;
-        }
+        // Determine next state
+        const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
 
-        if (roundOver) {
+        if (allPlayersAnswered) {
             updateData.turnState = 'round_over';
-            // Decide who starts next round - could be loser of current round, or alternate
-            updateData.currentPlayerId = game.mode === 'friend' 
-                ? game.participantIds.find(id => id !== playerId) || playerId
-                : playerId;
-        } else { // Friend mode, waiting for other player
+            // The player who made the last move is responsible for clicking "Next Round"
+            updateData.currentPlayerId = playerId;
+        } else if (game.mode === 'friend') {
+            // If not all players answered, it must be friend mode and we switch to the other player.
             updateData.currentPlayerId = game.participantIds.find(id => id !== playerId)!;
         }
 
@@ -975,29 +976,45 @@ export async function startNextLegendRound(gameId: string, newRound: LegendGameR
         if (!gameDoc.exists()) throw new Error("Game not found.");
         const game = gameDoc.data() as LegendGame;
 
-        const updateData: Partial<LegendGame> = {
-            roundHistory: [...game.roundHistory, game.currentRound],
-            currentRound: { ...newRound, guesses: {} },
-            usedPlayers: [...game.usedPlayers, newRound.correctAnswer],
-            turnState: 'playing',
-            updatedAt: Timestamp.now().toMillis(),
-        };
+        const updatedRoundHistory = [...game.roundHistory, game.currentRound];
+        const updatedUsedPlayers = [...game.usedPlayers, newRound.correctAnswer];
         
         const WIN_SCORE = 5;
-        const playerScores = Object.values(game.score);
-        if (playerScores.some(score => score >= WIN_SCORE)) {
-            updateData.status = 'complete';
-            updateData.turnState = 'game_over';
-            if (game.mode === 'friend') {
-                 updateData.winnerId = game.score[game.participantIds[0]] > game.score[game.participantIds[1]]
-                    ? game.participantIds[0]
-                    : game.participantIds[1];
-            }
+        const playerReachedWinScore = Object.values(game.score).some(score => score >= WIN_SCORE);
+
+        const updateData: Partial<LegendGame> = {
+            roundHistory: updatedRoundHistory,
+            currentRound: { ...newRound, guesses: {} },
+            usedPlayers: updatedUsedPlayers,
+            turnState: 'playing',
+            updatedAt: Timestamp.now().toMillis(),
+            // In friend mode, alternate who starts the round. In solo, it's always the same player.
+            currentPlayerId: game.mode === 'friend' 
+                ? game.participantIds.find(id => id !== game.currentPlayerId)! 
+                : game.currentPlayerId,
+        };
+        
+        if (updatedRoundHistory.length >= 10 || playerReachedWinScore) {
+             updateData.status = 'complete';
+             updateData.turnState = 'game_over';
+             if (game.mode === 'friend') {
+                const score1 = game.score[game.participantIds[0]];
+                const score2 = game.score[game.participantIds[1]];
+                if (score1 >= WIN_SCORE && score1 > score2) {
+                    updateData.winnerId = game.participantIds[0];
+                } else if (score2 >= WIN_SCORE && score2 > score1) {
+                    updateData.winnerId = game.participantIds[1];
+                } else if (updatedRoundHistory.length >= 10) {
+                    if (score1 > score2) updateData.winnerId = game.participantIds[0];
+                    else if (score2 > score1) updateData.winnerId = game.participantIds[1];
+                }
+             }
         }
 
         transaction.update(gameRef, updateData);
     });
 }
+
 
 export async function getHeadToHeadRecord(userId1: string, userId2: string, sport: Sport): Promise<{ player1Wins: number; player2Wins: number }> {
     const matchesRef = collection(db, 'matches');
@@ -1092,8 +1109,8 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
     await updateDoc(userRef, updateData);
 }
 
-export async function deleteGame(gameId: string, gameType: 'rally' | 'legend') {
-    const collectionName = gameType === 'rally' ? 'rallyGames' : 'legendGames';
+export async function deleteGame(gameId: string, gameType: 'Rally' | 'Legend') {
+    const collectionName = gameType === 'Rally' ? 'rallyGames' : 'legendGames';
     const gameRef = doc(db, collectionName, gameId);
     await deleteDoc(gameRef);
 }
