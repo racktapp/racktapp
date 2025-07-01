@@ -40,34 +40,16 @@ const prompt = ai.definePrompt({
   output: { schema: LegendGameOutputSchema },
   prompt: `You are an expert sports historian and trivia master for the sport of **{{{sport}}}**.
 
-Your task is to generate a single, high-quality trivia question about a famous player from that sport. The output must be a single JSON object that strictly adheres to the required schema.
+Your task is to generate a single, high-quality trivia question about a famous player from that sport. Your output **MUST** be a single, valid JSON object and nothing else. Do not add any text before or after the JSON object. Your response must start with \`{\` and end with \`}\`.
 
-**Your Instructions:**
-
-1.  **Select a Player:** Choose a well-known player from the sport of {{{sport}}}. Crucially, the player must NOT be one of the following already used players: {{#if usedPlayers}}{{else}}*(None)*{{/if}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}.
-2.  **Create a Clue:** Write a clever, one-sentence, and slightly cryptic clue about your chosen player's career, style, or a famous achievement for the 'clue' field.
-3.  **Generate Options:** Create a list of 4 multiple-choice options for the 'options' field.
-    - The 'options' field must be an array of exactly four strings.
-    - One option MUST be the name of the correct player you chose. This name must also be in the 'correctAnswer' field.
-    - The other three options must be *plausible* but incorrect distractors. They should be players from a similar era or with a similar reputation to make the question challenging.
-    - The final array of four options must be shuffled randomly.
-4.  **Write Justification:** For the 'justification' field, provide a short, fun explanation of why the clue points to the correct player.
-5.  **Format Output:** The entire output must be a single, valid JSON object. Do not include any other text, markdown, or explanations outside of the JSON structure.
-
-**Example JSON format:**
-\`\`\`json
-{
-  "clue": "This player was known for their one-handed backhand and completing a career Grand Slam.",
-  "correctAnswer": "Roger Federer",
-  "options": [
-    "Rafael Nadal",
-    "Roger Federer",
-    "Novak Djokovic",
-    "Andy Murray"
-  ],
-  "justification": "Roger Federer is famous for his elegant one-handed backhand and was one of the few to achieve a career Grand Slam."
-}
-\`\`\`
+The JSON object must have the following structure and content:
+- **\`clue\` (string):** A clever, one-sentence, slightly cryptic clue about your chosen player's career, style, or a famous achievement.
+- **\`correctAnswer\` (string):** The full name of the correct player. This player must NOT be one of the following already used players: {{#if usedPlayers}}{{else}}*(None)*{{/if}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}.
+- **\`options\` (array of 4 strings):** An array containing exactly four player names.
+    - One of the names MUST be the value from the \`correctAnswer\` field.
+    - The other three names must be *plausible* but incorrect distractors from a similar era or with a similar reputation.
+    - The array of four options must be shuffled randomly.
+- **\`justification\` (string):** A short, fun explanation of why the \`clue\` points to the \`correctAnswer\`.
   `,
 });
 
@@ -78,7 +60,17 @@ const legendGameFlow = ai.defineFlow(
     outputSchema: LegendGameOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    return output || null;
+    let attempts = 0;
+    while (attempts < 3) {
+      const { output } = await prompt(input);
+      if (output && output.clue && output.correctAnswer && output.options?.length === 4) {
+        return output;
+      }
+      attempts++;
+      if (attempts < 3) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    return null; // All attempts failed
   }
 );

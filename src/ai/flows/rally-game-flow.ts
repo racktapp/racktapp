@@ -41,7 +41,11 @@ export type RallyGameOutput = z.infer<typeof RallyGameOutputSchema>;
 
 
 export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOutput> {
-  return rallyGameFlow(input);
+  const output = await rallyGameFlow(input);
+  if (!output) {
+    throw new Error('The AI failed to generate a valid game action after multiple attempts.');
+  }
+  return output;
 }
 
 const RallyGamePromptInputSchema = RallyGameInputSchema.extend({
@@ -91,16 +95,28 @@ The serve has been hit! The serving player (Rank: {{{player1Rank}}}) used: **"{{
 const rallyGameFlow = ai.defineFlow(
   {
     name: 'rallyGameFlow',
-    inputSchema: RallyGameInputSchema,
-    outputSchema: RallyGameOutputSchema,
+    inputSchema: RallyGamePromptInputSchema,
+    outputSchema: z.any(),
   },
   async (input) => {
-    const promptInput = {
-      ...input,
-      isServeTurn: input.turn === 'serve',
-      isReturnTurn: input.turn === 'return',
-    };
-    const { output } = await prompt(promptInput);
-    return output!;
+    let attempts = 0;
+    while (attempts < 3) {
+        const { output } = await prompt(input);
+        if (output) {
+            // Basic validation
+            if (
+                (input.isServeTurn && output.serveOptions?.length) ||
+                (input.isReturnTurn && !input.returnChoice && output.returnOptions?.length) ||
+                (input.isReturnTurn && input.returnChoice && output.pointWinner)
+            ) {
+                return output;
+            }
+        }
+        attempts++;
+        if (attempts < 3) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+    return null; // All attempts failed
   }
 );
