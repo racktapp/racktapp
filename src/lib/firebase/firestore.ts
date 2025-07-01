@@ -906,10 +906,10 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
         
         if (game.status !== 'ongoing' || !game.currentRound) throw new Error("Game is not ready or has ended.");
         if (game.currentPlayerId !== playerId) throw new Error("It is not your turn.");
-        if (game.currentRound.guesses[playerId]) throw new Error("You have already answered this round.");
+        if (game.currentRound.guesses?.[playerId] !== undefined) throw new Error("You have already answered this round.");
 
         const isCorrect = answer === game.currentRound.correctAnswer;
-        const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
+        const newGuesses = { ...(game.currentRound.guesses || {}), [playerId]: answer };
         const newScore = isCorrect ? { ...game.score, [playerId]: (game.score[playerId] || 0) + 1 } : game.score;
 
         const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;

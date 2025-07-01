@@ -57,8 +57,8 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
   const isMyTurn = game.currentPlayerId === currentUser.uid;
-  const myGuess = currentRound.guesses[currentUser.uid];
-  const opponentGuess = opponentId ? currentRound.guesses[opponentId] : null;
+  const myGuess = currentRound.guesses?.[currentUser.uid];
+  const opponentGuess = opponentId ? currentRound.guesses?.[opponentId] : null;
 
   const handleAnswerSubmit = async (answer: string) => {
     setSelectedAnswer(answer);

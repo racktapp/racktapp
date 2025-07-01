@@ -199,7 +199,7 @@ export interface LegendGameRound {
     options: string[];
     correctAnswer: string;
     justification: string;
-    guesses: { [key: string]: string }; // { userId: guess }
+    guesses?: { [key: string]: string }; // { userId: guess }
 }
 
 export interface LegendGame {
@@ -211,10 +211,11 @@ export interface LegendGame {
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
-    currentRound: LegendGameRound;
+    currentRound?: LegendGameRound;
     roundHistory: LegendGameRound[];
-    status: 'ongoing' | 'complete';
+    status: 'ongoing' | 'complete' | 'initializing';
     winnerId?: string | 'draw' | null;
+    error?: string;
     usedPlayers: string[];
     createdAt: number;
     updatedAt: number;
