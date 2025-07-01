@@ -841,61 +841,6 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
     return newGameRef.id;
 }
 
-export async function createLegendGame(userId: string, friendId: string | null, sport: Sport, initialRoundData: LegendGameOutput): Promise<string> {
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) throw new Error("User not found.");
-    const user = userDoc.data() as User;
-    
-    const now = Timestamp.now().toMillis();
-    const newGameRef = doc(collection(db, 'legendGames'));
-
-    const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-    let newGame: LegendGame;
-    
-    if (friendId) { // Friend mode
-        const friendDoc = await getDoc(doc(db, 'users', friendId));
-        if (!friendDoc.exists()) throw new Error("Friend not found.");
-        const friend = friendDoc.data() as User;
-
-        newGame = {
-            id: newGameRef.id, mode: 'friend', sport,
-            participantIds: [userId, friendId],
-            participantsData: {
-                [userId]: { name: user.name, avatar: user.avatar, uid: user.uid },
-                [friendId]: { name: friend.name, avatar: friend.avatar, uid: friend.uid },
-            },
-            score: { [userId]: 0, [friendId]: 0 },
-            currentPlayerId: Math.random() < 0.5 ? userId : friendId,
-            turnState: 'playing',
-            currentRound: initialRound,
-            roundHistory: [], 
-            status: 'ongoing',
-            usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
-        };
-    } else { // Solo mode
-         newGame = {
-            id: newGameRef.id, mode: 'solo', sport,
-            participantIds: [userId],
-            participantsData: {
-                [userId]: { name: user.name, avatar: user.avatar, uid: user.uid }
-            },
-            score: { [userId]: 0 },
-            currentPlayerId: userId,
-            turnState: 'playing',
-            currentRound: initialRound,
-            roundHistory: [],
-            status: 'ongoing',
-            usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
-        };
-    }
-
-    await setDoc(newGameRef, newGame);
-    return newGameRef.id;
-}
-
-
 export async function submitLegendAnswer(gameId: string, playerId: string, answer: string) {
     const gameRef = doc(db, 'legendGames', gameId);
     return runTransaction(db, async (transaction) => {
@@ -1119,4 +1064,3 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
     
     await deleteDoc(gameRef);
 }
-

@@ -42,26 +42,17 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   // Safeguard against incomplete game data. If the game is initializing, or the
   // current round or its options aren't loaded, display a loading/error state.
   if (
-    game.status === 'initializing' ||
     !game.currentRound ||
     !game.currentRound.options ||
     game.currentRound.options.length === 0
   ) {
-    let title = "Guess the Legend";
-    let description = "Generating the first round...";
-
-    if (game.error) {
-        title = "Could not load game";
-        description = `Failed to generate game round. ${game.error}`;
-    } else if (game.status !== 'initializing') {
-        title = "Could not load game";
-        description = "There was a problem loading the current round data.";
-    }
-
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
-        <PageHeader title={title} description={description} />
-        {title === "Guess the Legend" && <GameSkeleton />}
+        <PageHeader 
+            title="Could not load game" 
+            description="There was a problem loading the current round data. Please try again later."
+        />
+        <GameSkeleton />
       </div>
     );
   }

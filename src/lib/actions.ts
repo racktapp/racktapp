@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { auth, db } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, collection, runTransaction, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, collection, runTransaction, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -34,7 +34,6 @@ import {
     getChatsForUser,
     getChallengeById,
     createRallyGame,
-    createLegendGame as createLegendGameInFirestore,
     submitLegendAnswer,
     getGameForNextRound,
     advanceToNextLegendRound,
@@ -50,7 +49,7 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameOutput } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameOutput, LegendGameRound } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -491,15 +490,67 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
     try {
         // Step 1: Get the game round from the AI first.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-        if (!initialRoundData?.correctAnswer) {
-             throw new Error("The AI failed to generate a valid game round. Please try again.");
-        }
         
-        // Step 2: If successful, create the game document in Firestore.
-        const gameId = await createLegendGameInFirestore(currentUserId, friendId, sport, initialRoundData);
+        // Step 2: If successful, create the game document directly here.
+        const userDoc = await getDoc(doc(db, 'users', currentUserId));
+        if (!userDoc.exists()) throw new Error("User not found.");
+        const user = userDoc.data() as User;
+        
+        const now = Timestamp.now().toMillis();
+        const newGameRef = doc(collection(db, 'legendGames'));
+
+        const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+        let newGame: LegendGame;
+        
+        if (friendId) { // Friend mode
+            const friendDoc = await getDoc(doc(db, 'users', friendId));
+            if (!friendDoc.exists()) throw new Error("Friend not found.");
+            const friend = friendDoc.data() as User;
+
+            newGame = {
+                id: newGameRef.id,
+                mode: 'friend',
+                sport,
+                participantIds: [currentUserId, friendId],
+                participantsData: {
+                    [currentUserId]: { name: user.name, avatar: user.avatar, uid: user.uid },
+                    [friendId]: { name: friend.name, avatar: friend.avatar, uid: friend.uid },
+                },
+                score: { [currentUserId]: 0, [friendId]: 0 },
+                currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
+                turnState: 'playing',
+                currentRound: initialRound,
+                roundHistory: [], 
+                status: 'ongoing',
+                usedPlayers: [initialRound.correctAnswer],
+                createdAt: now,
+                updatedAt: now,
+            };
+        } else { // Solo mode
+            newGame = {
+                id: newGameRef.id,
+                mode: 'solo',
+                sport,
+                participantIds: [currentUserId],
+                participantsData: {
+                    [currentUserId]: { name: user.name, avatar: user.avatar, uid: user.uid }
+                },
+                score: { [currentUserId]: 0 },
+                currentPlayerId: currentUserId,
+                turnState: 'playing',
+                currentRound: initialRound,
+                roundHistory: [],
+                status: 'ongoing',
+                usedPlayers: [initialRound.correctAnswer],
+                createdAt: now,
+                updatedAt: now,
+            };
+        }
+
+        await setDoc(newGameRef, newGame);
         
         revalidatePath('/games');
-        return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
+        return { success: true, message: 'Game started!', redirect: `/games/legend/${newGameRef.id}` };
 
     } catch (error: any) {
         console.error("Error creating legend game:", error);
@@ -520,7 +571,9 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
-    if (!currentUserId) return { success: false, message: 'You must be logged in.' };
+    if (!currentUserId) {
+        return { success: false, message: 'You must be logged in.' };
+    }
     try {
         // Step 1: Get the current game data to determine the sport and used players.
         const game = await getGameForNextRound(gameId);
@@ -530,7 +583,6 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
 
         // Step 2: Call the AI to generate the next round.
         const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
-        if (!nextRoundData) throw new Error("Failed to generate the next round from AI.");
 
         // Step 3: Pass this data to the database function to perform the atomic update.
         await advanceToNextLegendRound(gameId, nextRoundData, currentUserId);
@@ -686,5 +738,3 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
         return { success: false, message: error.message || 'Failed to update profile.' };
     }
 }
-
-    
