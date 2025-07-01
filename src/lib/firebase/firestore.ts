@@ -26,7 +26,6 @@ import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, Op
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
-import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 
 // Fetches a user's friends from Firestore
@@ -793,10 +792,9 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     const newGameRef = doc(collection(db, 'rallyGames'));
 
-    const initialAiResponse = await playRallyPoint({
-        turn: 'serve',
-        player1Rank: user1.sports.Tennis?.racktRank || 1200,
-        player2Rank: user2.sports.Tennis?.racktRank || 1200,
+    const initialAiResponse = await getLegendGameRound({
+        sport: 'Tennis',
+        usedPlayers: [],
     });
 
     const newGame: RallyGame = {
@@ -813,7 +811,7 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
         currentPoint: {
             servingPlayer: user1.uid,
             returningPlayer: user2.uid,
-            serveOptions: initialAiResponse.serveOptions,
+            serveOptions: initialAiResponse.options,
         },
         pointHistory: [],
         status: 'ongoing',
@@ -875,105 +873,133 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     return newGameRef.id;
 }
 
-export function checkLegendGameOver(game: LegendGame): boolean {
-    const roundCount = game.roundHistory.length + 1;
-    if (game.mode === 'friend') {
-        const isGameOver = (roundCount >= 10 || Object.values(game.score).some(s => s >= 5));
-        return isGameOver;
-    } else { // solo mode
-        const soloPlayerScore = game.score[game.participantIds[0]] || 0;
-        const incorrectSoloAnswers = (game.roundHistory.length) - soloPlayerScore;
-        const isGameOver = (soloPlayerScore >= 5 || incorrectSoloAnswers >= 3);
-        return isGameOver;
+function isLegendGameOver(game: LegendGame): { over: boolean; winnerId?: string | null } {
+    const roundsPlayed = game.roundHistory.length + 1;
+    
+    if (game.mode === 'solo') {
+        const score = game.score[game.participantIds[0]] ?? 0;
+        const incorrect = roundsPlayed - score;
+        if (score >= 5) return { over: true, winnerId: game.participantIds[0] };
+        if (incorrect >= 3) return { over: true, winnerId: null };
+        return { over: false };
+    } else {
+        const [p1, p2] = game.participantIds;
+        const score1 = game.score[p1] ?? 0;
+        const score2 = game.score[p2] ?? 0;
+
+        if (roundsPlayed >= 10) {
+            if (score1 > score2) return { over: true, winnerId: p1 };
+            if (score2 > score1) return { over: true, winnerId: p2 };
+            return { over: true, winnerId: null }; // Draw
+        }
+        if (score1 >= 5) return { over: true, winnerId: p1 };
+        if (score2 >= 5) return { over: true, winnerId: p2 };
+        
+        return { over: false };
     }
 }
 
-export async function submitLegendAnswerInFirestore(gameId: string, playerId: string, answer: string): Promise<LegendGame> {
-    let updatedGame: LegendGame | null = null;
+
+export async function submitLegendAnswer(gameId: string, playerId: string, answer: string) {
     await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, 'legendGames', gameId);
         const gameDoc = await transaction.get(gameRef);
-
         if (!gameDoc.exists()) throw new Error("Game not found.");
-        const game = gameDoc.data() as LegendGame;
+        let game = gameDoc.data() as LegendGame;
 
-        if (game.status !== 'ongoing') throw new Error("Game is over.");
+        if (game.status !== 'ongoing') throw new Error("Game is already over.");
         if (game.currentPlayerId !== playerId) throw new Error("It is not your turn.");
         if (game.currentRound.guesses[playerId]) throw new Error("You have already answered this round.");
 
-        const isCorrect = answer === game.currentRound.correctAnswer;
-        const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
-        const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
-        
-        const updateData: Partial<LegendGame> = {
-            currentRound: {
-                ...game.currentRound,
-                guesses: newGuesses,
-            },
-            updatedAt: Timestamp.now().toMillis(),
-        };
+        let updatedGame = { ...game };
 
+        const isCorrect = answer === updatedGame.currentRound.correctAnswer;
+        updatedGame.currentRound = {
+            ...updatedGame.currentRound,
+            guesses: { ...updatedGame.currentRound.guesses, [playerId]: answer }
+        };
         if (isCorrect) {
-            updateData.score = {
-                ...game.score,
-                [playerId]: (game.score[playerId] || 0) + 1,
+            updatedGame.score = {
+                ...updatedGame.score,
+                [playerId]: (updatedGame.score[playerId] || 0) + 1
             };
         }
 
-        if (allPlayersAnswered) {
-            updateData.turnState = 'round_over';
-            updateData.currentPlayerId = game.mode === 'friend' ? game.participantIds.find(id => id !== playerId)! : playerId;
-        } else {
-            updateData.currentPlayerId = game.participantIds.find(id => id !== playerId)!;
+        const allPlayersAnswered = Object.keys(updatedGame.currentRound.guesses).length === updatedGame.participantIds.length;
+
+        if (!allPlayersAnswered) {
+            const nextPlayerId = updatedGame.participantIds.find(id => id !== playerId)!;
+            transaction.update(gameRef, {
+                'currentRound.guesses': updatedGame.currentRound.guesses,
+                currentPlayerId: nextPlayerId,
+                updatedAt: Timestamp.now().toMillis()
+            });
+            return;
         }
 
-        transaction.update(gameRef, updateData);
-        updatedGame = { ...game, ...updateData } as LegendGame;
+        updatedGame.turnState = 'round_over';
+        
+        const gameOverCheck = isLegendGameOver(updatedGame);
+        
+        if (gameOverCheck.over) {
+            transaction.update(gameRef, {
+                currentRound: updatedGame.currentRound,
+                score: updatedGame.score,
+                turnState: 'game_over',
+                status: 'complete',
+                winnerId: gameOverCheck.winnerId,
+                updatedAt: Timestamp.now().toMillis(),
+            });
+        } else {
+            const nextPlayerToStart = updatedGame.mode === 'friend' 
+                ? updatedGame.participantIds.find(id => id !== playerId)! 
+                : playerId;
+
+            transaction.update(gameRef, {
+                currentRound: updatedGame.currentRound,
+                score: updatedGame.score,
+                turnState: 'round_over',
+                currentPlayerId: nextPlayerToStart,
+                updatedAt: Timestamp.now().toMillis(),
+            });
+        }
     });
-    if (!updatedGame) throw new Error("Transaction failed to update game.");
-    return updatedGame;
 }
 
+
 export async function startNextLegendRound(gameId: string, currentUserId: string) {
+    let nextRoundData;
+    let usedPlayers;
+
+    const gameRef = doc(db, 'legendGames', gameId);
+    const gameDoc = await getDoc(gameRef);
+    if (!gameDoc.exists()) throw new Error("Game not found.");
+    const game = gameDoc.data() as LegendGame;
+
+    if (game.status !== 'ongoing') throw new Error("Game is not ongoing.");
+    if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
+    if (game.currentPlayerId !== currentUserId) throw new Error("Not your turn to start the next round.");
+
+    usedPlayers = [...game.usedPlayers, game.currentRound.correctAnswer];
+    nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: usedPlayers });
+    
+
     await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'legendGames', gameId);
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) throw new Error("Game not found.");
-        
-        const game = gameDoc.data() as LegendGame;
-        if (game.status === 'complete') throw new Error("Game is already over.");
-        if (game.turnState !== 'round_over') throw new Error("Round is not over.");
-        
-        const isGameOver = checkLegendGameOver(game);
+        const freshGameDoc = await transaction.get(gameRef);
+        if (!freshGameDoc.exists()) throw new Error("Game not found in transaction.");
+        const freshGame = freshGameDoc.data() as LegendGame;
 
-        if (isGameOver) {
-            let winnerId: string | undefined | null = null;
-            if (game.mode === 'friend') {
-                const p1 = game.participantIds[0];
-                const p2 = game.participantIds[1];
-                if (game.score[p1] > game.score[p2]) winnerId = p1;
-                else if (game.score[p2] > game.score[p1]) winnerId = p2;
-            } else {
-                winnerId = game.score[currentUserId] >= 5 ? currentUserId : null;
-            }
-            transaction.update(gameRef, {
-                status: 'complete',
-                winnerId: winnerId,
-                turnState: 'game_over',
-                updatedAt: Timestamp.now().toMillis(),
-            });
-
-        } else {
-            const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
-            transaction.update(gameRef, {
-                roundHistory: arrayUnion(game.currentRound),
-                usedPlayers: arrayUnion(nextRound.correctAnswer),
-                currentRound: { ...nextRound, guesses: {} },
-                turnState: 'playing',
-                currentPlayerId: game.currentPlayerId,
-                updatedAt: Timestamp.now().toMillis(),
-            });
+        if(freshGame.updatedAt !== game.updatedAt) {
+            return;
         }
+
+        transaction.update(gameRef, {
+            roundHistory: arrayUnion(game.currentRound),
+            usedPlayers: usedPlayers,
+            currentRound: { ...nextRoundData, guesses: {} },
+            turnState: 'playing',
+            updatedAt: Timestamp.now().toMillis(),
+        });
     });
 }
 
@@ -992,7 +1018,6 @@ export async function getHeadToHeadRecord(userId1: string, userId2: string, spor
     
     snapshot.docs.forEach(doc => {
         const match = doc.data() as Match;
-        // Ensure this match is between only these two players for singles
         if (match.type === 'Singles' && match.participants.includes(userId2) && match.participants.length === 2) {
             if (match.winner.includes(userId1)) {
                 player1Wins++;
@@ -1005,14 +1030,6 @@ export async function getHeadToHeadRecord(userId1: string, userId2: string, spor
     return { player1Wins, player2Wins };
 }
 
-// --- Leaderboard Functions ---
-
-/**
- * Fetches the top 100 users for a given sport, ranked by RacktRank.
- * This query requires a composite index on (`sports.${sport}.racktRank`, `name`).
- * @param sport The sport to get the leaderboard for.
- * @returns A promise that resolves to an array of User objects.
- */
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
     const usersRef = collection(db, 'users');
     const q = query(
@@ -1025,17 +1042,13 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
         const querySnapshot = await getDocs(q);
         const users = querySnapshot.docs
             .map(doc => doc.data() as User)
-            .filter(user => user.sports?.[sport]); // Ensure player has stats for the sport
+            .filter(user => user.sports?.[sport]);
         
         return users;
     } catch(e) {
-        // This is likely a missing index error.
-        // Re-throw it so the action can catch it and display it to the user.
         throw e;
     }
 }
-
-// --- Settings Functions ---
 
 async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
   const usersRef = collection(db, 'users');
@@ -1043,10 +1056,9 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   const querySnapshot = await getDocs(q);
   
   if (querySnapshot.empty) {
-    return true; // Username is unique
+    return true;
   }
   
-  // If a user is found, check if it's the current user
   const foundUser = querySnapshot.docs[0].data() as User;
   return foundUser.uid === userId;
 }
