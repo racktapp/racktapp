@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { RallyGame, User } from '@/lib/types';
@@ -26,8 +27,8 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const opponentId = game.participantIds.find(id => id !== currentUser.uid)!;
-  const opponent = game.participantsData[opponentId];
+  const opponentId = game.participantIds.find(id => id !== currentUser.uid);
+  const opponent = opponentId ? game.participantsData[opponentId] : null;
   const isMyTurn = game.currentPlayerId === currentUser.uid;
   const lastPoint = game.pointHistory[game.pointHistory.length - 1];
 
@@ -40,6 +41,14 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     // Let onSnapshot handle the state update
     setIsProcessing(false);
   };
+
+  if (!opponent || !opponentId) {
+    return (
+        <div className="container mx-auto p-4 md:p-6 lg:p-8">
+            <PageHeader title="Error" description="Opponent data could not be loaded for this game." />
+        </div>
+    )
+  }
 
   const options = game.turn === 'serving' ? game.currentPoint.serveOptions : game.currentPoint.returnOptions;
 
@@ -58,7 +67,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
         </div>
         <p className="text-4xl font-bold text-muted-foreground">-</p>
          <div className="flex flex-col items-center gap-2">
-          <UserAvatar user={{...opponent, uid: opponentId}} className="h-16 w-16" />
+          <UserAvatar user={opponent} className="h-16 w-16" />
           <p className="font-bold text-4xl">{game.score[opponentId]}</p>
         </div>
       </div>

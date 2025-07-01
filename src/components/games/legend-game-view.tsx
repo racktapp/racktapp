@@ -68,7 +68,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
   const renderFinalScreen = () => {
     const isWinner = game.winnerId === currentUser.uid;
-    const finalScore = opponent ? `${game.score[currentUser.uid]} - ${game.score[opponentId]}` : game.score[currentUser.uid];
+    const finalScore = opponent ? `${game.score[currentUser.uid]} - ${game.score[opponentId!]}` : game.score[currentUser.uid];
 
     return (
         <Alert className="mt-8 text-center">
@@ -101,7 +101,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                 <>
                     <p className="text-4xl font-bold text-muted-foreground">vs</p>
                     <div className="flex flex-col items-center gap-2">
-                        <UserAvatar user={opponent as User} className="h-16 w-16" />
+                        <UserAvatar user={opponent} className="h-16 w-16" />
                         <p className="font-bold text-2xl">{game.score[opponentId!]}</p>
                     </div>
                 </>
@@ -139,7 +139,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                             </div>
                             {opponent && oppState !== 'none' && (
                                 <div className="flex items-center gap-1 text-xs">
-                                    <UserAvatar user={opponent as User} className="h-4 w-4" />
+                                    <UserAvatar user={opponent} className="h-4 w-4" />
                                     <span>{oppState === 'correct' ? '✅' : '❌'}</span>
                                 </div>
                             )}

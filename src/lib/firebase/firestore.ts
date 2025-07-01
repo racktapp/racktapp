@@ -803,8 +803,8 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
         sport: 'Tennis',
         participantIds: [user1.uid, user2.uid],
         participantsData: {
-            [user1.uid]: { name: user1.name, avatar: user1.avatar },
-            [user2.uid]: { name: user2.name, avatar: user2.avatar },
+            [user1.uid]: { name: user1.name, avatar: user1.avatar, uid: user1.uid },
+            [user2.uid]: { name: user2.name, avatar: user2.avatar, uid: user2.uid },
         },
         score: { [user1.uid]: 0, [user2.uid]: 0 },
         turn: 'serving',
@@ -899,8 +899,8 @@ export async function createLegendGame(userId: string, friendId: string | null, 
             id: newGameRef.id, mode: 'friend', sport,
             participantIds: [userId, friendId],
             participantsData: {
-                [userId]: { name: user.name, avatar: user.avatar },
-                [friendId]: { name: friend.name, avatar: friend.avatar },
+                [userId]: { name: user.name, avatar: user.avatar, uid: user.uid },
+                [friendId]: { name: friend.name, avatar: friend.avatar, uid: friend.uid },
             },
             score: { [userId]: 0, [friendId]: 0 },
             currentPlayerId: firstPlayer,
@@ -913,7 +913,7 @@ export async function createLegendGame(userId: string, friendId: string | null, 
          newGame = {
             id: newGameRef.id, mode: 'solo', sport,
             participantIds: [userId],
-            participantsData: { [userId]: { name: user.name, avatar: user.avatar } },
+            participantsData: { [userId]: { name: user.name, avatar: user.avatar, uid: user.uid } },
             score: { [userId]: 0 },
             currentPlayerId: userId,
             turnState: 'playing',
@@ -958,10 +958,10 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
             updateData.turnState = 'round_over';
             // Decide who starts next round - could be loser of current round, or alternate
             updateData.currentPlayerId = game.mode === 'friend' 
-                ? game.participantIds.find(id => id !== playerId) // The other player starts
+                ? game.participantIds.find(id => id !== playerId) || playerId
                 : playerId;
         } else { // Friend mode, waiting for other player
-            updateData.currentPlayerId = game.participantIds.find(id => id !== playerId);
+            updateData.currentPlayerId = game.participantIds.find(id => id !== playerId)!;
         }
 
         transaction.update(gameRef, updateData);
