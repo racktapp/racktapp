@@ -322,3 +322,10 @@ export const PredictMatchOutputSchema = z.object({
   analysis: z.string(),
 });
 export type PredictMatchOutput = z.infer<typeof PredictMatchOutputSchema>;
+
+// Settings Schema
+export const profileSettingsSchema = z.object({
+    name: z.string().min(2, 'Name must be at least 2 characters.'),
+    username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
+    preferredSports: z.array(Sport).min(1, 'Please select at least one preferred sport.'),
+});

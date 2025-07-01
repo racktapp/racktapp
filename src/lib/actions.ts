@@ -38,12 +38,13 @@ import {
     getMatchesForUser as getMatchesFromFirestore,
     getHeadToHeadRecord,
     getLeaderboard,
+    updateUserProfile,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput } from '@/lib/types';
+import { type Sport, type User, MatchType, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, RallyGame, Match, PredictMatchOutput, profileSettingsSchema } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { redirect } from 'next/navigation';
 
@@ -299,33 +300,31 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
 
 // --- Chat Actions ---
 
-export async function getOrCreateChatAction(friendId: string) {
-    const user = auth.currentUser;
-    if (!user) {
+export async function getOrCreateChatAction(friendId: string, currentUserId: string) {
+    if (!currentUserId) {
       return { success: false, message: "Not authenticated." };
     }
     try {
-      const chatId = await getOrCreateChat(user.uid, friendId);
+      const chatId = await getOrCreateChat(currentUserId, friendId);
       revalidatePath('/chat');
-      return { success: true, message: 'Chat ready.', chatId };
+      // Redirect handled client-side now
+      return { success: true, message: 'Chat ready.', redirect: `/chat/${chatId}` };
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to get or create chat.' };
     }
 }
 
-export async function getChatsAction(): Promise<Chat[]> {
-    const user = auth.currentUser;
-    if (!user) return [];
-    return await getChatsForUser(user.uid);
+export async function getChatsAction(userId: string): Promise<Chat[]> {
+    if (!userId) return [];
+    return await getChatsForUser(userId);
 }
 
-export async function sendMessageAction(chatId: string, text: string) {
-    const user = auth.currentUser;
-    if (!user) {
+export async function sendMessageAction(chatId: string, senderId: string, text: string) {
+    if (!senderId) {
         return { success: false, message: "Not authenticated." };
     }
     try {
-        await sendMessage(chatId, user.uid, text);
+        await sendMessage(chatId, senderId, text);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to send message.' };
@@ -469,4 +468,21 @@ export async function predictFriendMatchAction(friendId: string, sport: Sport): 
 export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
     const users = await getLeaderboard(sport);
     return users;
+}
+
+// --- Settings Actions ---
+export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>) {
+    const user = auth.currentUser;
+    if (!user) {
+        return { success: false, message: "Not authenticated." };
+    }
+    
+    try {
+        await updateUserProfile(user.uid, values);
+        revalidatePath('/settings');
+        revalidatePath(`/profile/${user.uid}`);
+        return { success: true, message: "Profile updated successfully." };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to update profile.' };
+    }
 }

@@ -20,7 +20,7 @@ import {
   addDoc,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -966,4 +966,40 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
         // Re-throw it so the action can catch it and display it to the user.
         throw e;
     }
+}
+
+// --- Settings Functions ---
+
+async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('username', '==', username.toLowerCase()));
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) {
+    return true; // Username is unique
+  }
+  
+  // If a user is found, check if it's the current user
+  const foundUser = querySnapshot.docs[0].data() as User;
+  return foundUser.uid === userId;
+}
+
+
+export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+    const userRef = doc(db, 'users', userId);
+
+    if (data.username) {
+        const isUnique = await isUsernameUnique(data.username, userId);
+        if (!isUnique) {
+            throw new Error("Username is already taken.");
+        }
+    }
+
+    const updateData: Partial<User> = {
+        name: data.name,
+        username: data.username,
+        preferredSports: data.preferredSports,
+    };
+
+    await updateDoc(userRef, updateData);
 }
