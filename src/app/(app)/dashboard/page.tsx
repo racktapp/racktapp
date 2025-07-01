@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { getMatchHistoryAction } from '@/lib/actions';
 import { Match, Sport } from '@/lib/types';
 import { UserAvatar } from '@/components/user-avatar';
 import { SPORT_ICONS } from '@/lib/constants';
+import { format } from 'date-fns';
 
 const ActionButton = ({ href, children, icon: Icon, onClick }: { href?: string, children: React.ReactNode, icon: React.ElementType, onClick?: () => void }) => {
     const content = (
@@ -88,13 +89,23 @@ export default function DashboardPage() {
     fetchRecentMatches();
   }, [fetchRecentMatches]);
 
-
   if (!user) return null;
 
   const sportStats = user.sports?.[sport];
   const winRate = sportStats && (sportStats.wins + sportStats.losses) > 0
     ? Math.round((sportStats.wins / (sportStats.wins + sportStats.losses)) * 100)
     : 0;
+
+  const eloHistoryData = useMemo(() => {
+    if (!sportStats?.eloHistory) return [];
+    // Ensure the data is sorted by date before passing to the chart
+    return [...sportStats.eloHistory]
+      .sort((a, b) => a.date - b.date)
+      .map(item => ({
+        date: format(new Date(item.date), 'MMM d'),
+        elo: item.elo
+      }));
+  }, [sportStats]);
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -136,7 +147,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <EloChart data={[]} />
+            <EloChart data={eloHistoryData} />
           </div>
           <div className="lg:col-span-1">
             <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />

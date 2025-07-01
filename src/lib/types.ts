@@ -13,6 +13,13 @@ export interface Socials {
   facebook?: string;
 }
 
+export const EloDataPointSchema = z.object({
+  date: z.number(), // timestamp
+  elo: z.number(),
+});
+export type EloDataPoint = z.infer<typeof EloDataPointSchema>;
+
+
 export interface SportStats {
   racktRank: number;
   wins: number;
@@ -21,6 +28,7 @@ export interface SportStats {
   achievements: string[]; // IDs of achievements
   flexedAchievementId?: string;
   matchHistory: string[]; // IDs of matches
+  eloHistory: EloDataPoint[];
 }
 
 export interface User {
@@ -194,11 +202,6 @@ export interface Achievement {
   name: string;
   description: string;
   icon: string; // url or identifier for the icon
-}
-
-export interface EloDataPoint {
-  date: string; // e.g., "Jan 22"
-  elo: number;
 }
 
 // Schema for report match form

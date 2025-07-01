@@ -42,6 +42,7 @@ import {
     getHeadToHeadRecord,
     getLeaderboard,
     updateUserProfile,
+    getFriendshipStatus
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -119,6 +120,7 @@ export async function addFriendAction(fromUser: User, toUser: User) {
     try {
         await sendFriendRequest(fromUser, toUser);
         revalidatePath('/friends');
+        revalidatePath(`/profile/${toUser.uid}`);
         return { success: true, message: "Friend request sent." };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to send friend request." };
@@ -146,6 +148,7 @@ export async function acceptFriendRequestAction(requestId: string, fromId: strin
     try {
         await acceptFriendRequest(requestId, fromId, toId);
         revalidatePath('/friends');
+        revalidatePath(`/profile/${fromId}`);
         return { success: true, message: "Friend request accepted." };
     } catch (error: any) {
         console.error("Accept friend request action failed:", error);
@@ -153,10 +156,11 @@ export async function acceptFriendRequestAction(requestId: string, fromId: strin
     }
 }
 
-export async function declineOrCancelFriendRequestAction(requestId: string) {
+export async function declineOrCancelFriendRequestAction(requestId: string, profileIdToRevalidate?: string) {
     try {
         await deleteFriendRequest(requestId);
         revalidatePath('/friends');
+        if (profileIdToRevalidate) revalidatePath(`/profile/${profileIdToRevalidate}`);
         return { success: true, message: "Request removed." };
     } catch (error: any) {
         console.error("Decline/cancel friend request action failed:", error);
@@ -168,11 +172,19 @@ export async function removeFriendAction(currentUserId: string, friendId: string
     try {
         await removeFriend(currentUserId, friendId);
         revalidatePath('/friends');
+        revalidatePath(`/profile/${friendId}`);
         return { success: true, message: "Friend removed." };
     } catch (error: any) {
         console.error("Remove friend action failed:", error);
         return { success: false, message: "Failed to remove friend." };
     }
+}
+
+export async function getFriendshipStatusAction(profileUserId: string) {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    
+    return getFriendshipStatus(user.uid, profileUserId);
 }
 
 // --- Challenge System Actions ---

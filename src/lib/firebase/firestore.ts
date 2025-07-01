@@ -1,6 +1,6 @@
 
 
-
+import { nanoid } from 'nanoid';
 import {
   collection,
   doc,
@@ -120,6 +120,29 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
     }
 }
 
+async function generateUniqueUsername(name: string): Promise<string> {
+    let username = name.toLowerCase().replace(/\s/g, '').replace(/[^a-z0-9_]/g, '');
+    if (username.length < 3) username = `${username}user`;
+    
+    let isUnique = false;
+    let finalUsername = username;
+    let attempts = 0;
+    
+    while(!isUnique && attempts < 10) {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('username', '==', finalUsername));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            isUnique = true;
+        } else {
+            finalUsername = `${username}${nanoid(3)}`;
+            attempts++;
+        }
+    }
+    if (!isUnique) throw new Error("Could not generate a unique username.");
+    return finalUsername;
+}
+
 // Function to create a user document on signup or first login
 export const createUserDocument = async (user: {
   uid: string;
@@ -127,19 +150,21 @@ export const createUserDocument = async (user: {
   displayName: string;
 }) => {
   const userRef = doc(db, 'users', user.uid);
+  const username = await generateUniqueUsername(user.displayName);
+
   const newUser: User = {
     uid: user.uid,
     email: user.email,
     name: user.displayName,
-    username: user.displayName.toLowerCase().replace(/\s/g, ''),
+    username: username,
     avatar: `https://placehold.co/100x100.png?text=${user.displayName.charAt(0)}`,
     friendIds: [],
     preferredSports: ['Tennis'],
     sports: {
-      Tennis: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
-      Padel: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
-      Badminton: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
-      'Table Tennis': { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [] },
+      Tennis: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+      Padel: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+      Badminton: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+      'Table Tennis': { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
     },
   };
   await runTransaction(db, async (transaction) => {
@@ -189,7 +214,7 @@ async function _updateRanksForConfirmedMatch(transaction: Transaction, match: Ma
         const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
         const isWinner = match.winner.includes(player.uid);
 
-        const currentSportStats = player.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [] };
+        const currentSportStats = player.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [], eloHistory: [] };
         
         const oldRank = currentSportStats.racktRank;
         const newRank = oldRank + eloChange;
@@ -198,6 +223,12 @@ async function _updateRanksForConfirmedMatch(transaction: Transaction, match: Ma
         const newLosses = currentSportStats.losses + (isWinner ? 0 : 1);
         const newStreak = isWinner ? (currentSportStats.streak >= 0 ? currentSportStats.streak + 1 : 1) : (currentSportStats.streak <= 0 ? currentSportStats.streak - 1 : -1);
 
+        const newEloHistory = [...(currentSportStats.eloHistory || [])];
+        newEloHistory.push({ date: match.date, elo: newRank });
+        if (newEloHistory.length > 30) {
+            newEloHistory.shift(); // Keep it to the last 30
+        }
+
         const updatedSportStats: SportStats = {
             ...currentSportStats,
             racktRank: newRank,
@@ -205,6 +236,7 @@ async function _updateRanksForConfirmedMatch(transaction: Transaction, match: Ma
             losses: newLosses,
             streak: newStreak,
             matchHistory: [match.id, ...(currentSportStats.matchHistory || [])].slice(0, 50),
+            eloHistory: newEloHistory,
         };
 
         const playerRef = doc(db, 'users', player.uid);
@@ -438,6 +470,31 @@ export async function removeFriend(userId: string, friendId: string) {
     transaction.update(friendRef, { friendIds: arrayRemove(userId) });
   });
 }
+
+export async function getFriendshipStatus(currentUserId: string, profileUserId: string) {
+    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
+    const currentUserData = currentUserDoc.data() as User;
+
+    if (currentUserData.friendIds?.includes(profileUserId)) {
+        return { status: 'friends' };
+    }
+
+    const friendRequestsRef = collection(db, 'friendRequests');
+    const q1 = query(friendRequestsRef, where('fromId', '==', currentUserId), where('toId', '==', profileUserId), where('status', '==', 'pending'));
+    const sentRequestSnapshot = await getDocs(q1);
+    if (!sentRequestSnapshot.empty) {
+        return { status: 'request_sent', requestId: sentRequestSnapshot.docs[0].id };
+    }
+    
+    const q2 = query(friendRequestsRef, where('fromId', '==', profileUserId), where('toId', '==', currentUserId), where('status', '==', 'pending'));
+    const receivedRequestSnapshot = await getDocs(q2);
+    if (!receivedRequestSnapshot.empty) {
+        return { status: 'request_received', requestId: receivedRequestSnapshot.docs[0].id };
+    }
+    
+    return { status: 'not_friends' };
+}
+
 
 // --- Challenge System Functions ---
 
