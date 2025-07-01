@@ -86,13 +86,15 @@ export default function ChallengesPage() {
               <TabsContent value="incoming">
                 {incoming.length > 0 ? (
                   <div className="space-y-4 pt-4">
-                    {incoming.map((challenge) => (
+                    {incoming.map((challenge, i) => (
                       <ChallengeCard
                         key={challenge.id}
                         challenge={challenge}
                         currentUserId={user.uid}
                         type="incoming"
                         onAction={fetchChallenges}
+                        className="opacity-0 animate-fade-in-slide-up"
+                        style={{ animationDelay: `${i * 100}ms` }}
                       />
                     ))}
                   </div>
@@ -105,13 +107,15 @@ export default function ChallengesPage() {
               <TabsContent value="sent">
                 {sent.length > 0 ? (
                   <div className="space-y-4 pt-4">
-                    {sent.map((challenge) => (
+                    {sent.map((challenge, i) => (
                       <ChallengeCard
                         key={challenge.id}
                         challenge={challenge}
                         currentUserId={user.uid}
                         type="sent"
                         onAction={fetchChallenges}
+                        className="opacity-0 animate-fade-in-slide-up"
+                        style={{ animationDelay: `${i * 100}ms` }}
                       />
                     ))}
                   </div>
@@ -124,12 +128,14 @@ export default function ChallengesPage() {
               <TabsContent value="open">
                 {open.length > 0 ? (
                   <div className="space-y-4 pt-4">
-                    {open.map((challenge) => (
+                    {open.map((challenge, i) => (
                       <OpenChallengeCard
                         key={challenge.id}
                         challenge={challenge}
                         challenger={user}
                         onAction={fetchChallenges}
+                        className="opacity-0 animate-fade-in-slide-up"
+                        style={{ animationDelay: `${i * 100}ms` }}
                       />
                     ))}
                   </div>

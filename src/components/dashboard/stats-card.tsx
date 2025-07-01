@@ -2,17 +2,20 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StatsCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
   progress?: number;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function StatsCard({ title, value, icon: Icon, progress }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, progress, className, style }: StatsCardProps) {
   return (
-    <Card className="p-1">
+    <Card className={cn("p-1", className)} style={style}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
             <div className="bg-primary/10 p-2.5 rounded-full">

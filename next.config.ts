@@ -6,6 +6,10 @@ const pwaConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  fallbacks: {
+    document: '/_offline', // fallback for document (page)
+    // You can add more fallbacks for images, fonts, etc. if needed
+  }
 });
 
 const nextConfig: NextConfig = {

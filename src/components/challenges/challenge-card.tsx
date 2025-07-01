@@ -14,12 +14,15 @@ import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface ChallengeCardProps {
   challenge: Challenge;
   currentUserId: string;
   type: 'incoming' | 'sent';
   onAction: () => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 const ActionButton = ({ onClick, isProcessing, variant, idleIcon, text }: any) => (
@@ -29,7 +32,7 @@ const ActionButton = ({ onClick, isProcessing, variant, idleIcon, text }: any) =
   </Button>
 );
 
-export function ChallengeCard({ challenge, currentUserId, type, onAction }: ChallengeCardProps) {
+export function ChallengeCard({ challenge, currentUserId, type, onAction, className, style }: ChallengeCardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction }: Chal
   };
 
   return (
-    <Card>
+    <Card className={cn(className)} style={style}>
       <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
           <UserAvatar user={opponent as User} className="h-12 w-12" />

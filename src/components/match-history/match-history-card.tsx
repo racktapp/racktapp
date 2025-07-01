@@ -14,13 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface MatchHistoryCardProps {
   match: Match;
   currentUserId: string;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps) {
+export function MatchHistoryCard({ match, currentUserId, className, style }: MatchHistoryCardProps) {
   const { toast } = useToast();
   const [recap, setRecap] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,7 +53,7 @@ export function MatchHistoryCard({ match, currentUserId }: MatchHistoryCardProps
   };
 
   return (
-    <Accordion type="single" collapsible>
+    <Accordion type="single" collapsible className={cn(className)} style={style}>
       <AccordionItem value={`match-${match.id}`} className="border rounded-lg">
         <AccordionTrigger className="p-4 hover:no-underline">
           <div className="flex items-center justify-between w-full">

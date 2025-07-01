@@ -9,6 +9,7 @@ import { Badge } from '../ui/badge';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { cn } from '@/lib/utils';
 
 interface RecentMatchesProps {
   matches: Match[];
@@ -16,7 +17,7 @@ interface RecentMatchesProps {
   isLoading: boolean;
 }
 
-const MatchItem = ({ match, currentUserId }: { match: Match, currentUserId: string }) => {
+const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match, currentUserId: string, className?: string, [key:string]: any }) => {
     const isWinner = match.winner.includes(currentUserId);
     
     // Handle both Singles and Doubles display
@@ -30,7 +31,7 @@ const MatchItem = ({ match, currentUserId }: { match: Match, currentUserId: stri
     const firstOpponent = opponentData.length > 0 ? opponentData[0] : null;
 
     return (
-        <div className="flex items-center gap-4">
+        <div className={cn("flex items-center gap-4", className)} {...props}>
             <UserAvatar user={firstOpponent} className="h-10 w-10" />
             <div className="flex-1">
                 <p className="font-medium">vs {opponentDisplay}</p>
@@ -67,9 +68,14 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
     return (
       <ScrollArea className="h-[280px] pr-4">
         <div className="space-y-4">
-          {matches.map((match) => (
+          {matches.map((match, i) => (
               <div key={match.id}>
-                  <MatchItem match={match} currentUserId={currentUserId} />
+                  <MatchItem 
+                    match={match} 
+                    currentUserId={currentUserId} 
+                    className="opacity-0 animate-fade-in-slide-up"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                    />
               </div>
           ))}
         </div>

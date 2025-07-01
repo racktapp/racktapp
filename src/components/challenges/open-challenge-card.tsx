@@ -13,14 +13,17 @@ import { challengeFromOpenAction } from '@/lib/actions';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface OpenChallengeCardProps {
   challenge: OpenChallenge;
   challenger: User;
   onAction: () => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function OpenChallengeCard({ challenge, challenger, onAction }: OpenChallengeCardProps) {
+export function OpenChallengeCard({ challenge, challenger, onAction, className, style }: OpenChallengeCardProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -37,7 +40,7 @@ export function OpenChallengeCard({ challenge, challenger, onAction }: OpenChall
   };
 
   return (
-    <Card>
+    <Card className={cn(className)} style={style}>
       <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
           <UserAvatar user={challenge as any} className="h-12 w-12" />

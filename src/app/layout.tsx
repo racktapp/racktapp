@@ -1,18 +1,38 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { SportProvider } from '@/components/providers/sport-provider';
 import { Toaster } from '@/components/ui/toaster';
 
+const APP_NAME = "Rackt";
+const APP_DESCRIPTION = "The Social Sports Hub";
+
 export const metadata: Metadata = {
-  title: 'Rackt',
-  description: 'The Social Sports Hub',
-  manifest: '/manifest.json',
-  icons: {
-    apple: '/icons/icon-192x192.png',
+  applicationName: APP_NAME,
+  title: {
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
   },
-  themeColor: '#2563EB',
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: APP_NAME,
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
+
+export const viewport: Viewport = {
+  themeColor: "#FFFFFF",
+};
+
 
 export default function RootLayout({
   children,

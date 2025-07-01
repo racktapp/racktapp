@@ -62,9 +62,9 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
   };
   
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16))] md:h-screen flex-col bg-muted/30">
+    <div className="flex h-full flex-col bg-muted/30">
         {/* Header */}
-        <header className="flex items-center gap-4 border-b bg-background p-4">
+        <header className="flex items-center gap-4 border-b bg-background p-4 flex-shrink-0">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => router.push('/chat')}>
                 <ArrowLeft />
             </Button>
@@ -108,7 +108,7 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
         </div>
         
         {/* Input */}
-        <footer className="border-t bg-background p-4">
+        <footer className="border-t bg-background p-4 flex-shrink-0">
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center gap-2">
                 <Input 
                     {...form.register('text')} 

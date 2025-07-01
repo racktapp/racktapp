@@ -31,11 +31,12 @@ import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ChallengeFriendDialog } from '@/components/challenges/challenge-friend-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { cn } from '@/lib/utils';
 
 // --- Reusable Card Components ---
 
-const UserCard = ({ user, children }: { user: Partial<User>, children: ReactNode }) => (
-    <Card>
+const UserCard = ({ user, children, className, ...props }: { user: Partial<User>, children: ReactNode, className?: string, [key: string]: any }) => (
+    <Card className={cn(className)} {...props}>
         <CardContent className="p-4 flex items-center justify-between gap-4">
             <Link href={`/profile/${user.uid}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                 <UserAvatar user={user as User} className="h-12 w-12" />
@@ -163,8 +164,13 @@ export default function FriendsPage() {
 
         <TabsContent value="friends" className="mt-4 space-y-4">
             {friends.length > 0 ? (
-                friends.map(friend => (
-                    <UserCard key={friend.uid} user={friend}>
+                friends.map((friend, i) => (
+                    <UserCard 
+                      key={friend.uid} 
+                      user={friend}
+                      className="opacity-0 animate-fade-in-slide-up"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
                         <Button variant="outline" size="sm" onClick={() => handleStartChat(friend.uid)} disabled={processingIds.includes(friend.uid)}>
                             {processingIds.includes(friend.uid) ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <MessageSquare className="mr-2 h-4 w-4" />}
                             Chat
@@ -219,8 +225,13 @@ export default function FriendsPage() {
         
         <TabsContent value="requests" className="mt-4 space-y-4">
              {incomingRequests.length > 0 ? (
-                incomingRequests.map(req => (
-                    <UserCard key={req.id} user={{ uid: req.fromId, name: req.fromName, avatar: req.fromAvatar }}>
+                incomingRequests.map((req, i) => (
+                    <UserCard 
+                      key={req.id} 
+                      user={{ uid: req.fromId, name: req.fromName, avatar: req.fromAvatar }}
+                      className="opacity-0 animate-fade-in-slide-up"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
                         <ActionButton
                             onClick={() => handleAction(() => acceptFriendRequestAction(req.id, req.fromId, currentUser!.uid), req.id + 'accept')}
                             isProcessing={processingIds.includes(req.id + 'accept')}
@@ -247,8 +258,13 @@ export default function FriendsPage() {
 
         <TabsContent value="sent" className="mt-4 space-y-4">
             {sentRequests.length > 0 ? (
-                sentRequests.map(req => (
-                     <UserCard key={req.id} user={{ uid: req.toId, name: req.toName, avatar: req.toAvatar }}>
+                sentRequests.map((req, i) => (
+                     <UserCard 
+                        key={req.id} 
+                        user={{ uid: req.toId, name: req.toName, avatar: req.toAvatar }}
+                        className="opacity-0 animate-fade-in-slide-up"
+                        style={{ animationDelay: `${i * 100}ms` }}
+                     >
                         <ActionButton
                             onClick={() => handleAction(() => declineOrCancelFriendRequestAction(req.id), req.id)}
                             isProcessing={processingIds.includes(req.id)}
@@ -281,8 +297,13 @@ export default function FriendsPage() {
                     </div>
                 ) : hasSearched ? (
                     searchResults.length > 0 ? (
-                        searchResults.map(user => (
-                            <UserCard key={user.uid} user={user}>
+                        searchResults.map((user, i) => (
+                            <UserCard 
+                                key={user.uid} 
+                                user={user}
+                                className="opacity-0 animate-fade-in-slide-up"
+                                style={{ animationDelay: `${i * 100}ms` }}
+                            >
                                 <ActionButton
                                     onClick={() => handleAction(() => addFriendAction(currentUser!, user), user.uid)}
                                     isProcessing={processingIds.includes(user.uid)}

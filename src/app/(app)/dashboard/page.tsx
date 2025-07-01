@@ -107,6 +107,13 @@ export default function DashboardPage() {
       }));
   }, [sportStats]);
 
+  const statCards = [
+    { title: "RacktRank", value: sportStats?.racktRank ?? 'N/A', icon: Flame },
+    { title: "Win Rate", value: `${winRate}%`, icon: Trophy, progress: winRate },
+    { title: "Win Streak", value: sportStats?.streak ?? 0, icon: Activity },
+    { title: "Total Wins", value: sportStats?.wins ?? 0, icon: BarChart },
+  ];
+
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <div className="grid gap-6">
@@ -131,10 +138,17 @@ export default function DashboardPage() {
         <div>
             {sportStats ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatsCard title="RacktRank" value={sportStats.racktRank} icon={Flame} />
-                    <StatsCard title="Win Rate" value={`${winRate}%`} icon={Trophy} progress={winRate} />
-                    <StatsCard title="Win Streak" value={sportStats.streak} icon={Activity} />
-                    <StatsCard title="Total Wins" value={sportStats.wins} icon={BarChart} />
+                    {statCards.map((card, i) => (
+                        <StatsCard
+                            key={card.title}
+                            title={card.title}
+                            value={card.value}
+                            icon={card.icon}
+                            progress={card.progress}
+                            className="opacity-0 animate-fade-in-slide-up"
+                            style={{ animationDelay: `${i * 100}ms` }}
+                        />
+                    ))}
                 </div>
             ) : (
               <Card>

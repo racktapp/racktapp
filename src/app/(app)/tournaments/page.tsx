@@ -1,3 +1,4 @@
+
 'use client';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -11,10 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { CreateTournamentDialog } from '@/components/tournaments/create-tournament-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { cn } from '@/lib/utils';
 
-function TournamentListItem({ tournament }: { tournament: Tournament }) {
+function TournamentListItem({ tournament, className, ...props }: { tournament: Tournament, className?: string, [key:string]: any }) {
     return (
-        <Card>
+        <Card className={cn(className)} {...props}>
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
@@ -76,8 +78,13 @@ export default function TournamentsPage() {
                 </div>
             ) : tournaments.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {tournaments.map((t) => (
-                        <TournamentListItem key={t.id} tournament={t} />
+                    {tournaments.map((t, i) => (
+                        <TournamentListItem 
+                            key={t.id} 
+                            tournament={t} 
+                            className="opacity-0 animate-fade-in-slide-up"
+                            style={{ animationDelay: `${i * 100}ms` }}
+                        />
                     ))}
                 </div>
             ) : (

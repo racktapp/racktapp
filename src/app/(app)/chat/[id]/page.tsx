@@ -1,3 +1,4 @@
+
 'use client';
 import { useParams } from 'next/navigation';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -53,5 +54,9 @@ export default function ChatPage() {
     );
   }
 
-  return <ChatView chat={chat} currentUser={user!} />;
+  return (
+    <div className="flex h-full flex-col">
+      <ChatView chat={chat} currentUser={user!} />
+    </div>
+  );
 }
