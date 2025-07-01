@@ -60,7 +60,7 @@ const MobileHeader = () => {
             <Select value={sport} onValueChange={(value) => setSport(value as any)}>
                 <SelectTrigger className="h-9 w-auto justify-start gap-2 border-muted-foreground/50 px-2">
                     <Image src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} className="rounded-sm" unoptimized />
-                    <span className="flex-1 text-left"><SelectValue placeholder="Select sport" /></span>
+                    <span className="flex-1 text-left">{sport}</span>
                 </SelectTrigger>
                 <SelectContent>
                     {SPORTS.map((s) => (
