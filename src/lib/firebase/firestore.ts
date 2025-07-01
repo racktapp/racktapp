@@ -176,83 +176,6 @@ export const createUserDocument = async (user: {
   return newUser;
 };
 
-// Internal function to update ranks and stats for a confirmed match
-async function _updateRanksForConfirmedMatch(transaction: Transaction, match: Match) {
-    const allPlayerIds = match.participants;
-    const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
-    const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
-
-    const players = playerDocs.map(doc => {
-        if (!doc.exists()) throw new Error(`User document for ID ${doc.id} not found.`);
-        return doc.data() as User;
-    });
-
-    const getTeamAvgElo = (teamIds: string[]): number => {
-        const totalElo = teamIds.reduce((sum, pId) => {
-            const player = players.find(pl => pl.uid === pId);
-            const sportStats = player?.sports?.[match.sport] ?? { racktRank: 1200 };
-            return sum + sportStats.racktRank;
-        }, 0);
-        return totalElo / teamIds.length;
-    };
-
-    const team1AvgElo = getTeamAvgElo(match.teams.team1.playerIds);
-    const team2AvgElo = getTeamAvgElo(match.teams.team2.playerIds);
-    
-    const team1Won = match.winner.some(id => match.teams.team1.playerIds.includes(id));
-    const team1GameScore = team1Won ? 1 : 0;
-    
-    const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
-    
-    const team1EloChange = newTeam1Elo - team1AvgElo;
-    const team2EloChange = newTeam2Elo - team2AvgElo;
-
-    const rankChanges: Match['rankChange'] = [];
-    
-    for (const player of players) {
-        const team = match.teams.team1.playerIds.includes(player.uid) ? 'team1' : 'team2';
-        const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
-        const isWinner = match.winner.includes(player.uid);
-
-        const currentSportStats = player.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [], eloHistory: [] };
-        
-        const oldRank = currentSportStats.racktRank;
-        const newRank = oldRank + eloChange;
-
-        const newWins = currentSportStats.wins + (isWinner ? 1 : 0);
-        const newLosses = currentSportStats.losses + (isWinner ? 0 : 1);
-        const newStreak = isWinner ? (currentSportStats.streak >= 0 ? currentSportStats.streak + 1 : 1) : (currentSportStats.streak <= 0 ? currentSportStats.streak - 1 : -1);
-
-        const newEloHistory = [...(currentSportStats.eloHistory || [])];
-        newEloHistory.push({ date: match.date, elo: newRank });
-        if (newEloHistory.length > 30) {
-            newEloHistory.shift(); // Keep it to the last 30
-        }
-
-        const updatedSportStats: SportStats = {
-            ...currentSportStats,
-            racktRank: newRank,
-            wins: newWins,
-            losses: newLosses,
-            streak: newStreak,
-            matchHistory: [match.id, ...(currentSportStats.matchHistory || [])].slice(0, 50),
-            eloHistory: newEloHistory,
-        };
-
-        const playerRef = doc(db, 'users', player.uid);
-        transaction.update(playerRef, {
-            [`sports.${match.sport}`]: updatedSportStats
-        });
-
-        rankChanges.push({ userId: player.uid, before: oldRank, after: newRank });
-    }
-    
-    // Update the match with the final rank changes
-    const matchRef = doc(db, 'matches', match.id);
-    transaction.update(matchRef, { rankChange: rankChanges });
-}
-
-
 interface ReportMatchData {
     sport: Sport;
     matchType: MatchType;
@@ -302,15 +225,16 @@ export const reportPendingMatch = async (data: ReportMatchData): Promise<string>
 
 export async function confirmMatchResult(matchId: string, userId: string) {
     return runTransaction(db, async (transaction) => {
+        // --- All READS must happen first ---
         const matchRef = doc(db, 'matches', matchId);
         const matchDoc = await transaction.get(matchRef);
 
         if (!matchDoc.exists()) {
             throw new Error("Match not found.");
         }
-
         const match = matchDoc.data() as Match;
 
+        // --- Validation checks (no reads/writes) ---
         if (match.status !== 'pending') {
             throw new Error("This match is not pending confirmation.");
         }
@@ -322,18 +246,78 @@ export async function confirmMatchResult(matchId: string, userId: string) {
         }
 
         const updatedParticipantsToConfirm = match.participantsToConfirm.filter(id => id !== userId);
-        
+
         if (updatedParticipantsToConfirm.length === 0) {
-            // This is the final confirmation
+            // --- FINAL CONFIRMATION ---
+            // 1. Perform all remaining READS
+            const allPlayerIds = match.participants;
+            const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
+            const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
+
+            const players = playerDocs.map(pDoc => {
+                if (!pDoc.exists()) throw new Error(`User document for ID ${pDoc.id} not found.`);
+                return pDoc.data() as User;
+            });
+
+            // 2. Perform all calculations
+            const getTeamAvgElo = (teamIds: string[]): number => {
+                const totalElo = teamIds.reduce((sum, pId) => {
+                    const player = players.find(pl => pl.uid === pId);
+                    const sportStats = player?.sports?.[match.sport] ?? { racktRank: 1200 };
+                    return sum + sportStats.racktRank;
+                }, 0);
+                return totalElo / teamIds.length;
+            };
+
+            const team1AvgElo = getTeamAvgElo(match.teams.team1.playerIds);
+            const team2AvgElo = getTeamAvgElo(match.teams.team2.playerIds);
+            const team1Won = match.winner.some(id => match.teams.team1.playerIds.includes(id));
+            const team1GameScore = team1Won ? 1 : 0;
+            const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
+            const team1EloChange = newTeam1Elo - team1AvgElo;
+            const team2EloChange = newTeam2Elo - team2AvgElo;
+            const rankChanges: Match['rankChange'] = [];
+
+            // 3. Perform all WRITES
+            for (const player of players) {
+                const team = match.teams.team1.playerIds.includes(player.uid) ? 'team1' : 'team2';
+                const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
+                const isWinner = match.winner.includes(player.uid);
+                const currentSportStats = player.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [], eloHistory: [] };
+                
+                const oldRank = currentSportStats.racktRank;
+                const newRank = oldRank + eloChange;
+                const newWins = currentSportStats.wins + (isWinner ? 1 : 0);
+                const newLosses = currentSportStats.losses + (isWinner ? 0 : 1);
+                const newStreak = isWinner ? (currentSportStats.streak >= 0 ? currentSportStats.streak + 1 : 1) : (currentSportStats.streak <= 0 ? currentSportStats.streak - 1 : -1);
+
+                const newEloHistory = [...(currentSportStats.eloHistory || [])];
+                newEloHistory.push({ date: match.date, elo: newRank });
+                if (newEloHistory.length > 30) newEloHistory.shift();
+
+                const updatedSportStats: SportStats = {
+                    ...currentSportStats,
+                    racktRank: newRank,
+                    wins: newWins,
+                    losses: newLosses,
+                    streak: newStreak,
+                    matchHistory: [match.id, ...(currentSportStats.matchHistory || [])].slice(0, 50),
+                    eloHistory: newEloHistory,
+                };
+
+                transaction.update(doc(db, 'users', player.uid), { [`sports.${match.sport}`]: updatedSportStats });
+                rankChanges.push({ userId: player.uid, before: oldRank, after: newRank });
+            }
+            
             transaction.update(matchRef, { 
                 participantsToConfirm: updatedParticipantsToConfirm,
-                status: 'confirmed'
+                status: 'confirmed',
+                rankChange,
             });
-            // Update ranks now
-            await _updateRanksForConfirmedMatch(transaction, { ...match, status: 'confirmed' });
+
             return { finalized: true };
         } else {
-            // Still waiting for others
+            // --- NOT final confirmation: just one WRITE ---
             transaction.update(matchRef, { participantsToConfirm: updatedParticipantsToConfirm });
             return { finalized: false };
         }
