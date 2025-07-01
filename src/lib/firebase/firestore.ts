@@ -1,5 +1,6 @@
 
 
+
 import {
   collection,
   doc,
@@ -18,6 +19,7 @@ import {
   orderBy,
   limit,
   addDoc,
+  Transaction,
 } from 'firebase/firestore';
 import { db } from './config';
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema } from '@/lib/types';
@@ -149,6 +151,75 @@ export const createUserDocument = async (user: {
   return newUser;
 };
 
+// Internal function to update ranks and stats for a confirmed match
+async function _updateRanksForConfirmedMatch(transaction: Transaction, match: Match) {
+    const allPlayerIds = match.participants;
+    const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
+    const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
+
+    const players = playerDocs.map(doc => {
+        if (!doc.exists()) throw new Error(`User document for ID ${doc.id} not found.`);
+        return doc.data() as User;
+    });
+
+    const getTeamAvgElo = (teamIds: string[]): number => {
+        const totalElo = teamIds.reduce((sum, pId) => {
+            const player = players.find(pl => pl.uid === pId);
+            const sportStats = player?.sports?.[match.sport] ?? { racktRank: 1200 };
+            return sum + sportStats.racktRank;
+        }, 0);
+        return totalElo / teamIds.length;
+    };
+
+    const team1AvgElo = getTeamAvgElo(match.teams.team1.playerIds);
+    const team2AvgElo = getTeamAvgElo(match.teams.team2.playerIds);
+    
+    const team1Won = match.winner.some(id => match.teams.team1.playerIds.includes(id));
+    const team1GameScore = team1Won ? 1 : 0;
+    
+    const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
+    
+    const team1EloChange = newTeam1Elo - team1AvgElo;
+    const team2EloChange = newTeam2Elo - team2AvgElo;
+
+    const rankChanges: Match['rankChange'] = [];
+    
+    for (const player of players) {
+        const team = match.teams.team1.playerIds.includes(player.uid) ? 'team1' : 'team2';
+        const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
+        const isWinner = match.winner.includes(player.uid);
+
+        const currentSportStats = player.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [] };
+        
+        const oldRank = currentSportStats.racktRank;
+        const newRank = oldRank + eloChange;
+
+        const newWins = currentSportStats.wins + (isWinner ? 1 : 0);
+        const newLosses = currentSportStats.losses + (isWinner ? 0 : 1);
+        const newStreak = isWinner ? (currentSportStats.streak >= 0 ? currentSportStats.streak + 1 : 1) : (currentSportStats.streak <= 0 ? currentSportStats.streak - 1 : -1);
+
+        const updatedSportStats: SportStats = {
+            ...currentSportStats,
+            racktRank: newRank,
+            wins: newWins,
+            losses: newLosses,
+            streak: newStreak,
+            matchHistory: [match.id, ...(currentSportStats.matchHistory || [])].slice(0, 50),
+        };
+
+        const playerRef = doc(db, 'users', player.uid);
+        transaction.update(playerRef, {
+            [`sports.${match.sport}`]: updatedSportStats
+        });
+
+        rankChanges.push({ userId: player.uid, before: oldRank, after: newRank });
+    }
+    
+    // Update the match with the final rank changes
+    const matchRef = doc(db, 'matches', match.id);
+    transaction.update(matchRef, { rankChange: rankChanges });
+}
+
 
 interface ReportMatchData {
     sport: Sport;
@@ -161,99 +232,89 @@ interface ReportMatchData {
     date: number;
 }
 
-// The core logic for reporting a match and updating ranks
-export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<string> => {
-    return await runTransaction(db, async (transaction) => {
-        const allPlayerIds = [...data.team1Ids, ...data.team2Ids];
-        
-        const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
-        const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
+export const reportPendingMatch = async (data: ReportMatchData): Promise<string> => {
+    const allPlayerIds = [...data.team1Ids, ...data.team2Ids];
+    
+    const userDocs = await Promise.all(allPlayerIds.map(id => getDoc(doc(db, "users", id))));
+    const participantsData = userDocs.reduce((acc, doc) => {
+        if (doc.exists()) {
+            const player = doc.data() as User;
+            acc[player.uid] = { uid: player.uid, name: player.name, avatar: player.avatar };
+        }
+        return acc;
+    }, {} as Match['participantsData']);
+    
+    const matchRef = doc(collection(db, 'matches'));
+    const newMatch: Match = {
+        id: matchRef.id,
+        type: data.matchType,
+        sport: data.sport,
+        participants: allPlayerIds,
+        participantsData,
+        teams: {
+            team1: { playerIds: data.team1Ids },
+            team2: { playerIds: data.team2Ids },
+        },
+        winner: data.winnerIds,
+        score: data.score,
+        date: data.date,
+        createdAt: Timestamp.now().toMillis(),
+        reportedById: data.reportedById,
+        status: 'pending',
+        participantsToConfirm: allPlayerIds.filter(id => id !== data.reportedById),
+        rankChange: [],
+    };
+    await setDoc(matchRef, newMatch);
+    return matchRef.id;
+};
 
-        const players = playerDocs.map(doc => {
-            if (!doc.exists()) throw new Error(`User document for ID ${doc.id} not found.`);
-            return doc.data() as User;
-        });
+export async function confirmMatchResult(matchId: string, userId: string) {
+    return runTransaction(db, async (transaction) => {
+        const matchRef = doc(db, 'matches', matchId);
+        const matchDoc = await transaction.get(matchRef);
 
-        const getTeamAvgElo = (teamIds: string[]): number => {
-            const totalElo = teamIds.reduce((sum, pId) => {
-                const player = players.find(pl => pl.uid === pId);
-                const sportStats = player?.sports?.[data.sport] ?? { racktRank: 1200 };
-                return sum + sportStats.racktRank;
-            }, 0);
-            return totalElo / teamIds.length;
-        };
-
-        const team1AvgElo = getTeamAvgElo(data.team1Ids);
-        const team2AvgElo = getTeamAvgElo(data.team2Ids);
-        
-        const team1Won = data.team1Ids.includes(data.winnerIds[0]);
-        const team1GameScore = team1Won ? 1 : 0;
-        
-        const { newRatingA: newTeam1Elo, newRatingB: newTeam2Elo } = calculateNewElo(team1AvgElo, team2AvgElo, team1GameScore as (0|1));
-        
-        const team1EloChange = newTeam1Elo - team1AvgElo;
-        const team2EloChange = newTeam2Elo - team2AvgElo;
-
-        const rankChanges: Match['rankChange'] = [];
-        const matchRef = doc(collection(db, 'matches'));
-        
-        for (const player of players) {
-            const team = data.team1Ids.includes(player.uid) ? 'team1' : 'team2';
-            const eloChange = team === 'team1' ? team1EloChange : team2EloChange;
-            const isWinner = (team === 'team1' && team1GameScore === 1) || (team === 'team2' && team1GameScore === 0);
-
-            const currentSportStats = player.sports?.[data.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, matchHistory: [] };
-            
-            const oldRank = currentSportStats.racktRank;
-            const newRank = oldRank + eloChange;
-
-            const newWins = currentSportStats.wins + (isWinner ? 1 : 0);
-            const newLosses = currentSportStats.losses + (isWinner ? 0 : 1);
-            const newStreak = isWinner ? (currentSportStats.streak >= 0 ? currentSportStats.streak + 1 : 1) : (currentSportStats.streak <= 0 ? currentSportStats.streak - 1 : -1);
-
-            const updatedSportStats: SportStats = {
-                ...currentSportStats,
-                racktRank: newRank,
-                wins: newWins,
-                losses: newLosses,
-                streak: newStreak,
-                matchHistory: [matchRef.id, ...(currentSportStats.matchHistory || [])].slice(0, 50),
-            };
-
-            const playerRef = doc(db, 'users', player.uid);
-            transaction.update(playerRef, {
-                [`sports.${data.sport}`]: updatedSportStats
-            });
-
-            rankChanges.push({ userId: player.uid, before: oldRank, after: newRank });
+        if (!matchDoc.exists()) {
+            throw new Error("Match not found.");
         }
 
-        const participantsData = players.reduce((acc, player) => {
-            acc[player.uid] = { uid: player.uid, name: player.name, avatar: player.avatar };
-            return acc;
-        }, {} as Match['participantsData']);
+        const match = matchDoc.data() as Match;
 
-        const newMatch: Match = {
-            id: matchRef.id,
-            type: data.matchType,
-            sport: data.sport,
-            participants: allPlayerIds,
-            participantsData,
-            teams: {
-                team1: { playerIds: data.team1Ids },
-                team2: { playerIds: data.team2Ids },
-            },
-            winner: data.winnerIds,
-            score: data.score,
-            date: data.date,
-            createdAt: Timestamp.now().toMillis(),
-            rankChange: rankChanges,
-        };
-        transaction.set(matchRef, newMatch);
+        if (match.status !== 'pending') {
+            throw new Error("This match is not pending confirmation.");
+        }
+        if (!match.participants.includes(userId)) {
+            throw new Error("You are not a participant in this match.");
+        }
+        if (!match.participantsToConfirm.includes(userId)) {
+            throw new Error("You have already confirmed this match or were not required to.");
+        }
 
-        return matchRef.id;
+        const updatedParticipantsToConfirm = match.participantsToConfirm.filter(id => id !== userId);
+        
+        if (updatedParticipantsToConfirm.length === 0) {
+            // This is the final confirmation
+            transaction.update(matchRef, { 
+                participantsToConfirm: updatedParticipantsToConfirm,
+                status: 'confirmed'
+            });
+            // Update ranks now
+            await _updateRanksForConfirmedMatch(transaction, { ...match, status: 'confirmed' });
+            return { finalized: true };
+        } else {
+            // Still waiting for others
+            transaction.update(matchRef, { participantsToConfirm: updatedParticipantsToConfirm });
+            return { finalized: false };
+        }
     });
-};
+}
+
+export async function declineMatchResult(matchId: string, userId: string) {
+    const matchRef = doc(db, 'matches', matchId);
+    await updateDoc(matchRef, {
+        status: 'declined',
+        declinedBy: userId
+    });
+}
 
 /**
  * Fetches all confirmed matches for a given user, sorted by creation date.
@@ -261,11 +322,12 @@ export const reportMatchAndupdateRanks = async (data: ReportMatchData): Promise<
  * @param userId The UID of the user.
  * @returns A promise that resolves to an array of Match objects.
  */
-export async function getMatchesForUser(userId: string): Promise<Match[]> {
+export async function getConfirmedMatchesForUser(userId: string): Promise<Match[]> {
     const matchesRef = collection(db, 'matches');
     const q = query(
         matchesRef,
         where('participants', 'array-contains', userId),
+        where('status', '==', 'confirmed'),
         orderBy('createdAt', 'desc')
     );
     try {
@@ -273,12 +335,25 @@ export async function getMatchesForUser(userId: string): Promise<Match[]> {
         const matches = snapshot.docs.map(doc => doc.data() as Match);
         return matches;
     } catch (error) {
-        // Re-throw the error so the action layer can catch it and pass the
-        // specific error message (which includes the index creation link) to the client.
         throw error;
     }
 }
 
+export async function getPendingMatchesForUser(userId: string): Promise<Match[]> {
+    const matchesRef = collection(db, 'matches');
+    const q = query(
+        matchesRef,
+        where('participants', 'array-contains', userId),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+    );
+    try {
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as Match);
+    } catch (error) {
+        throw error;
+    }
+}
 
 /**
  * Creates a friend request document in Firestore.

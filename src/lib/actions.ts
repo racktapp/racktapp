@@ -6,7 +6,9 @@ import { revalidatePath } from 'next/cache';
 import { auth, db } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, writeBatch, collection } from 'firebase/firestore';
 import { 
-    reportMatchAndupdateRanks, 
+    reportPendingMatch,
+    confirmMatchResult,
+    declineMatchResult,
     searchUsers, 
     sendFriendRequest,
     getFriends as getFriendsFromFirestore,
@@ -35,7 +37,8 @@ import {
     playRallyTurn,
     createLegendGame,
     submitLegendAnswer,
-    getMatchesForUser as getMatchesFromFirestore,
+    getConfirmedMatchesForUser,
+    getPendingMatchesForUser,
     getHeadToHeadRecord,
     getLeaderboard,
     updateUserProfile,
@@ -67,7 +70,7 @@ export async function handleReportMatchAction(
     const winnerIsOnTeam1 = team1Ids.includes(values.winnerId);
     const winnerIds = winnerIsOnTeam1 ? team1Ids : team2Ids;
 
-    await reportMatchAndupdateRanks({
+    await reportPendingMatch({
         sport: values.sport,
         matchType: values.matchType,
         team1Ids,
@@ -78,7 +81,6 @@ export async function handleReportMatchAction(
         date: values.date.getTime(),
     });
     
-    revalidatePath('/dashboard');
     revalidatePath('/match-history');
 }
 
@@ -392,16 +394,49 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 // --- Match History Actions ---
-export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: Match[] } | { success: false, error: string }> {
+export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: { confirmed: Match[], pending: Match[] } } | { success: false, error: string }> {
     if (!userId) {
         return { success: false, error: "Not authenticated" };
     }
     try {
-        const matches = await getMatchesFromFirestore(userId);
-        return { success: true, data: matches };
+        const [confirmed, pending] = await Promise.all([
+            getConfirmedMatchesForUser(userId),
+            getPendingMatchesForUser(userId)
+        ]);
+        return { success: true, data: { confirmed, pending } };
     } catch (error: any) {
         console.error("Failed to fetch match history:", error);
         return { success: false, error: error.message || 'An unexpected error occurred.' };
+    }
+}
+
+export async function confirmMatchResultAction(matchId: string) {
+    const user = auth.currentUser;
+    if (!user) return { success: false, message: 'You must be logged in to confirm a result.' };
+    
+    try {
+        const result = await confirmMatchResult(matchId, user.uid);
+        revalidatePath('/match-history');
+        if (result.finalized) {
+            revalidatePath('/dashboard');
+            return { success: true, message: 'Final confirmation received. Ranks have been updated!' };
+        }
+        return { success: true, message: 'Result confirmed. Waiting for other players.' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to confirm result.' };
+    }
+}
+
+export async function declineMatchResultAction(matchId: string) {
+    const user = auth.currentUser;
+    if (!user) return { success: false, message: 'You must be logged in to decline a result.' };
+
+    try {
+        await declineMatchResult(matchId, user.uid);
+        revalidatePath('/match-history');
+        return { success: true, message: 'Result declined.' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to decline result.' };
     }
 }
 

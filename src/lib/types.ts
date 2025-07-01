@@ -40,6 +40,8 @@ export interface User {
 }
 
 export type MatchType = 'Singles' | 'Doubles';
+export type MatchStatus = 'pending' | 'confirmed' | 'declined';
+
 
 export interface RankChange {
   userId: string;
@@ -51,6 +53,7 @@ export interface Match {
   id: string;
   type: MatchType;
   sport: Sport;
+  status: MatchStatus;
   participants: string[]; // All user IDs in the match
   participantsData: {
     [key: string]: { name: string; avatar?: string; uid: string };
@@ -67,6 +70,9 @@ export interface Match {
   score: string;
   date: number; // timestamp
   createdAt: number; // timestamp
+  reportedById: string;
+  participantsToConfirm: string[];
+  declinedBy?: string;
   rankChange: RankChange[];
 }
 

@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -87,8 +88,8 @@ export default function ReportMatchPage() {
 
     try {
         await handleReportMatchAction(values, user);
-        toast({ title: "Success", description: "Match reported and ranks updated!" });
-        router.push('/dashboard');
+        toast({ title: "Match Submitted", description: "The result is pending confirmation from other players." });
+        router.push('/match-history');
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -266,7 +267,7 @@ export default function ReportMatchPage() {
           
           <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
-            Submit Match
+            Submit for Confirmation
           </Button>
         </form>
       </Form>
