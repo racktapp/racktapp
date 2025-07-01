@@ -6,7 +6,7 @@ import { submitLegendAnswerAction, startNextLegendRoundAction } from '@/lib/acti
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, ArrowRight, Trophy } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Trophy, TriangleAlert } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -39,23 +39,38 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
 
-  const opponentId = game.participantIds.find(id => id !== currentUser.uid);
-  const opponent = opponentId ? game.participantsData[opponentId] : null;
-  const isMyTurn = game.currentPlayerId === currentUser.uid;
-  
-  // Defensive checks for game data
-  const currentRound = game.currentRound;
-  if (!currentRound?.clue || !currentRound?.options) {
-      return (
+  if (game.status === 'initializing' || !game.currentRound) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+          <PageHeader
+              title="Guess the Legend"
+              description="Generating the first round, just a moment..."
+          />
+          <GameSkeleton />
+      </div>
+    )
+  }
+
+  if (game.status === 'error') {
+     return (
         <div className="container mx-auto p-4 md:p-6 lg:p-8">
             <PageHeader
-                title="Guess the Legend"
-                description="Loading game..."
+                title="Game Error"
+                description="There was a problem loading this game. Please try again later."
             />
-            <GameSkeleton />
+             <Alert variant="destructive">
+                <TriangleAlert className="h-4 w-4" />
+                <AlertTitle>Could not load game</AlertTitle>
+                <AlertDescription>{game.currentRound?.clue || "An unexpected error occurred."}</AlertDescription>
+            </Alert>
         </div>
       )
   }
+  
+  const currentRound = game.currentRound; // We now know it's defined
+  const opponentId = game.participantIds.find(id => id !== currentUser.uid);
+  const opponent = opponentId ? game.participantsData[opponentId] : null;
+  const isMyTurn = game.currentPlayerId === currentUser.uid;
   const myGuess = currentRound.guesses[currentUser.uid];
   const opponentGuess = opponentId ? currentRound.guesses[opponentId] : null;
 
@@ -65,10 +80,10 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     const result = await submitLegendAnswerAction(game.id, answer, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
-      // Only set processing to false on error, otherwise onSnapshot will handle the re-render
       setIsProcessing(false); 
       setSelectedAnswer(null);
     }
+     // Let onSnapshot handle UI updates, which will implicitly set isProcessing to false.
   };
 
   const handleNextRound = async () => {
@@ -76,9 +91,9 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     const result = await startNextLegendRoundAction(game.id, currentUser.uid);
     if (!result.success) {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
-        setIsProcessing(false);
     }
     // onSnapshot will handle UI update and set isProcessing to false implicitly
+    setIsProcessing(false);
   };
   
   const getButtonState = (option: string) => {
@@ -100,7 +115,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
   const renderFinalScreen = () => {
     const isWinner = game.winnerId === currentUser.uid;
-    const isDraw = game.status === 'complete' && !game.winnerId;
+    const isDraw = game.status === 'complete' && game.winnerId === 'draw';
     const finalScore = opponentId ? `${game.score[currentUser.uid]} - ${game.score[opponentId]}` : game.score[currentUser.uid];
     
     let titleText = 'Game Over!';
@@ -198,7 +213,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                     </Alert>
                 )}
 
-                {game.turnState === 'round_over' && isMyTurn && (
+                {game.turnState === 'round_over' && (
                     <Button onClick={handleNextRound} disabled={isProcessing} className="w-full">
                         {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                         Next Round

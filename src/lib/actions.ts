@@ -35,8 +35,8 @@ import {
     getChallengeById,
     createRallyGame,
     createLegendGame,
-    submitLegendAnswerInFirestore,
-    startNextLegendRoundInFirestore,
+    submitLegendAnswer,
+    startNextLegendRound,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
@@ -44,7 +44,6 @@ import {
     updateUserProfile,
     getFriendshipStatus,
     deleteGame,
-    completeLegendGame,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -473,7 +472,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
     try {
-        await submitLegendAnswerInFirestore(gameId, currentUserId, answer);
+        await submitLegendAnswer(gameId, currentUserId, answer);
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
@@ -486,7 +485,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
     try {
-        await startNextLegendRoundInFirestore(gameId, currentUserId);
+        await startNextLegendRound(gameId, currentUserId);
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {

@@ -211,9 +211,9 @@ export interface LegendGame {
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
-    currentRound: LegendGameRound;
+    currentRound?: LegendGameRound;
     roundHistory: LegendGameRound[];
-    status: 'ongoing' | 'complete';
+    status: 'initializing' | 'ongoing' | 'complete' | 'error';
     winnerId?: string;
     usedPlayers: string[];
     createdAt: number;
@@ -354,9 +354,9 @@ export const legendGameSchema = z.object({
     score: z.record(z.number()),
     currentPlayerId: z.string(),
     turnState: z.enum(['playing', 'round_over', 'game_over']),
-    currentRound: legendGameRoundSchema,
+    currentRound: legendGameRoundSchema.optional(),
     roundHistory: z.array(legendGameRoundSchema),
-    status: z.enum(['ongoing', 'complete']),
+    status: z.enum(['initializing', 'ongoing', 'complete', 'error']),
     winnerId: z.string().optional(), // only in friend mode
     usedPlayers: z.array(z.string()),
     createdAt: z.number(),
