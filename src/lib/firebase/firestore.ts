@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -874,36 +875,39 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     return newGameRef.id;
 }
 
-
-export async function submitLegendAnswer(gameId: string, playerId: string, answer: string) {
+export async function submitLegendAnswerInFirestore(gameId: string, playerId: string, answer: string) {
     return runTransaction(db, async (transaction) => {
         const gameRef = doc(db, 'legendGames', gameId);
         const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) throw new Error("Game not found.");
 
+        if (!gameDoc.exists()) throw new Error("Game not found.");
         const game = gameDoc.data() as LegendGame;
-        if (game.status !== 'ongoing') throw new Error("Game is already over.");
-        if (game.currentRound.guesses[playerId]) throw new Error("You have already answered for this round.");
-        if (game.mode === 'friend' && game.currentPlayerId !== playerId) throw new Error("It's not your turn.");
+
+        // Validation
+        if (game.status !== 'ongoing') throw new Error("Game is over.");
+        if (game.currentPlayerId !== playerId) throw new Error("It is not your turn.");
+        if (game.currentRound.guesses[playerId]) throw new Error("You have already answered this round.");
 
         const isCorrect = answer === game.currentRound.correctAnswer;
         const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
+        const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
         
-        const updateData: any = { // Using `any` to build the update object with dot notation
+        // Prepare update data
+        const updateData: any = {
             [`currentRound.guesses.${playerId}`]: answer,
             updatedAt: Timestamp.now().toMillis(),
         };
 
         if (isCorrect) {
-           updateData[`score.${playerId}`] = (game.score[playerId] || 0) + 1;
+            updateData[`score.${playerId}`] = (game.score[playerId] || 0) + 1;
         }
-
-        const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
 
         if (allPlayersAnswered) {
             updateData.turnState = 'round_over';
-            updateData.currentPlayerId = playerId; // The player who answered last is responsible for starting the next round
-        } else { // This can only happen in friend mode
+            // The player who answered last gets to click "Next Round"
+            updateData.currentPlayerId = playerId;
+        } else {
+            // Friend mode only: pass turn to the other player
             updateData.currentPlayerId = game.participantIds.find(id => id !== playerId)!;
         }
 
@@ -911,47 +915,64 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
     });
 }
 
-export async function startNextLegendRoundInFirestore(gameId: string, currentGame: LegendGame, newRound: LegendGameRound) {
-    const gameRef = doc(db, 'legendGames', gameId);
-    const updatedRoundHistory = [...currentGame.roundHistory, currentGame.currentRound];
-    const updatedUsedPlayers = [...currentGame.usedPlayers, newRound.correctAnswer];
-    
-    const nextPlayerId = currentGame.mode === 'friend' 
-        ? currentGame.participantIds.find(id => id !== currentGame.currentPlayerId)! 
-        : currentGame.currentPlayerId;
+export async function startNextLegendRoundInFirestore(gameId: string, newRound: LegendGameRound) {
+    return runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'legendGames', gameId);
+        const gameDoc = await transaction.get(gameRef);
 
-    await updateDoc(gameRef, {
-        roundHistory: updatedRoundHistory,
-        usedPlayers: updatedUsedPlayers,
-        currentRound: { ...newRound, guesses: {} },
-        turnState: 'playing',
-        currentPlayerId: nextPlayerId,
-        updatedAt: Timestamp.now().toMillis(),
+        if (!gameDoc.exists()) throw new Error("Game not found during transaction.");
+        const game = gameDoc.data() as LegendGame;
+
+        const updatedRoundHistory = [...game.roundHistory, game.currentRound];
+        const updatedUsedPlayers = [...game.usedPlayers, newRound.correctAnswer];
+        
+        const nextPlayerId = game.mode === 'friend' 
+            ? game.participantIds.find(id => id !== game.currentPlayerId)! 
+            : game.currentPlayerId;
+
+        const updateData = {
+            roundHistory: updatedRoundHistory,
+            usedPlayers: updatedUsedPlayers,
+            currentRound: { ...newRound, guesses: {} },
+            turnState: 'playing',
+            currentPlayerId: nextPlayerId,
+            updatedAt: Timestamp.now().toMillis(),
+        };
+
+        transaction.update(gameRef, updateData);
     });
 }
 
-export async function completeLegendGame(gameId: string, game: LegendGame) {
-    const gameRef = doc(db, 'legendGames', gameId);
-    let winnerId: string | undefined = undefined;
+export async function completeLegendGame(gameId: string) {
+    return runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'legendGames', gameId);
+        const gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) throw new Error("Game not found.");
+        
+        const game = gameDoc.data() as LegendGame;
+        let winnerId: string | undefined = undefined;
 
-    if (game.mode === 'friend') {
-        const p1 = game.participantIds[0];
-        const p2 = game.participantIds[1];
-        if (game.score[p1] > game.score[p2]) winnerId = p1;
-        if (game.score[p2] > game.score[p1]) winnerId = p2;
-    } else { // Solo mode winner check
-        const soloPlayerId = game.participantIds[0];
-        const correctAnswers = game.score[soloPlayerId] || 0;
-        if (correctAnswers >= 5) { // WIN_SCORE_SOLO
-            winnerId = soloPlayerId;
+        if (game.mode === 'friend') {
+            const p1 = game.participantIds[0];
+            const p2 = game.participantIds[1];
+            if (game.score[p1] > game.score[p2]) winnerId = p1;
+            if (game.score[p2] > game.score[p1]) winnerId = p2;
+            // if scores are equal, winnerId remains undefined (a draw)
+        } else { // Solo mode winner check
+            const soloPlayerId = game.participantIds[0];
+            const correctAnswers = game.score[soloPlayerId] || 0;
+            if (correctAnswers >= 5) { // WIN_SCORE_SOLO
+                winnerId = soloPlayerId;
+            }
         }
-    }
-    
-    await updateDoc(gameRef, {
-        status: 'complete',
-        turnState: 'game_over',
-        winnerId: winnerId || null, // Use null for Firestore instead of undefined
-        updatedAt: Timestamp.now().toMillis(),
+        
+        const updateData = {
+            status: 'complete',
+            turnState: 'game_over',
+            winnerId: winnerId || null, // Use null for Firestore instead of undefined
+            updatedAt: Timestamp.now().toMillis(),
+        };
+        transaction.update(gameRef, updateData);
     });
 }
 

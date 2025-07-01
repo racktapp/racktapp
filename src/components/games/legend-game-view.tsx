@@ -38,8 +38,8 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
       setIsProcessing(false);
       setSelectedAnswer(null);
     }
-    // No need to set isProcessing to false here, onSnapshot will update the view
-    // and the buttons will become disabled, so the loading state is implicitly over.
+    // Let onSnapshot handle state changes, which will set isProcessing to false implicitly
+    // by re-rendering the component without the loading state.
   };
 
   const handleNextRound = async () => {
@@ -65,11 +65,13 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     }
     return 'none';
   }
+  
+  const opponentName = opponent ? (opponent.name || 'Opponent') : 'Opponent';
 
   const renderFinalScreen = () => {
     const isWinner = game.winnerId === currentUser.uid;
     const isDraw = game.status === 'complete' && !game.winnerId;
-    const finalScore = opponent ? `${game.score[currentUser.uid]} - ${game.score[opponentId!]}` : game.score[currentUser.uid];
+    const finalScore = opponentId ? `${game.score[currentUser.uid]} - ${game.score[opponentId]}` : game.score[currentUser.uid];
     
     let titleText = 'Game Over!';
     if (game.mode === 'friend') {
@@ -96,7 +98,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Guess the Legend"
-        description={game.mode === 'solo' ? `A solo ${game.sport} trivia challenge.` : `A ${game.sport} trivia challenge vs ${opponent?.name}.`}
+        description={game.mode === 'solo' ? `A solo ${game.sport} trivia challenge.` : `A ${game.sport} trivia challenge vs ${opponentName}.`}
       />
 
       {/* Scoreboard */}
@@ -157,7 +159,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                 })}
             </CardContent>
             <CardFooter className="flex-col items-start gap-4">
-                {!myGuess && !isMyTurn && <p className="text-muted-foreground w-full text-center">Waiting for {opponent?.name} to play...</p>}
+                {!myGuess && !isMyTurn && <p className="text-muted-foreground w-full text-center">Waiting for {opponentName} to play...</p>}
                 
                 {game.turnState === 'round_over' && (
                     <Alert className="w-full">

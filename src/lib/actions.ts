@@ -450,7 +450,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
                 };
             } else if (game.turn === 'returning') {
                 const winnerId = aiResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
-                const newScore = { ...game.score, [winnerId]: game.score[winnerId] + 1 };
+                const newScore = { ...game.score, [winnerId]: (game.score[winnerId] || 0) + 1 };
                 
                 updateData.turn = 'point_over';
                 updateData.score = newScore;
@@ -513,48 +513,37 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
 
+    // This action now orchestrates the process without performing the updates itself
     const gameRef = doc(db, 'legendGames', gameId);
-    const gameDoc = await getDoc(gameRef);
-
-    if (!gameDoc.exists()) return { success: false, message: 'Game not found.' };
-    const game = gameDoc.data() as LegendGame;
     
-    if (game.currentPlayerId !== currentUserId) return { success: false, message: "It's not your turn to start the next round." };
-    if (game.turnState !== 'round_over') return { success: false, message: "The current round is not over yet." };
-    if (game.status === 'complete') return { success: false, message: "The game is already complete." };
-
     try {
-        // --- Game Over Logic ---
-        const isGameOver = () => {
-            // +1 because we are evaluating the round that just finished
-            const roundCount = game.roundHistory.length + 1;
-            if (roundCount >= 10) return true;
-            if (game.mode === 'friend') {
-                const WIN_SCORE = 5;
-                return Object.values(game.score).some(s => s >= WIN_SCORE);
-            } else { // solo
-                const WIN_SCORE_SOLO = 5;
-                const LOSE_SCORE_SOLO = 3;
-                const soloPlayerId = game.participantIds[0];
-                const correctAnswers = game.score[soloPlayerId] || 0;
-                // We use roundCount because score only tracks wins
-                const incorrectAnswers = roundCount - correctAnswers;
-                return correctAnswers >= WIN_SCORE_SOLO || incorrectAnswers >= LOSE_SCORE_SOLO;
-            }
-        };
+        const gameDoc = await getDoc(gameRef);
+        if (!gameDoc.exists()) return { success: false, message: 'Game not found.' };
+        const game = gameDoc.data() as LegendGame;
+        
+        if (game.currentPlayerId !== currentUserId) return { success: false, message: "It's not your turn to start the next round." };
+        if (game.turnState !== 'round_over') return { success: false, message: "The current round is not over yet." };
+        if (game.status === 'complete') return { success: false, message: "The game is already complete." };
 
-        if (isGameOver()) {
-            await completeLegendGame(gameId, game);
-            revalidatePath(`/games/legend/${gameId}`);
-            return { success: true };
+        // --- Game Over Logic ---
+        const roundCount = game.roundHistory.length + 1;
+        const isFriendModeGameOver = game.mode === 'friend' && (roundCount >= 10 || Object.values(game.score).some(s => s >= 5));
+        const soloPlayerScore = game.score[game.participantIds[0]] || 0;
+        const incorrectSoloAnswers = roundCount - soloPlayerScore;
+        const isSoloModeGameOver = game.mode === 'solo' && (soloPlayerScore >= 5 || incorrectSoloAnswers >= 3);
+
+        if (isFriendModeGameOver || isSoloModeGameOver) {
+            await completeLegendGame(gameId);
+        } else {
+            // --- Continue to Next Round ---
+            const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
+            await startNextLegendRoundInFirestore(gameId, nextRound);
         }
 
-        // --- Continue to Next Round ---
-        const nextRound = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
-        await startNextLegendRoundInFirestore(gameId, game, nextRound);
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
+        console.error("Error starting next round:", error);
         return { success: false, message: error.message || 'Failed to start next round.' };
     }
 }
