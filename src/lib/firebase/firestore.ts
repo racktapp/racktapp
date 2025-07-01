@@ -26,7 +26,6 @@ import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, Op
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
-import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
@@ -931,7 +930,13 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
     });
 }
 
-export async function completeLegendGame(gameId: string, transaction: Transaction): Promise<LegendGame> {
+export async function getGameForNextRound(gameId: string): Promise<LegendGame | null> {
+    const gameRef = doc(db, 'legendGames', gameId);
+    const gameDoc = await getDoc(gameRef);
+    return gameDoc.exists() ? gameDoc.data() as LegendGame : null;
+}
+
+async function completeLegendGame(gameId: string, transaction: Transaction): Promise<LegendGame> {
     const gameRef = doc(db, 'legendGames', gameId);
     const gameDoc = await transaction.get(gameRef);
     if (!gameDoc.exists()) throw new Error("Game not found during game over check.");
@@ -939,7 +944,7 @@ export async function completeLegendGame(gameId: string, transaction: Transactio
 
     if (game.status !== 'ongoing') return game;
 
-    const roundsPlayed = game.roundHistory.length + 1;
+    const roundsPlayed = game.roundHistory.length; // Already incremented before this call
     let isGameOver = false;
     let winnerId: string | 'draw' | null = null;
     
@@ -981,7 +986,7 @@ export async function completeLegendGame(gameId: string, transaction: Transactio
     return game;
 }
 
-export async function startNextLegendRound(gameId: string, currentUserId: string) {
+export async function advanceToNextLegendRound(gameId: string, nextRoundData: LegendGameOutput, currentUserId: string) {
     const gameRef = doc(db, 'legendGames', gameId);
     return runTransaction(db, async (transaction) => {
         let gameDoc = await transaction.get(gameRef);
@@ -1005,8 +1010,6 @@ export async function startNextLegendRound(gameId: string, currentUserId: string
              return; // Game over, no new round
         }
         game = updatedGame; // Use the updated game state for the next step
-
-        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
         
         let nextPlayerId = game.participantIds.find(id => id !== game.currentPlayerId);
         if (!nextPlayerId) nextPlayerId = currentUserId;

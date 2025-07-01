@@ -34,9 +34,10 @@ import {
     getChatsForUser,
     getChallengeById,
     createRallyGame,
-    createLegendGame,
+    createLegendGame as createLegendGameInFirestore,
     submitLegendAnswer,
-    startNextLegendRound,
+    advanceToNextLegendRound,
+    getGameForNextRound,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
@@ -495,7 +496,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         }
         
         // Step 2: If successful, create the game document in Firestore.
-        const gameId = await createLegendGame(currentUserId, friendId, sport, initialRoundData);
+        const gameId = await createLegendGameInFirestore(currentUserId, friendId, sport, initialRoundData);
         
         revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
@@ -522,7 +523,18 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
     try {
-        await startNextLegendRound(gameId, currentUserId);
+        // Step 1: Get the current game data to determine the sport and used players.
+        const game = await getGameForNextRound(gameId);
+        if (!game) throw new Error("Game not found.");
+        if (game.status !== 'ongoing') return { success: true }; // Game is over, no action needed
+
+        // Step 2: Call the AI to generate the next round.
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
+        if (!nextRoundData) throw new Error("Failed to generate the next round from AI.");
+
+        // Step 3: Pass this data to the database function to perform the atomic update.
+        await advanceToNextLegendRound(gameId, nextRoundData, currentUserId);
+
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
