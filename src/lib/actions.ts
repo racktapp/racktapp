@@ -36,8 +36,8 @@ import {
     createRallyGame,
     createLegendGame as createLegendGameInFirestore,
     submitLegendAnswer,
-    advanceToNextLegendRound,
     getGameForNextRound,
+    advanceToNextLegendRound,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
@@ -527,6 +527,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
         const game = await getGameForNextRound(gameId);
         if (!game) throw new Error("Game not found.");
         if (game.status !== 'ongoing') return { success: true }; // Game is over, no action needed
+        if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
 
         // Step 2: Call the AI to generate the next round.
         const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
