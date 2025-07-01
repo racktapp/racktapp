@@ -10,7 +10,7 @@ import {
   Users,
   type LucideIcon,
   Home,
-  User,
+  User as UserIcon,
   Settings,
   MessageSquare,
   ListOrdered,
@@ -49,10 +49,10 @@ export const NAV_ITEMS_MOBILE: NavItem[] = [
   { href: '/challenges', label: 'Challenges', icon: Swords },
   { href: '/friends', label: 'Friends', icon: Users },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/profile', label: 'Profile', icon: UserIcon },
 ]
 
 export const NAV_ITEMS_PROFILE: NavItem[] = [
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/profile', label: 'Profile', icon: UserIcon },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
