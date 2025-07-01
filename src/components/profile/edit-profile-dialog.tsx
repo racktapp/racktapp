@@ -28,7 +28,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '../user-avatar';
 
-const STOCK_AVATARS = ['/avatars/avatar1.png', '/avatars/avatar2.png'];
+const STOCK_AVATARS = [
+  'https://placehold.co/100x100/EBF4FF/7097FF.png', 
+  'https://placehold.co/100x100/F6EBF4/B470FF.png'
+];
 
 interface EditProfileDialogProps {
   children: ReactNode;
@@ -259,7 +262,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
                             selectedStockAvatar === avatarUrl ? "border-primary" : "border-transparent"
                         )}
                     >
-                        <Image src={avatarUrl} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" />
+                        <Image src={avatarUrl} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" data-ai-hint="avatar" />
                     </button>
                 ))}
             </div>
