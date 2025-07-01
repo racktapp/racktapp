@@ -66,7 +66,7 @@ const AppSidebar = ({ user }: { user: User }) => {
       <SidebarHeader>
         <div className="flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
-            <Image src="/tennis_icon.svg" alt="Rackt Logo" width={28} height={28} />
+            <Image src="/my-logo2.svg" alt="Rackt Logo" width={28} height={28} />
             <span className="font-headline group-data-[collapsible=icon]:hidden">Rackt</span>
           </Link>
           <div className="group-data-[collapsible=icon]:hidden">
