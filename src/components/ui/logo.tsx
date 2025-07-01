@@ -1,15 +1,19 @@
 import * as React from "react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 
 export const Logo = React.forwardRef<
   HTMLImageElement,
-  React.ImgHTMLAttributes<HTMLImageElement>
+  Omit<React.ComponentProps<typeof Image>, "src" | "alt">
 >(({ className, ...props }, ref) => (
-  <img
+  <Image
     ref={ref}
     src="/my-logo.svg"
     alt="Rackt Logo"
+    width={28}
+    height={28}
     className={cn("h-7 w-7", className)}
+    unoptimized
     {...props}
   />
 ));
