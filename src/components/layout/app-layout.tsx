@@ -4,11 +4,12 @@
 import { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, Settings, User as UserIcon } from 'lucide-react';
+import { Check, LogOut, Settings, User as UserIcon } from 'lucide-react';
 import { signOut } from 'firebase/auth';
+import Image from 'next/image';
 
 import { type User } from '@/lib/types';
-import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/constants';
+import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE, SPORTS, SPORT_ICONS } from '@/lib/constants';
 import { auth } from '@/lib/firebase/config';
 import { useUnreadChats } from '@/hooks/use-unread-chats';
 
@@ -37,16 +38,43 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
   DropdownMenuSubContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSport } from '../providers/sport-provider';
-import { SPORTS } from '@/lib/constants';
 import { Logo } from '../ui/logo';
 
 interface AppLayoutProps {
   children: ReactNode;
   user: User;
+}
+
+const MobileHeader = () => {
+    const { sport, setSport } = useSport();
+
+    return (
+        <div className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 md:hidden">
+            <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
+                <Logo />
+            </Link>
+            <div className="flex-1" />
+            <Select value={sport} onValueChange={(value) => setSport(value as any)}>
+                <SelectTrigger className="h-9 w-auto justify-start gap-2 border-muted-foreground/50 px-2">
+                    <Image src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} className="rounded-sm" unoptimized />
+                    <span className="flex-1 text-left"><SelectValue placeholder="Select sport" /></span>
+                </SelectTrigger>
+                <SelectContent>
+                    {SPORTS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                        <div className="flex items-center gap-2">
+                            <Image src={SPORT_ICONS[s]} alt={s} width={20} height={20} className="rounded-sm" unoptimized />
+                            <span>{s}</span>
+                        </div>
+                    </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+    )
 }
 
 const AppSidebar = ({ user }: { user: User }) => {
@@ -120,17 +148,22 @@ const AppSidebar = ({ user }: { user: User }) => {
             <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <span>Sport</span>
+                <div className="flex items-center gap-2">
+                    <Image src={SPORT_ICONS[sport]} alt={sport} width={16} height={16} unoptimized/>
+                    <span>Sport</span>
+                </div>
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent>
-                  <DropdownMenuRadioGroup value={sport} onValueChange={(value) => setSport(value as any)}>
-                    {SPORTS.map((s) => (
-                      <DropdownMenuRadioItem key={s} value={s}>
-                        {s}
-                      </DropdownMenuRadioItem>
+                  {SPORTS.map((s) => (
+                    <DropdownMenuItem key={s} onSelect={() => setSport(s as any)}>
+                        <div className="flex items-center gap-2">
+                            <Image src={SPORT_ICONS[s]} alt={s} width={16} height={16} unoptimized />
+                            <span>{s}</span>
+                        </div>
+                        {sport === s && <Check className="ml-auto h-4 w-4" />}
+                    </DropdownMenuItem>
                     ))}
-                  </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>
@@ -186,6 +219,7 @@ export function AppLayout({ children, user }: AppLayoutProps) {
     <SidebarProvider>
       <AppSidebar user={user} />
       <SidebarInset>
+        <MobileHeader />
         <main className="flex-1 pb-16 md:pb-0">
           {children}
         </main>
