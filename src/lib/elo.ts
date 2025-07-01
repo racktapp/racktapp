@@ -10,6 +10,8 @@ function getExpectedScore(ratingA: number, ratingB: number): number {
 
 /**
  * Calculates the new ELO ratings for two players after a match.
+ * Includes a slight inflationary adjustment to reward activity, where the
+ * loser's point deduction is slightly less than the winner's gain.
  * @param ratingA Player A's current rating.
  * @param ratingB Player B's current rating.
  * @param scoreA Player A's score in the match (1 for a win, 0 for a loss, 0.5 for a draw).
@@ -23,12 +25,23 @@ export function calculateNewElo(
   kFactor: number = 32
 ): { newRatingA: number; newRatingB: number } {
   const expectedScoreA = getExpectedScore(ratingA, ratingB);
-  const expectedScoreB = getExpectedScore(ratingB, ratingA);
+  const expectedScoreB = 1 - expectedScoreA; // Simplified from getExpectedScore(ratingB, ratingA)
 
   const scoreB = 1 - scoreA;
 
-  const newRatingA = Math.round(ratingA + kFactor * (scoreA - expectedScoreA));
-  const newRatingB = Math.round(ratingB + kFactor * (scoreB - expectedScoreB));
+  const changeA = kFactor * (scoreA - expectedScoreA);
+  const changeB = kFactor * (scoreB - expectedScoreB);
+
+  // To reward activity and prevent rank stagnation, we make the system slightly inflationary.
+  // The winner gains the full amount, but the loser only loses 95% of that amount.
+  // This means if players trade wins, they will both slowly climb the ladder.
+  const lossMitigationFactor = 0.95;
+
+  const finalChangeA = changeA < 0 ? changeA * lossMitigationFactor : changeA;
+  const finalChangeB = changeB < 0 ? changeB * lossMitigationFactor : changeB;
+  
+  const newRatingA = Math.round(ratingA + finalChangeA);
+  const newRatingB = Math.round(ratingB + finalChangeB);
 
   return { newRatingA, newRatingB };
 }
