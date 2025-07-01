@@ -44,6 +44,7 @@ import {
     updateUserProfile,
     getFriendshipStatus,
     deleteGame,
+    completeLegendGame,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -378,12 +379,12 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
     try {
         // Step 1: Get current game state & call AI (READS + EXTERNAL)
         const gameRef = doc(db, "rallyGames", gameId);
-        const initialGameDoc = await getDoc(gameRef);
-        if (!initialGameDoc.exists()) throw new Error("Game not found.");
-        const game = initialGameDoc.data() as RallyGame;
+        const gameDoc = await getDoc(gameRef);
+        if (!gameDoc.exists()) throw new Error("Game not found.");
+        const game = gameDoc.data() as RallyGame;
 
         if (game.status === 'complete') throw new Error('Game is already over.');
-        if (game.currentPlayerId !== currentUserId && game.turn !== 'point_over') {
+        if (game.turn !== 'point_over' && game.currentPlayerId !== currentUserId) {
              throw new Error("It's not your turn.");
         }
         
@@ -413,8 +414,8 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
             const nextReturnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
             if (!nextServerDoc.exists() || !nextReturnerDoc.exists()) throw new Error("Next players not found.");
             
-            const nextServerRank = nextServerDoc.data().sports?.[game.sport]?.racktRank || 1200;
-            const nextReturnerRank = nextReturnerDoc.data().sports?.[game.sport]?.racktRank || 1200;
+            const nextServerRank = (nextServerDoc.data() as User).sports?.[game.sport]?.racktRank || 1200;
+            const nextReturnerRank = (nextReturnerDoc.data() as User).sports?.[game.sport]?.racktRank || 1200;
             
             aiInput = { turn: 'serve', player1Rank: nextServerRank, player2Rank: nextReturnerRank };
         } else {
@@ -495,9 +496,27 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
     if (!currentUserId) return { success: false, message: 'You must be logged in.' };
-
     try {
+        // Step 1: Submit the answer and get the updated game state
         await submitLegendAnswer(gameId, currentUserId, answer);
+
+        // Step 2: Check if the round is over
+        const gameDoc = await getDoc(doc(db, 'legendGames', gameId));
+        if (!gameDoc.exists()) throw new Error("Game disappeared after submission.");
+        const game = gameDoc.data() as LegendGame;
+        
+        // If it's not the end of the round yet (i.e. waiting for other player), we're done.
+        if (game.turnState === 'playing') {
+            revalidatePath(`/games/legend/${gameId}`);
+            return { success: true };
+        }
+
+        // Step 3: If the round IS over, check if the GAME is over
+        const { over, winnerId } = isLegendGameOver(game);
+        if (over) {
+            await completeLegendGame(gameId, winnerId);
+        }
+
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
@@ -517,6 +536,34 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
     } catch (error: any) {
         console.error("Error starting next round:", error);
         return { success: false, message: error.message || 'Failed to start next round.' };
+    }
+}
+
+// Helper function to check for game over condition
+function isLegendGameOver(game: LegendGame): { over: boolean; winnerId?: string | null } {
+    const roundsPlayed = game.roundHistory.length + 1;
+    
+    if (game.mode === 'solo') {
+        const score = game.score[game.participantIds[0]] ?? 0;
+        const incorrect = roundsPlayed - score;
+        if (score >= 5) return { over: true, winnerId: game.participantIds[0] };
+        if (incorrect >= 3) return { over: true, winnerId: null }; // AI wins
+        return { over: false };
+    } else { // Friend mode
+        const [p1, p2] = game.participantIds;
+        const score1 = game.score[p1] ?? 0;
+        const score2 = game.score[p2] ?? 0;
+
+        if (score1 >= 5 || score2 >= 5) {
+            return { over: true, winnerId: score1 > score2 ? p1 : p2 };
+        }
+        if (roundsPlayed >= 10) {
+            if (score1 > score2) return { over: true, winnerId: p1 };
+            if (score2 > score1) return { over: true, winnerId: p2 };
+            return { over: true, winnerId: null }; // Draw
+        }
+        
+        return { over: false };
     }
 }
 

@@ -27,6 +27,7 @@ import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
+import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
@@ -792,10 +793,18 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     const newGameRef = doc(collection(db, 'rallyGames'));
 
-    const initialAiResponse = await getLegendGameRound({
-        sport: 'Tennis',
-        usedPlayers: [],
+    const user1Rank = user1.sports?.['Tennis']?.racktRank || 1200;
+    const user2Rank = user2.sports?.['Tennis']?.racktRank || 1200;
+
+    const initialAiResponse = await playRallyPoint({
+        turn: 'serve',
+        player1Rank: user1Rank,
+        player2Rank: user2Rank,
     });
+
+    if (!initialAiResponse.serveOptions) {
+        throw new Error("Failed to generate initial serve options for Rally Game.");
+    }
 
     const newGame: RallyGame = {
         id: newGameRef.id,
@@ -811,7 +820,7 @@ export async function createRallyGame(userId1: string, userId2: string): Promise
         currentPoint: {
             servingPlayer: user1.uid,
             returningPlayer: user2.uid,
-            serveOptions: initialAiResponse.options,
+            serveOptions: initialAiResponse.serveOptions,
         },
         pointHistory: [],
         status: 'ongoing',
@@ -873,33 +882,6 @@ export async function createLegendGame(userId: string, friendId: string | null, 
     return newGameRef.id;
 }
 
-function isLegendGameOver(game: LegendGame): { over: boolean; winnerId?: string | null } {
-    const roundsPlayed = game.roundHistory.length + 1;
-    
-    if (game.mode === 'solo') {
-        const score = game.score[game.participantIds[0]] ?? 0;
-        const incorrect = roundsPlayed - score;
-        if (score >= 5) return { over: true, winnerId: game.participantIds[0] };
-        if (incorrect >= 3) return { over: true, winnerId: null };
-        return { over: false };
-    } else {
-        const [p1, p2] = game.participantIds;
-        const score1 = game.score[p1] ?? 0;
-        const score2 = game.score[p2] ?? 0;
-
-        if (roundsPlayed >= 10) {
-            if (score1 > score2) return { over: true, winnerId: p1 };
-            if (score2 > score1) return { over: true, winnerId: p2 };
-            return { over: true, winnerId: null }; // Draw
-        }
-        if (score1 >= 5) return { over: true, winnerId: p1 };
-        if (score2 >= 5) return { over: true, winnerId: p2 };
-        
-        return { over: false };
-    }
-}
-
-
 export async function submitLegendAnswer(gameId: string, playerId: string, answer: string) {
     await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, 'legendGames', gameId);
@@ -911,97 +893,72 @@ export async function submitLegendAnswer(gameId: string, playerId: string, answe
         if (game.currentPlayerId !== playerId) throw new Error("It is not your turn.");
         if (game.currentRound.guesses[playerId]) throw new Error("You have already answered this round.");
 
-        let updatedGame = { ...game };
+        // Update guess and score
+        const isCorrect = answer === game.currentRound.correctAnswer;
+        const newGuesses = { ...game.currentRound.guesses, [playerId]: answer };
+        const newScore = isCorrect ? { ...game.score, [playerId]: (game.score[playerId] || 0) + 1 } : game.score;
 
-        const isCorrect = answer === updatedGame.currentRound.correctAnswer;
-        updatedGame.currentRound = {
-            ...updatedGame.currentRound,
-            guesses: { ...updatedGame.currentRound.guesses, [playerId]: answer }
+        // Determine next state
+        const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
+        const nextPlayerId = game.participantIds.find(id => id !== playerId);
+        
+        const updatePayload: any = {
+            'currentRound.guesses': newGuesses,
+            score: newScore,
+            updatedAt: Timestamp.now().toMillis(),
         };
-        if (isCorrect) {
-            updatedGame.score = {
-                ...updatedGame.score,
-                [playerId]: (updatedGame.score[playerId] || 0) + 1
-            };
-        }
 
-        const allPlayersAnswered = Object.keys(updatedGame.currentRound.guesses).length === updatedGame.participantIds.length;
-
-        if (!allPlayersAnswered) {
-            const nextPlayerId = updatedGame.participantIds.find(id => id !== playerId)!;
-            transaction.update(gameRef, {
-                'currentRound.guesses': updatedGame.currentRound.guesses,
-                currentPlayerId: nextPlayerId,
-                updatedAt: Timestamp.now().toMillis()
-            });
-            return;
-        }
-
-        updatedGame.turnState = 'round_over';
-        
-        const gameOverCheck = isLegendGameOver(updatedGame);
-        
-        if (gameOverCheck.over) {
-            transaction.update(gameRef, {
-                currentRound: updatedGame.currentRound,
-                score: updatedGame.score,
-                turnState: 'game_over',
-                status: 'complete',
-                winnerId: gameOverCheck.winnerId,
-                updatedAt: Timestamp.now().toMillis(),
-            });
+        if (allPlayersAnswered) {
+            updatePayload.turnState = 'round_over';
+            // In solo mode, player always starts next round. In friend mode, the other player starts.
+            updatePayload.currentPlayerId = game.mode === 'solo' ? playerId : nextPlayerId!;
         } else {
-            const nextPlayerToStart = updatedGame.mode === 'friend' 
-                ? updatedGame.participantIds.find(id => id !== playerId)! 
-                : playerId;
-
-            transaction.update(gameRef, {
-                currentRound: updatedGame.currentRound,
-                score: updatedGame.score,
-                turnState: 'round_over',
-                currentPlayerId: nextPlayerToStart,
-                updatedAt: Timestamp.now().toMillis(),
-            });
+            updatePayload.currentPlayerId = nextPlayerId;
         }
+        
+        transaction.update(gameRef, updatePayload);
+    });
+}
+
+export async function completeLegendGame(gameId: string, winnerId: string | null | undefined) {
+    const gameRef = doc(db, 'legendGames', gameId);
+    await updateDoc(gameRef, {
+        status: 'complete',
+        turnState: 'game_over',
+        winnerId: winnerId, // can be null for a draw
+        updatedAt: Timestamp.now().toMillis()
     });
 }
 
 
 export async function startNextLegendRound(gameId: string, currentUserId: string) {
-    let nextRoundData;
-    let usedPlayers;
-
-    const gameRef = doc(db, 'legendGames', gameId);
-    const gameDoc = await getDoc(gameRef);
-    if (!gameDoc.exists()) throw new Error("Game not found.");
-    const game = gameDoc.data() as LegendGame;
-
-    if (game.status !== 'ongoing') throw new Error("Game is not ongoing.");
-    if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
-    if (game.currentPlayerId !== currentUserId) throw new Error("Not your turn to start the next round.");
-
-    usedPlayers = [...game.usedPlayers, game.currentRound.correctAnswer];
-    nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: usedPlayers });
-    
-
     await runTransaction(db, async (transaction) => {
-        const freshGameDoc = await transaction.get(gameRef);
-        if (!freshGameDoc.exists()) throw new Error("Game not found in transaction.");
-        const freshGame = freshGameDoc.data() as LegendGame;
+        const gameRef = doc(db, 'legendGames', gameId);
+        const gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) throw new Error("Game not found.");
+        const game = gameDoc.data() as LegendGame;
 
-        if(freshGame.updatedAt !== game.updatedAt) {
-            return;
-        }
+        if (game.status !== 'ongoing') throw new Error("Game is not ongoing.");
+        if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
+        if (game.currentPlayerId !== currentUserId) throw new Error("Not your turn to start the next round.");
 
+        const usedPlayers = [...game.usedPlayers, game.currentRound.correctAnswer];
+        
+        // This AI call is outside the transaction, which is good.
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: usedPlayers });
+        if (!nextRoundData) throw new Error("Failed to generate next round from AI.");
+        
+        // Update the document in the transaction
         transaction.update(gameRef, {
             roundHistory: arrayUnion(game.currentRound),
-            usedPlayers: usedPlayers,
+            usedPlayers: arrayUnion(nextRoundData.correctAnswer),
             currentRound: { ...nextRoundData, guesses: {} },
             turnState: 'playing',
             updatedAt: Timestamp.now().toMillis(),
         });
     });
 }
+
 
 
 export async function getHeadToHeadRecord(userId1: string, userId2: string, sport: Sport): Promise<{ player1Wins: number; player2Wins: number }> {
