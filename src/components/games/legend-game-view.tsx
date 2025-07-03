@@ -213,7 +213,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                                 {myState === 'incorrect' && <XCircle className="mr-2 h-4 w-4" />}
                                 {option}
                             </div>
-                            {opponent && oppState !== 'none' && (
+                            {opponent && myGuess && oppState !== 'none' && (
                                 <div className="flex items-center gap-1 text-xs">
                                     <UserAvatar user={opponent} className="h-4 w-4" />
                                     <span>{oppState === 'correct' ? '✅' : '❌'}</span>
