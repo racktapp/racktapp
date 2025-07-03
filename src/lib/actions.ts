@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, auth } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, setDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
@@ -196,9 +196,6 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
 }
 
 export async function createOpenChallengeAction(values: z.infer<typeof openChallengeSchema>, poster: User) {
-    if (!poster) {
-        return { success: false, message: 'Not authenticated' };
-    }
     try {
         await createOpenChallenge({
             posterId: poster.uid,
@@ -345,6 +342,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
     }
 
     try {
+        // AI is called FIRST to ensure a valid round exists before creating the game.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
 
         const userDoc = await getDoc(doc(db, 'users', currentUserId));
@@ -426,7 +424,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
                 
-                if (game.mode === 'solo' && (game.score[currentUserId] || 0) >= 10) {
+                if (game.mode === 'solo' && (game.score[currentUserId] || 0) >= 10 && game.status === 'ongoing') {
                     game.status = 'complete';
                     game.winnerId = currentUserId;
                 }
@@ -481,11 +479,13 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             liveGame.turnState = 'playing';
 
             if (liveGame.mode === 'friend') {
-                const p1 = liveGame.participantIds[0];
-                const p2 = liveGame.participantIds[1];
-                liveGame.currentPlayerId = liveGame.currentPlayerId === p1 ? p2 : p1;
+                // In friend mode, toggle to the other player.
+                const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
+                liveGame.currentPlayerId = otherPlayerId!; // The '!' is safe because friend mode always has 2 players.
             } else {
-                liveGame.currentPlayerId = liveGame.participantIds[0];
+                // In solo mode, it's always the current user's turn again.
+                // We use the ID passed into the action for maximum safety.
+                liveGame.currentPlayerId = currentUserId;
             }
             
             liveGame.updatedAt = Timestamp.now().toMillis();
