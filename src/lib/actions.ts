@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -84,7 +84,6 @@ export async function handleReportMatchAction(
 
 // Action to get match recap
 export async function handleRecapAction(match: Match, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
     const player1Name = match.participantsData[match.teams.team1.playerIds[0]].name;
     const player2Name = match.participantsData[match.teams.team2.playerIds[0]].name;
     
@@ -98,7 +97,6 @@ export async function handleRecapAction(match: Match, currentUserId: string) {
 
 // Action to search for users
 export async function searchUsersAction(query: string, currentUserId: string): Promise<User[]> {
-    if (!currentUserId) throw new Error("Not authenticated");
     if (!query) return [];
     return searchUsers(query, currentUserId);
 }
@@ -118,17 +116,14 @@ export async function addFriendAction(fromUser: User, toUser: User) {
 // --- Friend Management Actions ---
 
 export async function getFriendsAction(userId: string): Promise<User[]> {
-    if (!userId) return [];
     return getFriendsFromFirestore(userId);
 }
 
 export async function getIncomingRequestsAction(userId: string): Promise<any[]> {
-    if (!userId) return [];
     return getIncomingFriendRequests(userId);
 }
 
 export async function getSentRequestsAction(userId: string): Promise<any[]> {
-    if (!userId) return [];
     return getSentFriendRequests(userId);
 }
 
@@ -166,7 +161,6 @@ export async function removeFriendAction(currentUserId: string, friendId: string
 }
 
 export async function getFriendshipStatusAction(profileUserId: string, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
     return getFriendshipStatus(currentUserId, profileUserId);
 }
 
@@ -298,9 +292,6 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
 // --- Chat Actions ---
 
 export async function getOrCreateChatAction(friendId: string, currentUserId: string) {
-    if (!currentUserId) {
-      return { success: false, message: "Not authenticated." };
-    }
     try {
       const chatId = await getOrCreateChat(currentUserId, friendId);
       revalidatePath('/chat');
@@ -311,9 +302,6 @@ export async function getOrCreateChatAction(friendId: string, currentUserId: str
 }
 
 export async function sendMessageAction(chatId: string, senderId: string, text: string) {
-    if (!senderId) {
-        return { success: false, message: "Not authenticated." };
-    }
     try {
         await sendMessage(chatId, senderId, text);
         return { success: true };
@@ -323,9 +311,6 @@ export async function sendMessageAction(chatId: string, senderId: string, text: 
 }
 
 export async function markChatAsReadAction(chatId: string, userId: string) {
-    if (!userId) {
-        return { success: false, message: "Not authenticated." };
-    }
     try {
         await markChatAsRead(chatId, userId);
         return { success: true };
@@ -338,10 +323,6 @@ export async function markChatAsReadAction(chatId: string, userId: string) {
 // --- Game Actions ---
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
-    if (!currentUserId) {
-        return { success: false, message: 'Not authenticated' };
-    }
-
     try {
         // AI is called FIRST to ensure a valid round exists before creating the game.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
@@ -396,9 +377,6 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 
 
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
-    if (!currentUserId) {
-        return { success: false, message: 'Not authenticated' };
-    }
     try {
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, 'legendGames', gameId);
@@ -424,20 +402,18 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
                 
-                if (game.mode === 'solo' && !isCorrect) {
-                    game.status = 'complete';
-                    game.winnerId = null;
-                }
-                
-                const roundsPlayed = game.roundHistory.length + 1;
-                const myScore = game.score[currentUserId] || 0;
-
-                if (game.mode === 'solo' && myScore >= 10 && game.status === 'ongoing') {
-                     game.status = 'complete';
-                     game.winnerId = currentUserId;
+                if (game.mode === 'solo') {
+                    if (!isCorrect) {
+                         game.status = 'complete';
+                         game.winnerId = null; // No winner for a loss
+                    } else if ((game.score[currentUserId] || 0) >= 10) {
+                         game.status = 'complete';
+                         game.winnerId = currentUserId;
+                    }
                 }
                 
                 if (game.mode === 'friend' && game.status === 'ongoing') {
+                    const roundsPlayed = game.roundHistory.length + 1;
                     const score1 = game.score[game.participantIds[0]] || 0;
                     const score2 = game.score[game.participantIds[1]] || 0;
                     if (roundsPlayed >= 10 || Math.abs(score1 - score2) > (10 - roundsPlayed)) {
@@ -460,11 +436,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
     }
 }
 
-export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
-    if (!currentUserId) {
-        return { success: false, message: "Not authenticated" };
-    }
-    
+export async function startNextLegendRoundAction(gameId: string) {
     // This is a best practice: fetch external data *before* the transaction
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
@@ -476,6 +448,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
     try {
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, 'legendGames', gameId);
+            // Re-fetch inside transaction for safety
             const gameDoc = await transaction.get(gameRef);
             if (!gameDoc.exists()) throw new Error("Game not found during transaction.");
             
@@ -488,14 +461,13 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             liveGame.currentRound = { ...nextRoundData, guesses: {} };
             liveGame.turnState = 'playing';
 
-            if (liveGame.mode === 'friend') {
+            if (liveGame.mode === 'solo') {
+                // In solo mode, it's always the solo player's turn.
+                liveGame.currentPlayerId = liveGame.participantIds[0];
+            } else {
                 // In friend mode, toggle to the other player.
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
                 liveGame.currentPlayerId = otherPlayerId!;
-            } else {
-                // In solo mode, it's always the solo player's turn.
-                // Use the game document as the source of truth.
-                liveGame.currentPlayerId = liveGame.participantIds[0];
             }
             
             liveGame.updatedAt = Timestamp.now().toMillis();
@@ -511,9 +483,6 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
 }
 
 export async function createRallyGameAction(friendId: string, currentUserId: string) {
-     if (!currentUserId) {
-        return { success: false, message: "Not authenticated" };
-    }
     try {
         const gameId = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(doc(db, 'users', currentUserId));
@@ -559,10 +528,6 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
 }
 
 export async function playRallyTurnAction(gameId: string, choice: any, currentUserId: string) {
-    if (!currentUserId) {
-        return { success: false, message: "Not authenticated" };
-    }
-
     try {
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, "rallyGames", gameId);
@@ -625,9 +590,6 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
 
 
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
-    if (!currentUserId) {
-        return { success: false, message: "Not authenticated" };
-    }
     try {
         await deleteGame(gameId, gameType === 'Rally' ? 'rallyGames' : 'legendGames', currentUserId);
         revalidatePath('/games');
@@ -640,9 +602,6 @@ export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Lege
 
 // --- Match History Actions ---
 export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: { confirmed: Match[], pending: Match[] } } | { success: false, error: string }> {
-    if (!userId) {
-        return { success: false, error: "Not authenticated" };
-    }
     try {
         const [confirmed, pending] = await Promise.all([
             getConfirmedMatchesForUser(userId),
@@ -684,15 +643,12 @@ export async function declineMatchResultAction(matchId: string, userId: string) 
 
 // --- AI Coach Actions ---
 export async function analyzeSwingAction(input: SwingAnalysisInput, userId: string) {
-    if (!userId) throw new Error("Not authenticated");
     return analyzeSwing(input);
 }
 
 // --- AI Prediction Actions ---
 
 export async function predictFriendMatchAction(currentUserId: string, friendId: string, sport: Sport): Promise<PredictMatchOutput> {
-    if (!currentUserId) throw new Error("Not authenticated");
-    
     const [currentUserDoc, friendDoc] = await Promise.all([
         getDoc(doc(db, 'users', currentUserId)),
         getDoc(doc(db, 'users', friendId))
@@ -739,8 +695,6 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
-    if (!userId) throw new Error("Not authenticated");
-    
     try {
         await updateUserProfile(userId, values);
         revalidatePath('/settings');

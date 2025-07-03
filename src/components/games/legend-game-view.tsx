@@ -45,7 +45,10 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   useEffect(() => {
     const currentRoundCount = game.roundHistory?.length || 0;
     if (currentRoundCount > prevRoundCount.current) {
+        // Reset all local states when a new round begins.
         setIsStartingNextRound(false);
+        setSelectedAnswer(null);
+        setIsAnswering(false);
     }
     prevRoundCount.current = currentRoundCount;
   }, [game.roundHistory]);
@@ -104,7 +107,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
   const handleNextRound = async () => {
     setIsStartingNextRound(true);
-    const result = await startNextLegendRoundAction(game.id, currentUser.uid);
+    const result = await startNextLegendRoundAction(game.id);
     if (!result.success) {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
         setIsStartingNextRound(false);
