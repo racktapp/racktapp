@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { auth, db } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction } from 'firebase/firestore';
 import { 
     reportPendingMatch,
