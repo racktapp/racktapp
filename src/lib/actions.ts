@@ -416,10 +416,9 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             if (isCorrect) {
                 game.score[currentUserId] = (game.score[currentUserId] || 0) + 1;
             } else {
-                // If incorrect in solo mode, end the game.
                 if (game.mode === 'solo') {
                     game.status = 'complete';
-                    game.winnerId = null; // No winner, just game over.
+                    game.winnerId = null; 
                 }
             }
             
@@ -427,19 +426,21 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
                 
-                // If the game just ended, we still want to show the 'round_over' state to reveal the correct answer.
-                // Now, check for friend mode game over condition since the round is complete.
+                if (game.mode === 'solo' && (game.score[currentUserId] || 0) >= 10) {
+                    game.status = 'complete';
+                    game.winnerId = currentUserId;
+                }
+                
                 if (game.mode === 'friend' && game.status === 'ongoing') {
                     const score1 = game.score[game.participantIds[0]] || 0;
                     const score2 = game.score[game.participantIds[1]] || 0;
-                    const roundsPlayed = game.roundHistory.length + 1; // +1 for the current round that just finished
+                    const roundsPlayed = game.roundHistory.length + 1;
                     if (roundsPlayed >= 10 || Math.abs(score1 - score2) > (10 - roundsPlayed)) {
                         game.status = 'complete';
                         game.winnerId = score1 > score2 ? game.participantIds[0] : score2 > score1 ? game.participantIds[1] : 'draw';
                     }
                 }
             } else {
-                // This branch is only for friend mode.
                 game.currentPlayerId = game.participantIds.find(id => id !== currentUserId)!;
             }
 
@@ -458,24 +459,20 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
         return { success: false, message: "Not authenticated" };
     }
 
-    // Step 1: Fetch current game state and get AI data *before* the transaction
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
     if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
-    // Any player can now start the next round if it's over
     if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
 
     const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
 
-    // Step 2: Run the database transaction with the new data
     try {
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, 'legendGames', gameId);
-            const gameDoc = await transaction.get(gameRef); // Re-fetch inside transaction for consistency
+            const gameDoc = await transaction.get(gameRef);
             if (!gameDoc.exists()) throw new Error("Game not found during transaction.");
             const liveGame = gameDoc.data() as LegendGame;
 
-            // State update logic
             if (liveGame.currentRound) {
                 liveGame.roundHistory.push(liveGame.currentRound);
             }
@@ -483,19 +480,12 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             liveGame.currentRound = { ...nextRoundData, guesses: {} };
             liveGame.turnState = 'playing';
 
-            // Set the next player. For solo, it's always the same player. For friend, it toggles.
             if (liveGame.mode === 'friend') {
-                const lastPlayerId = liveGame.currentPlayerId;
-                liveGame.currentPlayerId = liveGame.participantIds.find(id => id !== lastPlayerId)!;
-            } else { // solo mode
-                 liveGame.currentPlayerId = liveGame.participantIds[0];
-            }
-
-            // Check for solo win condition
-            const score1 = liveGame.score[liveGame.participantIds[0]] || 0;
-            if (liveGame.mode === 'solo' && score1 >= 10) { // Win after 10 correct answers
-                liveGame.status = 'complete';
-                liveGame.winnerId = liveGame.participantIds[0];
+                const p1 = liveGame.participantIds[0];
+                const p2 = liveGame.participantIds[1];
+                liveGame.currentPlayerId = liveGame.currentPlayerId === p1 ? p2 : p1;
+            } else {
+                liveGame.currentPlayerId = liveGame.participantIds[0];
             }
             
             liveGame.updatedAt = Timestamp.now().toMillis();
