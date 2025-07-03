@@ -48,6 +48,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStartingNextPoint, setIsStartingNextPoint] = useState(false);
   const [progress, setProgress] = useState(0);
+  const pointTransitionDispatched = useRef(false);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
@@ -58,11 +59,11 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
   // Reset state when a new point is finished (and the game state updates)
   useEffect(() => {
-    // Check if turn is no longer point_over, indicating a new point has begun server-side
     if (game.turn !== 'point_over' && isStartingNextPoint) {
         setIsProcessing(false);
         setIsStartingNextPoint(false);
         setProgress(0);
+        pointTransitionDispatched.current = false; // Reset the flag
     }
   }, [game.turn, isStartingNextPoint]);
   
@@ -71,7 +72,8 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     if (game.turn === 'point_over' && game.status === 'ongoing') {
         setIsStartingNextPoint(true);
         // The player who served the last point is responsible for starting the next one.
-        if (isMyTurn) {
+        if (isMyTurn && !pointTransitionDispatched.current) {
+            pointTransitionDispatched.current = true; // Set flag to prevent re-dispatch
             const timer = setTimeout(() => {
                 handleAction(null);
             }, 4000); // 4-second delay
@@ -238,4 +240,5 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     </div>
   );
 }
+
 
