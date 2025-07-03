@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, setDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -31,7 +31,6 @@ import {
     getOrCreateChat,
     sendMessage,
     markChatAsRead,
-    getGame,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
     getHeadToHeadRecord,
@@ -39,15 +38,17 @@ import {
     updateUserProfile,
     getFriendshipStatus,
     deleteGame,
+    getGame
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
+
 
 // Action to report a match
 export async function handleReportMatchAction(
@@ -221,10 +222,10 @@ export async function getChallengesAction(userId: string, sport: Sport) {
     return { incoming, sent, open };
 }
 
-export async function acceptChallengeAction(challenge: Challenge) {
+export async function acceptChallengeAction(challenge: Challenge, currentUserId: string) {
     try {
         await updateChallengeStatus(challenge.id, 'accepted');
-        const chatId = await getOrCreateChat(challenge.fromId, challenge.toId);
+        const chatId = await getOrCreateChat(challenge.fromId, challenge.toId, currentUserId);
         revalidatePath('/challenges');
         revalidatePath('/chat');
         return { success: true, message: "Challenge accepted! Starting chat...", chatId };
@@ -301,7 +302,7 @@ export async function getOrCreateChatAction(friendId: string, currentUserId: str
       return { success: false, message: "Not authenticated." };
     }
     try {
-      const chatId = await getOrCreateChat(currentUserId, friendId);
+      const chatId = await getOrCreateChat(currentUserId, friendId, currentUserId);
       revalidatePath('/chat');
       return { success: true, message: 'Chat ready.', redirect: `/chat/${chatId}` };
     } catch (error: any) {
@@ -349,41 +350,43 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         if (!userDoc.exists()) throw new Error("Current user not found.");
         const user = userDoc.data() as User;
         
-        const gameRef = doc(collection(db, 'legendGames'));
-        const now = Timestamp.now().toMillis();
-        const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-        
-        let newGame: LegendGame;
-        if (friendId) {
-            const friendDoc = await getDoc(doc(db, 'users', friendId));
-            if (!friendDoc.exists()) throw new Error("Friend not found.");
-            const friend = friendDoc.data() as User;
-            newGame = {
-                id: gameRef.id, mode: 'friend', sport,
-                participantIds: [currentUserId, friendId],
-                participantsData: { [currentUserId]: { name: user.name, avatar: user.avatar, uid: user.uid }, [friendId]: { name: friend.name, avatar: friend.avatar, uid: friend.uid } },
-                score: { [currentUserId]: 0, [friendId]: 0 },
-                currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
-                turnState: 'playing', status: 'ongoing',
-                currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-                createdAt: now, updatedAt: now,
-            };
-        } else {
-            newGame = {
-                id: gameRef.id, mode: 'solo', sport,
-                participantIds: [currentUserId],
-                participantsData: { [currentUserId]: { name: user.name, avatar: user.avatar, uid: user.uid } },
-                score: { [currentUserId]: 0 },
-                currentPlayerId: currentUserId,
-                turnState: 'playing', status: 'ongoing',
-                currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-                createdAt: now, updatedAt: now,
-            };
-        }
-        await setDoc(gameRef, newGame);
+        await runTransaction(db, async (transaction) => {
+            const gameRef = doc(db, 'legendGames', user.uid); // Using a predictable ID for solo games
+            const now = Timestamp.now().toMillis();
+            const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+            
+            let newGame: LegendGame;
+            if (friendId) {
+                const friendDoc = await getDoc(doc(db, 'users', friendId));
+                if (!friendDoc.exists()) throw new Error("Friend not found.");
+                const friend = friendDoc.data() as User;
+                newGame = {
+                    id: gameRef.id, mode: 'friend', sport,
+                    participantIds: [currentUserId, friendId],
+                    participantsData: { [currentUserId]: { name: user.name, avatar: user.avatar, uid: user.uid }, [friendId]: { name: friend.name, avatar: friend.avatar, uid: friend.uid } },
+                    score: { [currentUserId]: 0, [friendId]: 0 },
+                    currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
+                    turnState: 'playing', status: 'ongoing',
+                    currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+                    createdAt: now, updatedAt: now,
+                };
+            } else {
+                newGame = {
+                    id: gameRef.id, mode: 'solo', sport,
+                    participantIds: [currentUserId],
+                    participantsData: { [currentUserId]: { name: user.name, avatar: user.avatar, uid: user.uid } },
+                    score: { [currentUserId]: 0 },
+                    currentPlayerId: currentUserId,
+                    turnState: 'playing', status: 'ongoing',
+                    currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+                    createdAt: now, updatedAt: now,
+                };
+            }
+             transaction.set(gameRef, newGame);
+        });
 
         revalidatePath('/games');
-        return { success: true, message: 'Game started!', redirect: `/games/legend/${gameRef.id}` };
+        return { success: true, message: 'Game started!', redirect: `/games/legend/${user.uid}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
         return { success: false, message: error.message || 'Could not start the game. Please try again.' };
@@ -413,16 +416,16 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 
             if (isCorrect) {
                 game.score[currentUserId] = (game.score[currentUserId] || 0) + 1;
-            } else {
-                if (game.mode === 'solo') {
-                    game.status = 'complete';
-                    game.winnerId = null; 
-                }
             }
             
             const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
+                
+                if (game.mode === 'solo' && !isCorrect) {
+                    game.status = 'complete';
+                    game.winnerId = null;
+                }
                 
                 if (game.mode === 'solo' && (game.score[currentUserId] || 0) >= 10 && game.status === 'ongoing') {
                     game.status = 'complete';
@@ -456,12 +459,13 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
     if (!currentUserId) {
         return { success: false, message: "Not authenticated" };
     }
-
+    
+    // This is a best practice: fetch external data *before* the transaction
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
     if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
+    // Allow any player to advance the round if it's over
     if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
-
     const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
 
     try {
@@ -469,6 +473,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             const gameRef = doc(db, 'legendGames', gameId);
             const gameDoc = await transaction.get(gameRef);
             if (!gameDoc.exists()) throw new Error("Game not found during transaction.");
+            
             const liveGame = gameDoc.data() as LegendGame;
 
             if (liveGame.currentRound) {
@@ -479,13 +484,13 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             liveGame.turnState = 'playing';
 
             if (liveGame.mode === 'friend') {
-                // In friend mode, toggle to the other player.
+                // In friend mode, toggle to the other player. This is safe as there are always two.
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
-                liveGame.currentPlayerId = otherPlayerId!; // The '!' is safe because friend mode always has 2 players.
+                liveGame.currentPlayerId = otherPlayerId!;
             } else {
-                // In solo mode, it's always the current user's turn again.
-                // We use the ID passed into the action for maximum safety.
-                liveGame.currentPlayerId = currentUserId;
+                // In solo mode, it's always the solo player's turn.
+                // We derive this from the game data itself for maximum safety.
+                liveGame.currentPlayerId = liveGame.participantIds[0];
             }
             
             liveGame.updatedAt = Timestamp.now().toMillis();
@@ -505,42 +510,43 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
         return { success: false, message: "Not authenticated" };
     }
     try {
-        const [userDoc, friendDoc] = await Promise.all([
-            getDoc(doc(db, 'users', currentUserId)),
-            getDoc(doc(db, 'users', friendId))
-        ]);
+        const gameId = await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(doc(db, 'users', currentUserId));
+            const friendDoc = await transaction.get(doc(db, 'users', friendId));
 
-        if (!userDoc.exists() || !friendDoc.exists()) {
-            throw new Error("User data not found.");
-        }
-        
-        const user = userDoc.data() as User;
-        const friend = friendDoc.data() as User;
+            if (!userDoc.exists() || !friendDoc.exists()) {
+                throw new Error("User data not found.");
+            }
+            
+            const user = userDoc.data() as User;
+            const friend = friendDoc.data() as User;
 
-        const initialAiResponse = await playRallyPoint({ 
-            turn: 'serve', 
-            isServeTurn: true, 
-            isReturnTurn: false,
-            player1Rank: user.sports?.['Tennis']?.racktRank ?? 1200,
-            player2Rank: friend.sports?.['Tennis']?.racktRank ?? 1200,
+            const initialAiResponse = await playRallyPoint({ 
+                turn: 'serve', 
+                isServeTurn: true, 
+                isReturnTurn: false,
+                player1Rank: user.sports?.['Tennis']?.racktRank ?? 1200,
+                player2Rank: friend.sports?.['Tennis']?.racktRank ?? 1200,
+            });
+
+            const gameRef = doc(db, 'rallyGames', nanoid());
+            const now = Timestamp.now().toMillis();
+            const newGame: RallyGame = {
+                id: gameRef.id, sport: 'Tennis',
+                participantIds: [user.uid, friend.uid],
+                participantsData: { [user.uid]: { name: user.name, avatar: user.avatar, uid: user.uid }, [friend.uid]: { name: friend.name, avatar: friend.avatar, uid: friend.uid } },
+                score: { [user.uid]: 0, [friend.uid]: 0 },
+                turn: 'serving', currentPlayerId: user.uid,
+                currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialAiResponse.serveOptions },
+                pointHistory: [], status: 'ongoing',
+                createdAt: now, updatedAt: now,
+            };
+            transaction.set(gameRef, newGame);
+            return gameRef.id;
         });
-
-        const gameRef = doc(collection(db, 'rallyGames'));
-        const now = Timestamp.now().toMillis();
-        const newGame: RallyGame = {
-            id: gameRef.id, sport: 'Tennis',
-            participantIds: [user.uid, friend.uid],
-            participantsData: { [user.uid]: { name: user.name, avatar: user.avatar, uid: user.uid }, [friend.uid]: { name: friend.name, avatar: friend.avatar, uid: friend.uid } },
-            score: { [user.uid]: 0, [friend.uid]: 0 },
-            turn: 'serving', currentPlayerId: user.uid,
-            currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialAiResponse.serveOptions },
-            pointHistory: [], status: 'ongoing',
-            createdAt: now, updatedAt: now,
-        };
-        await setDoc(gameRef, newGame);
         
         revalidatePath('/games');
-        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameRef.id}` };
+        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
     } catch (error: any) {
         console.error("Error creating rally game:", error);
         return { success: false, message: error.message || 'Failed to start Rally Game.' };
