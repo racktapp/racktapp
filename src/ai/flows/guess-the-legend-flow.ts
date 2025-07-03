@@ -28,6 +28,7 @@ export type LegendGameOutput = z.infer<typeof LegendGameOutputSchema>;
 
 export async function getLegendGameRound(input: LegendGameInput): Promise<LegendGameOutput> {
   const output = await legendGameFlow(input);
+  // The flow now handles retries, so if it returns, it's either a valid output or it has failed definitively.
   if (!output) {
     throw new Error('The AI failed to generate a valid game round. Please try again.');
   }
@@ -41,12 +42,11 @@ const prompt = ai.definePrompt({
   prompt: `Generate a single, high-quality trivia question about a famous player from the sport of **{{{sport}}}**.
 
 **RULES:**
-1. Your entire response MUST be a single, valid JSON object. Do not include any text, notes, or apologies before or after the JSON object. The response must start with '{' and end with '}'.
-2. The JSON object must strictly adhere to the provided output schema.
-3. The "correctAnswer" player **MUST NOT** be any of these names: {{#if usedPlayers}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}{{else}}None{{/if}}.
-4. The "options" array MUST contain exactly 4 strings: the "correctAnswer" and three plausible distractors. The order must be random.
-5. The "clue" must be a single, clever sentence.
-6. The "justification" must be a short, fun explanation.
+1.  Your entire response MUST be a single, valid JSON object that strictly adheres to the output schema.
+2.  The "correctAnswer" player **MUST NOT** be any of these names: {{#if usedPlayers}}{{#each usedPlayers}}"{{this}}"{{#if @last}}{{else}}, {{/if}}{{/each}}{{else}}None{{/if}}.
+3.  The "options" array MUST contain exactly 4 strings: the "correctAnswer" and three plausible distractors. The order must be random.
+4.  The "clue" must be a single, clever sentence.
+5.  The "justification" must be a short, fun explanation.
 
 **EXAMPLE of a PERFECT RESPONSE:**
 {
@@ -75,15 +75,16 @@ const legendGameFlow = ai.defineFlow(
       const { output } = await prompt(input);
       // The definePrompt's outputSchema will handle parsing and validation.
       // If output is defined, it's valid according to the schema.
-      if (output) {
+      if (output && output.options && output.options.length === 4 && output.correctAnswer) {
         return output;
       }
       attempts++;
+      // Optional: wait a moment before retrying
       if (attempts < 3) {
-        // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
-    return null; // All attempts failed
+    // If all attempts fail, return null. The calling action will handle this.
+    return null;
   }
 );

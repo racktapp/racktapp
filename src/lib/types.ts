@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS as sportValues } from './constants';
@@ -152,14 +151,29 @@ export interface Chat {
   };
 }
 
+// --- Game Type Definitions ---
 
+export type GameStatus = 'ongoing' | 'complete' | 'initializing' | 'error';
 export type RallyGameTurn = 'serving' | 'returning' | 'point_over' | 'game_over';
+export type LegendGameTurnState = 'playing' | 'round_over' | 'game_over';
+
+export interface ServeChoice {
+  name: string;
+  description: string;
+  risk: 'low' | 'medium' | 'high';
+  reward: 'low' | 'medium' | 'high';
+}
+
+export interface ReturnChoice {
+  name: string;
+  description: string;
+}
 
 export interface RallyGamePoint {
   servingPlayer: string;
-  serveChoice: any;
   returningPlayer: string;
-  returnChoice: any;
+  serveChoice: ServeChoice;
+  returnChoice: ReturnChoice;
   winner: string; // The UID of the player who won the point
   narrative: string;
 }
@@ -179,20 +193,18 @@ export interface RallyGame {
   currentPoint: {
     servingPlayer: string;
     returningPlayer: string;
-    serveChoice?: any;
-    returnChoice?: any;
-    serveOptions?: any[];
-    returnOptions?: any[];
+    serveChoice?: ServeChoice;
+    returnChoice?: ReturnChoice;
+    serveOptions?: ServeChoice[];
+    returnOptions?: ReturnChoice[];
   };
   pointHistory: RallyGamePoint[];
-  status: 'ongoing' | 'complete';
+  status: GameStatus;
   winnerId?: string;
   createdAt: number;
   updatedAt: number;
 }
 
-
-export type LegendGameTurnState = 'playing' | 'round_over' | 'game_over';
 
 export interface LegendGameRound {
     clue: string;
@@ -213,7 +225,7 @@ export interface LegendGame {
     turnState: LegendGameTurnState;
     currentRound?: LegendGameRound;
     roundHistory: LegendGameRound[];
-    status: 'ongoing' | 'complete' | 'initializing';
+    status: GameStatus;
     winnerId?: string | 'draw' | null;
     error?: string;
     usedPlayers: string[];
@@ -257,7 +269,8 @@ export interface Achievement {
   icon: string; // url or identifier for the icon
 }
 
-// Schema for report match form
+// --- Zod Schemas ---
+
 export const reportMatchSchema = z.object({
   matchType: z.enum(['Singles', 'Doubles']),
   sport: Sport,
@@ -276,8 +289,6 @@ export const reportMatchSchema = z.object({
     return true;
 }, { message: "Partner and second opponent are required for Doubles.", path: ["partner"] });
 
-
-// Zod schemas for forms
 export const challengeSchema = z.object({
   sport: Sport,
   location: z.string().optional(),
@@ -298,52 +309,6 @@ export const createTournamentSchema = z.object({
     participantIds: z.array(z.string()).min(3, "You must select at least 3 friends."),
 });
 
-
-// Rally Game
-export const rallyGamePointSchema = z.object({
-    servingPlayer: z.string(),
-    serveChoice: z.any(),
-    returningPlayer: z.string(),
-    returnChoice: z.any(),
-    winner: z.string(),
-    narrative: z.string(),
-});
-export type RallyGamePointZod = z.infer<typeof rallyGamePointSchema>;
-
-export const rallyGameSchema = z.object({
-    id: z.string(),
-    sport: Sport,
-    participantIds: z.array(z.string()),
-    participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional(), uid: z.string() })),
-    score: z.record(z.number()),
-    turn: z.enum(['serving', 'returning', 'point_over', 'game_over']),
-    currentPlayerId: z.string(),
-    currentPoint: z.object({
-        servingPlayer: z.string(),
-        serveChoice: z.any().optional(),
-        returningPlayer: z.string(),
-        returnChoice: z.any().optional(),
-        serveOptions: z.array(z.any()).optional(),
-        returnOptions: z.array(z.any()).optional(),
-    }),
-    pointHistory: z.array(rallyGamePointSchema),
-    status: z.enum(['ongoing', 'complete']),
-    winnerId: z.string().optional(),
-    createdAt: z.number(),
-    updatedAt: z.number(),
-});
-export type RallyGameZod = z.infer<typeof rallyGameSchema>;
-
-// Guess The Legend Game
-export const legendGameRoundSchema = z.object({
-    clue: z.string(),
-    options: z.array(z.string()),
-    correctAnswer: z.string(),
-    justification: z.string(),
-    guesses: z.record(z.string()), // { userId: guess }
-});
-export type LegendGameRoundZod = z.infer<typeof legendGameRoundSchema>;
-
 export const LegendGameOutputSchema = z.object({
   clue: z.string().describe("A clever, one-sentence, slightly cryptic clue about a famous player."),
   correctAnswer: z.string().describe("The name of the correct player."),
@@ -352,27 +317,6 @@ export const LegendGameOutputSchema = z.object({
 });
 export type LegendGameOutput = z.infer<typeof LegendGameOutputSchema>;
 
-
-export const legendGameSchema = z.object({
-    id: z.string(),
-    mode: z.enum(['solo', 'friend']),
-    sport: Sport,
-    participantIds: z.array(z.string()),
-    participantsData: z.record(z.object({ name: z.string(), avatar: z.string().optional(), uid: z.string() })),
-    score: z.record(z.number()),
-    currentPlayerId: z.string(),
-    turnState: z.enum(['playing', 'round_over', 'game_over']),
-    currentRound: legendGameRoundSchema,
-    roundHistory: z.array(legendGameRoundSchema),
-    status: z.enum(['ongoing', 'complete']),
-    winnerId: z.union([z.string(), z.literal('draw'), z.null()]).optional(),
-    usedPlayers: z.array(z.string()),
-    createdAt: z.number(),
-    updatedAt: z.number(),
-});
-export type LegendGameZod = z.infer<typeof legendGameSchema>;
-
-// AI Prediction Schemas
 export const PredictMatchInputSchema = z.object({
   player1Name: z.string(),
   player2Name: z.string(),
@@ -394,7 +338,6 @@ export const PredictMatchOutputSchema = z.object({
 });
 export type PredictMatchOutput = z.infer<typeof PredictMatchOutputSchema>;
 
-// Settings Schema
 export const profileSettingsSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),

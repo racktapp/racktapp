@@ -1,4 +1,3 @@
-
 'use client';
 import { useState } from 'react';
 import { LegendGame, User } from '@/lib/types';
@@ -6,7 +5,7 @@ import { submitLegendAnswerAction, startNextLegendRoundAction } from '@/lib/acti
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, ArrowRight, Trophy } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Trophy, AlertTriangle } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -39,11 +38,10 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
 
-  // Safeguard against incomplete game data. If the game is initializing, or the
-  // current round or its options aren't loaded, display a loading/error state.
+  // Safely check for a valid, playable round.
   if (
     !game.currentRound ||
-    !game.currentRound.options ||
+    !Array.isArray(game.currentRound.options) ||
     game.currentRound.options.length === 0
   ) {
     return (
@@ -52,7 +50,11 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
             title="Could not load game" 
             description="There was a problem loading the current round data. Please try again later."
         />
-        <GameSkeleton />
+        <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Game Error</AlertTitle>
+            <AlertDescription>{game.error || 'Failed to generate game round.'}</AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -65,9 +67,10 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const opponentGuess = opponentId ? currentRound.guesses?.[opponentId] : null;
 
   const handleAnswerSubmit = async (answer: string) => {
+    if (!isMyTurn || isProcessing || myGuess) return;
     setSelectedAnswer(answer);
     setIsProcessing(true);
-    const result = await submitLegendAnswerAction(game.id, answer, currentUser.uid);
+    const result = await submitLegendAnswerAction(game.id, answer);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
       setIsProcessing(false); 
@@ -78,7 +81,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
 
   const handleNextRound = async () => {
     setIsProcessing(true);
-    const result = await startNextLegendRoundAction(game.id, currentUser.uid);
+    const result = await startNextLegendRoundAction(game.id);
     if (!result.success) {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
         setIsProcessing(false);
@@ -215,5 +218,3 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     </div>
   );
 }
-
-    

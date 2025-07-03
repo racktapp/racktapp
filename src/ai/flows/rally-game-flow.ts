@@ -28,6 +28,8 @@ const RallyGameInputSchema = z.object({
   player2Rank: z.number().describe('The RacktRank of the returning player.'),
   serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. Required when turn is "return".'),
   returnChoice: ReturnChoiceSchema.optional().describe('The return chosen by the returning player. Required for evaluation, but not for generating return options.'),
+  isServeTurn: z.boolean(),
+  isReturnTurn: z.boolean(),
 });
 export type RallyGameInput = z.infer<typeof RallyGameInputSchema>;
 
@@ -48,14 +50,9 @@ export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOu
   return output;
 }
 
-const RallyGamePromptInputSchema = RallyGameInputSchema.extend({
-  isServeTurn: z.boolean(),
-  isReturnTurn: z.boolean(),
-});
-
 const prompt = ai.definePrompt({
   name: 'rallyGamePrompt',
-  input: { schema: RallyGamePromptInputSchema },
+  input: { schema: RallyGameInputSchema },
   output: { schema: RallyGameOutputSchema },
   prompt: `You are a tennis strategy AI and commentator that powers a turn-based rally game. Your analysis must always consider the player ranks (a higher rank means a more skilled player).
 
@@ -95,19 +92,19 @@ The serve has been hit! The serving player (Rank: {{{player1Rank}}}) used: **"{{
 const rallyGameFlow = ai.defineFlow(
   {
     name: 'rallyGameFlow',
-    inputSchema: RallyGamePromptInputSchema,
-    outputSchema: z.any(),
+    inputSchema: RallyGameInputSchema,
+    outputSchema: RallyGameOutputSchema.nullable(),
   },
   async (input) => {
     let attempts = 0;
     while (attempts < 3) {
         const { output } = await prompt(input);
         if (output) {
-            // Basic validation
+            // Basic validation to ensure the AI returned the expected structure for the turn.
             if (
-                (input.isServeTurn && output.serveOptions?.length) ||
-                (input.isReturnTurn && !input.returnChoice && output.returnOptions?.length) ||
-                (input.isReturnTurn && input.returnChoice && output.pointWinner)
+                (input.isServeTurn && output.serveOptions?.length === 3) ||
+                (input.isReturnTurn && !input.returnChoice && output.returnOptions?.length === 3) ||
+                (input.isReturnTurn && input.returnChoice && output.pointWinner && output.narrative)
             ) {
                 return output;
             }
@@ -117,6 +114,6 @@ const rallyGameFlow = ai.defineFlow(
             await new Promise(resolve => setTimeout(resolve, 500));
         }
     }
-    return null; // All attempts failed
+    return null; // All attempts failed, the action will throw an error.
   }
 );
