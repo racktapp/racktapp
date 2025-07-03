@@ -400,7 +400,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 
             if (game.mode === 'solo') {
                 game.turnState = 'round_over';
-                // End game on a wrong answer in solo mode.
+                // End game on a wrong answer in solo mode OR after 10 correct answers.
                 if (!isCorrect) {
                      game.status = 'complete';
                      game.winnerId = null; // No winner for a loss
@@ -410,6 +410,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
                 }
             } else { // friend mode
                 if (allPlayersAnswered) {
+                    game.turnState = 'round_over';
                     const p1Id = game.participantIds[0];
                     const p2Id = game.participantIds[1];
                     
@@ -419,11 +420,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
                     // "Sudden death" win condition
                     if (p1Correct !== p2Correct) {
                         game.status = 'complete';
-                        game.turnState = 'game_over';
                         game.winnerId = p1Correct ? p1Id : p2Id;
-                    } else {
-                        // Both right or both wrong, continue to next round.
-                        game.turnState = 'round_over';
                     }
                 }
             }
@@ -438,7 +435,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
     }
 }
 
-export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
+export async function startNextLegendRoundAction(gameId: string) {
     // This is a best practice: fetch external data *before* the transaction
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
@@ -447,12 +444,6 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
     // Server-side validation for turn state.
     if (game.turnState !== 'round_over') {
         throw new Error("Current round is not over.");
-    }
-    
-    // Only the designated player can trigger the next round
-    if (game.currentPlayerId !== currentUserId) {
-        // This is not an error, just another player's client trying to start. We can ignore it.
-        return { success: true, message: "Waiting for other player to start next round."};
     }
 
     const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
@@ -465,6 +456,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             if (!liveGameDoc.exists()) throw new Error("Game not found during transaction.");
             const liveGame = liveGameDoc.data() as LegendGame;
 
+            // Double-check state inside the transaction to prevent race conditions
             if (liveGame.status !== 'ongoing' || liveGame.turnState !== 'round_over') return;
             
             if (liveGame.currentRound) {
@@ -477,7 +469,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             if (liveGame.mode === 'solo') {
                 liveGame.currentPlayerId = liveGame.participantIds[0];
             } else { // friend mode
-                // The player who started the last round is still currentPlayerId, so toggle to the other.
+                // Alternate who starts the round based on who started the last one.
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
                 liveGame.currentPlayerId = otherPlayerId!;
             }
@@ -508,8 +500,6 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
             const friend = friendDoc.data() as User;
 
             const initialAiResponse = await playRallyPoint({ 
-                isServeTurn: true, 
-                isReturnTurn: false,
                 servingPlayerRank: user.sports?.['Tennis']?.racktRank ?? 1200,
                 returningPlayerRank: friend.sports?.['Tennis']?.racktRank ?? 1200,
             });
@@ -560,20 +550,20 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
                  // The old returner is the new server.
                  const newServerRank = returnerRank;
                  const newReturnerRank = serverRank;
-                 aiInput = { servingPlayerRank: newServerRank, returningPlayerRank: newReturnerRank, isServeTurn: true, isReturnTurn: false };
+                 aiInput = { servingPlayerRank: newServerRank, returningPlayerRank: newReturnerRank };
                  aiResponse = await playRallyPoint(aiInput);
                  game.turn = 'serving';
                  game.currentPlayerId = game.currentPoint.returningPlayer; // The returner serves next
                  game.currentPoint = { servingPlayer: game.currentPoint.returningPlayer, returningPlayer: game.currentPoint.servingPlayer, serveOptions: aiResponse.serveOptions };
             } else if (game.turn === 'serving') {
-                 aiInput = { serveChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank, isServeTurn: false, isReturnTurn: true };
+                 aiInput = { serveChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
                  aiResponse = await playRallyPoint(aiInput);
                  game.turn = 'returning';
                  game.currentPlayerId = game.currentPoint.returningPlayer;
                  game.currentPoint.serveChoice = choice;
                  game.currentPoint.returnOptions = aiResponse.returnOptions;
             } else { // returning
-                 aiInput = { serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank, isServeTurn: false, isReturnTurn: true };
+                 aiInput = { serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
                  aiResponse = await playRallyPoint(aiInput);
                  const winnerId = aiResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
                  game.score[winnerId] = (game.score[winnerId] || 0) + 1;
