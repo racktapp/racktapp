@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -53,6 +53,7 @@ import { type Sport, type User, reportMatchSchema, challengeSchema, openChalleng
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
+
 
 // Action to report a match
 export async function handleReportMatchAction(
@@ -347,13 +348,11 @@ export async function markChatAsReadAction(chatId: string, userId: string) {
 // --- Game Actions ---
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
-    
+    if (!currentUserId) {
+        return { success: false, message: "Not authenticated" };
+    }
     try {
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-        if (!initialRoundData || !initialRoundData.options || initialRoundData.options.length !== 4) {
-            throw new Error("Failed to generate a valid game round from the AI.");
-        }
         
         const gameId = await createLegendGameInDb(currentUserId, friendId, sport, initialRoundData);
         
@@ -367,7 +366,9 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 }
 
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
+    if (!currentUserId) {
+        return { success: false, message: "Not authenticated" };
+    }
     try {
         await updateLegendGame(gameId, (game) => {
             if (game.status !== 'ongoing' || !game.currentRound) throw new Error("Game is not active.");
@@ -385,8 +386,6 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
-                // If it's a solo game, the turn stays with the user to click next.
-                // If it's a friend game, we could set it to the winner, but for simplicity let's keep it on the current player.
                 game.currentPlayerId = currentUserId; 
             } else {
                 game.currentPlayerId = game.participantIds.find(id => id !== currentUserId)!;
@@ -400,38 +399,46 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 export async function startNextLegendRoundAction(gameId: string, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
-
+    if (!currentUserId) {
+        return { success: false, message: "Not authenticated" };
+    }
     try {
         const game = await getGame<LegendGame>(gameId, 'legendGames');
         if (!game) throw new Error("Game not found.");
         if (game.status !== 'ongoing') return { success: true, message: 'Game is over.' };
         // Allow any player to advance if round is over
-        if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
+        if (game.turnState !== 'round_over') {
+             throw new Error("Current round is not over.");
+        }
+        
+        const usedPlayers = game.usedPlayers || [];
 
-        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers });
-        if (!nextRoundData || !nextRoundData.options || nextRoundData.options.length !== 4) {
-            throw new Error("Failed to generate a valid game round from the AI.");
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers });
+        if (!nextRoundData) {
+            throw new Error("The AI failed to generate a valid game round. Please try again.");
         }
         
         await updateLegendGame(gameId, (g) => {
-            g.roundHistory.push(g.currentRound!);
+            if (g.currentRound) {
+                g.roundHistory.push(g.currentRound);
+            }
             g.usedPlayers.push(nextRoundData.correctAnswer);
             g.currentRound = { ...nextRoundData, guesses: {} };
             g.turnState = 'playing';
             
-            // Determine who starts the next round. Loser of the last round starts.
             const lastRound = g.roundHistory[g.roundHistory.length - 1];
-            const lastRoundWinnerId = Object.keys(lastRound.guesses || {}).find(uid => lastRound.guesses![uid] === lastRound.correctAnswer);
-
             if (g.mode === 'friend') {
+                const lastRoundGuesses = lastRound?.guesses || {};
+                const lastRoundWinnerId = Object.keys(lastRoundGuesses).find(uid => lastRoundGuesses[uid] === lastRound.correctAnswer);
+                
                 const p1 = g.participantIds[0];
                 const p2 = g.participantIds[1];
-                 // If there was a winner last round, the loser starts. If no winner, the other player starts.
+                
                 if (lastRoundWinnerId) {
                     g.currentPlayerId = lastRoundWinnerId === p1 ? p2 : p1;
                 } else {
-                    g.currentPlayerId = g.currentPlayerId === p1 ? p2 : p1;
+                    const otherPlayerId = g.participantIds.find(id => id !== currentUserId);
+                    g.currentPlayerId = otherPlayerId || currentUserId;
                 }
             } else {
                 g.currentPlayerId = g.participantIds[0];
@@ -444,7 +451,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
 
             if (g.mode === 'solo' && (score1 >= 5 || (roundsPlayed - score1) >= 3)) {
                 g.status = 'complete';
-                g.winnerId = score1 >= 5 ? g.participantIds[0] : null; // Winner only if they reach 5 points.
+                g.winnerId = score1 >= 5 ? g.participantIds[0] : null; 
             } else if (g.mode === 'friend' && (roundsPlayed >= 10 || Math.abs(score1 - score2) > (10 - roundsPlayed))) {
                 g.status = 'complete';
                 g.winnerId = score1 > score2 ? g.participantIds[0] : score2 > score1 ? g.participantIds[1] : 'draw';
@@ -460,8 +467,9 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
 }
 
 export async function createRallyGameAction(friendId: string, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
-    
+     if (!currentUserId) {
+        return { success: false, message: "Not authenticated" };
+    }
     try {
         const userDoc = await getDoc(doc(db, 'users', currentUserId));
         const friendDoc = await getDoc(doc(db, 'users', friendId));
@@ -483,10 +491,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
             isReturnTurn: false,
         };
         const initialAiResponse = await playRallyPoint(aiInput);
-        if (!initialAiResponse.serveOptions || initialAiResponse.serveOptions.length !== 3) {
-            throw new Error("Failed to get initial serve options from AI.");
-        }
-
+        
         const gameId = await createRallyGameInDb(server, returner, initialAiResponse.serveOptions!);
         
         revalidatePath('/games');
@@ -498,8 +503,9 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
 }
 
 export async function playRallyTurnAction(gameId: string, choice: any, currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
-    
+    if (!currentUserId) {
+        return { success: false, message: "Not authenticated" };
+    }
     return await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, "rallyGames", gameId);
         const gameDoc = await transaction.get(gameRef);
@@ -531,7 +537,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
             game.currentPoint.serveChoice = choice;
             game.currentPoint.returnOptions = aiResponse.returnOptions;
         } else if (game.turn === 'returning') {
-            aiInput = { turn: 'return' as const, player1Rank: serverRank, player2Rank: returnerRank, serveChoice: game.currentPoint.serveChoice, returnChoice: choice, isServeTurn: false, isReturnTurn: true };
+            aiInput = { turn: 'return' as const, player1Rank: serverRank, player2Rank: returnerRank, serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, isServeTurn: false, isReturnTurn: true };
             aiResponse = await playRallyPoint(aiInput);
             const winnerId = aiResponse.pointWinner === 'server' ? servingPlayer : returningPlayer;
             game.score[winnerId] = (game.score[winnerId] || 0) + 1;
@@ -567,10 +573,11 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
 
 
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
-    if (!currentUserId) throw new Error("Not authenticated");
-    const collectionName = gameType === 'Rally' ? 'rallyGames' : 'legendGames';
+    if (!currentUserId) {
+        return { success: false, message: "Not authenticated" };
+    }
     try {
-        await deleteGame(gameId, collectionName, currentUserId);
+        await deleteGame(gameId, gameType === 'Rally' ? 'rallyGames' : 'legendGames', currentUserId);
         revalidatePath('/games');
         return { success: true, message: 'Game deleted successfully.' };
     } catch (error: any) {

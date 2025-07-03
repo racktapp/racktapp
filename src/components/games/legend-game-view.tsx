@@ -1,6 +1,6 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LegendGame, User } from '@/lib/types';
 import { submitLegendAnswerAction, startNextLegendRoundAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
@@ -36,8 +36,20 @@ const GameSkeleton = () => (
 
 export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [isAnswering, setIsAnswering] = useState(false);
+  const [isStartingNextRound, setIsStartingNextRound] = useState(false);
+  const prevRoundCount = useRef(game.roundHistory?.length || 0);
+
+  // When new game data comes in, check if a new round has started.
+  useEffect(() => {
+    const currentRoundCount = game.roundHistory?.length || 0;
+    if (currentRoundCount > prevRoundCount.current) {
+        setIsStartingNextRound(false);
+    }
+    prevRoundCount.current = currentRoundCount;
+  }, [game.roundHistory]);
+
 
   // Safely check for a valid, playable round.
   if (
@@ -68,26 +80,26 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const opponentGuess = opponentId ? currentRound.guesses?.[opponentId] : null;
 
   const handleAnswerSubmit = async (answer: string) => {
-    if (!isMyTurn || isProcessing || myGuess) return;
+    if (!isMyTurn || isAnswering || myGuess) return;
     setSelectedAnswer(answer);
-    setIsProcessing(true);
+    setIsAnswering(true);
     const result = await submitLegendAnswerAction(game.id, answer, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
-      setIsProcessing(false); 
+      setIsAnswering(false); 
       setSelectedAnswer(null);
     }
-     // Let onSnapshot handle UI updates, which will implicitly set isProcessing to false.
+     // Let onSnapshot handle UI updates, which will implicitly set isAnswering to false on re-render.
   };
 
   const handleNextRound = async () => {
-    setIsProcessing(true);
+    setIsStartingNextRound(true);
     const result = await startNextLegendRoundAction(game.id, currentUser.uid);
     if (!result.success) {
         toast({ variant: 'destructive', title: 'Error', description: result.message });
-        setIsProcessing(false);
+        setIsStartingNextRound(false);
     }
-    // onSnapshot will handle UI update and set isProcessing to false implicitly
+    // On success, the useEffect watching roundHistory.length will set isStartingNextRound to false.
   };
   
   const getButtonState = (option: string) => {
@@ -106,6 +118,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   }
   
   const opponentName = opponent ? (opponent.name || 'Opponent') : 'Opponent';
+  const isProcessing = isAnswering || isStartingNextRound;
 
   const renderFinalScreen = () => {
     const isWinner = game.winnerId === currentUser.uid;
@@ -182,7 +195,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                             onClick={() => handleAnswerSubmit(option)}
                         >
                             <div className="flex items-center gap-2">
-                                {isProcessing && selectedAnswer === option && <LoadingSpinner className="mr-2 h-4 w-4" />}
+                                {isAnswering && selectedAnswer === option && <LoadingSpinner className="mr-2 h-4 w-4" />}
                                 {myState === 'correct' && <CheckCircle className="mr-2 h-4 w-4" />}
                                 {myState === 'incorrect' && <XCircle className="mr-2 h-4 w-4" />}
                                 {option}
@@ -208,9 +221,9 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                 )}
 
                 {game.turnState === 'round_over' && (
-                    <Button onClick={handleNextRound} disabled={isProcessing} className="w-full">
-                        {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                        Next Round
+                    <Button onClick={handleNextRound} disabled={isStartingNextRound} className="w-full">
+                        {isStartingNextRound ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                        {isStartingNextRound ? 'Starting Next Round...' : 'Next Round'}
                     </Button>
                 )}
             </CardFooter>
