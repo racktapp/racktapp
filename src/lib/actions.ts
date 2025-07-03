@@ -197,7 +197,7 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
             posterName: poster.name,
             posterAvatar: poster.avatar,
             sport: values.sport,
-            location: values.location!,
+            location: values.location,
             note: values.note,
         });
         revalidatePath('/challenges');
@@ -385,7 +385,6 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             const game = gameDoc.data() as LegendGame;
 
             if (game.status !== 'ongoing' || !game.currentRound) throw new Error('Game is not active.');
-            if (game.currentPlayerId !== currentUserId) throw new Error('It is not your turn.');
             if (game.currentRound.guesses?.[currentUserId]) throw new Error('You have already answered.');
 
             const isCorrect = answer === game.currentRound.correctAnswer;
@@ -397,7 +396,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
                 game.score[currentUserId] = (game.score[currentUserId] || 0) + 1;
             }
             
-            const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
+            const allPlayersAnswered = game.mode === 'solo' || Object.keys(newGuesses).length === game.participantIds.length;
 
             if (game.mode === 'solo') {
                 game.turnState = 'round_over';
@@ -425,10 +424,9 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
                         // Both right or both wrong, continue.
                         game.turnState = 'round_over';
                     }
-                } else {
-                    // First player has answered, switch to second player.
-                    game.currentPlayerId = game.participantIds.find(id => id !== currentUserId)!;
                 }
+                // If not all players have answered, do nothing.
+                // The transaction will just save the new guess.
             }
 
             game.updatedAt = Timestamp.now().toMillis();
@@ -446,19 +444,23 @@ export async function startNextLegendRoundAction(gameId: string) {
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
     if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
-    // Allow any player to advance the round if it's over
-    if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
+    
+    // In friend mode, only proceed if the round is over. Solo mode is handled by submit action.
+    if (game.mode === 'friend' && game.turnState !== 'round_over') {
+        throw new Error("Current round is not over.");
+    }
+
     const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
 
     try {
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, 'legendGames', gameId);
             // Re-fetch inside transaction for safety
-            const liveGame = (await transaction.get(gameRef)).data() as LegendGame;
+            const liveGameDoc = await transaction.get(gameRef);
+            if (!liveGameDoc.exists()) throw new Error("Game not found during transaction.");
+            const liveGame = liveGameDoc.data() as LegendGame;
 
-            if (!liveGame || liveGame.status !== 'ongoing') throw new Error("Game is not ongoing.");
-            // Allow any player to advance the round if it's over
-            if (liveGame.turnState !== 'round_over') throw new Error("Current round is not over.");
+            if (liveGame.status !== 'ongoing') return; // Don't proceed if game ended
             
             if (liveGame.currentRound) {
                 liveGame.roundHistory.push(liveGame.currentRound);
@@ -470,8 +472,7 @@ export async function startNextLegendRoundAction(gameId: string) {
             if (liveGame.mode === 'solo') {
                 liveGame.currentPlayerId = liveGame.participantIds[0];
             } else { // friend mode
-                // Alternate who starts the round. The currentPlayerId is the one who answered LAST.
-                // So the *other* player should start the next round.
+                // Alternate who starts the round based on who started the last one.
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
                 liveGame.currentPlayerId = otherPlayerId!;
             }

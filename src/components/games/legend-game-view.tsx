@@ -88,12 +88,11 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const currentRound = game.currentRound;
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
-  const isMyTurn = game.currentPlayerId === currentUser.uid;
   const myGuess = currentRound.guesses?.[currentUser.uid];
   const opponentGuess = opponentId ? currentRound.guesses?.[opponentId] : null;
 
   const handleAnswerSubmit = async (answer: string) => {
-    if (!isMyTurn || isAnswering || myGuess) return;
+    if (isAnswering || myGuess) return;
     setSelectedAnswer(answer);
     setIsAnswering(true);
     const result = await submitLegendAnswerAction(game.id, answer, currentUser.uid);
@@ -123,7 +122,8 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   };
 
   const getOpponentGuessState = (option: string) => {
-    if (!opponentGuess) return 'none';
+    // Only show opponent's guess if I have also guessed
+    if (!myGuess || !opponentGuess) return 'none';
     if (option === opponentGuess) {
         return opponentGuess === currentRound.correctAnswer ? 'correct' : 'incorrect';
     }
@@ -204,7 +204,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                                 "bg-red-500/10 border-red-500 text-red-700 hover:bg-red-500/20": myState === 'incorrect',
                                 "bg-muted/50": myState === 'disabled',
                             })}
-                            disabled={!isMyTurn || isProcessing || !!myGuess}
+                            disabled={isProcessing || !!myGuess}
                             onClick={() => handleAnswerSubmit(option)}
                         >
                             <div className="flex items-center gap-2">
@@ -224,7 +224,9 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                 })}
             </CardContent>
             <CardFooter className="flex-col items-start gap-4">
-                {!myGuess && !isMyTurn && <p className="text-muted-foreground w-full text-center">Waiting for {opponentName} to play...</p>}
+                {myGuess && !opponentGuess && game.status === 'ongoing' && game.mode === 'friend' && (
+                    <p className="text-muted-foreground w-full text-center">Waiting for {opponentName} to answer...</p>
+                )}
                 
                 {game.turnState === 'round_over' && (
                     <Alert className="w-full">
