@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI flow for the Rally Game, generating game actions and outcomes.
@@ -18,8 +19,6 @@ import {
 
 
 export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOutput> {
-  // This wrapper now simply calls the main flow.
-  // The flow itself is now robust and handles errors internally.
   const output = await rallyGameFlow(input);
   if (!output) {
       throw new Error('The AI failed to generate a valid game action.');
@@ -69,16 +68,33 @@ const evaluatePrompt = ai.definePrompt({
     name: 'rallyGameEvaluatePrompt',
     input: { schema: z.object({ serveChoice: ServeChoiceSchema, returnChoice: ReturnChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
     output: { schema: z.object({ pointWinner: z.enum(['server', 'returner']), narrative: z.string().min(10) }) },
-    prompt: `You are a tennis commentator AI. A point has just been played.
-    
-    - **Serving Player (Rank: {{{servingPlayerRank}}}) chose:** "{{{serveChoice.name}}}" ({{{serveChoice.description}}})
-    - **Returning Player (Rank: {{{returningPlayerRank}}}) responded with:** "{{{returnChoice.name}}}" ({{{returnChoice.description}}})
+    prompt: `You are an expert tennis analyst and commentator AI. Your task is to determine the winner of a single point of tennis and write a compelling narrative for how it unfolded.
 
-    Your task is to decide who wins the point and write a short, exciting narrative of how it unfolded.
-    - **The Logic:** High-risk serves are countered by defensive returns. Safe serves are attacked by aggressive returns. A higher-ranked player is more likely to execute their shot successfully and can turn a neutral situation into a winning one.
-    
-    You MUST return a valid JSON object with a 'pointWinner' field ('server' or 'returner') and a 'narrative' field describing the point.
-    `,
+**MATCHUP DATA:**
+- **Serving Player (Rank: {{{servingPlayerRank}}}) chose a serve:**
+    - Name: "{{{serveChoice.name}}}"
+    - Description: "{{{serveChoice.description}}}"
+    - Risk: "{{{serveChoice.risk}}}"
+    - Reward: "{{{serveChoice.reward}}}"
+- **Returning Player (Rank: {{{returningPlayerRank}}}) chose a return:**
+    - Name: "{{{returnChoice.name}}}"
+    - Description: "{{{returnChoice.description}}}"
+
+**YOUR TASK:**
+1.  **DETERMINE THE WINNER:** Analyze the matchup between the serve and the return. There must be variety in the outcomes. The server does not always lose.
+    - **Server Wins (Ace or Forced Error):** If the serve has a high reward and high risk, there's a good chance it's an ace or an unreturnable serve, especially if the server's rank is high.
+    - **Server Wins (In a Rally):** If the serve is solid (e.g., medium reward) and the return is defensive, the server might gain an advantage and win the point after a short, invented rally.
+    - **Returner Wins (Winner or Forced Error):** If the serve is low risk/low reward, the returner has a chance to be aggressive and hit a winner. A high-skill returner can also punish a medium-risk serve.
+    - **Player Rank Matters:** A higher-ranked player is more likely to execute their intended shot successfully. A large rank difference can turn a disadvantage into an advantage. For example, a high-ranked server can still win even with a low-risk serve if the returner is much lower-ranked.
+    - **BE PROBABILISTIC:** Do not use a deterministic "rock-paper-scissors" logic. Introduce randomness. The same matchup of serve/return should not always produce the same winner. The server should win roughly 40-60% of the time to keep it realistic.
+
+2.  **WRITE THE NARRATIVE:** Create a short (1-2 sentence) story of the point. This narrative should **invent a short rally** if appropriate. Do not just describe the serve and return.
+    - **Example of a Rally Narrative (Server Win):** "The server hits a heavy kick serve out wide, pulling the returner off the court. The returner manages a defensive slice back, but the server steps in and drills a forehand winner down the line."
+    - **Example (Returner Win):** "A risky second serve just clips the line, but the returner was ready, taking the ball early and ripping a clean backhand winner cross-court."
+    - **Example (Ace):** "What a serve! A perfectly placed ace down the T, leaving the returner flat-footed."
+
+You MUST return a valid JSON object with a 'pointWinner' field ('server' or 'returner') and a 'narrative' field describing the point.
+`,
 });
 
 
@@ -100,7 +116,7 @@ const rallyGameFlow = ai.defineFlow(
         servingPlayerRank: input.servingPlayerRank,
         returningPlayerRank: input.returningPlayerRank,
       });
-      return output!; // The prompt's output schema ensures this is valid.
+      return output!;
 
     } else if (!input.returnChoice) {
       // Turn 2: Returning
