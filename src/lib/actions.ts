@@ -44,7 +44,7 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, RallyGameTurn, RallyGameInput, RallyGameOutput } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, RallyGameInput, RallyGameOutput } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -524,7 +524,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
         return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
     } catch (error: any) {
         console.error("Error creating rally game:", error);
-        return { success: false, message: error.message || 'Failed to start Rally Game.' };
+        throw new Error(error.message || 'Failed to start Rally Game.');
     }
 }
 
@@ -534,40 +534,24 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
       if (!game) throw new Error('Game not found.');
   
       if (game.status === 'complete') throw new Error('Game is already complete.');
-      if (game.turn !== 'point_over' && game.currentPlayerId !== currentUserId) {
+      if (game.currentPlayerId !== currentUserId) {
         throw new Error("It's not your turn.");
       }
   
       let aiInput: RallyGameInput;
       let updatePayload: Partial<RallyGame> = {};
   
-      const serverDoc = await getDoc(doc(db, 'users', game.currentPoint.servingPlayer));
-      const returnerDoc = await getDoc(doc(db, 'users', game.currentPoint.returningPlayer));
+      const serverId = game.turn === 'serving' ? currentUserId : game.currentPoint.servingPlayer;
+      const returnerId = game.turn === 'serving' ? game.currentPoint.returningPlayer : currentUserId;
+  
+      const serverDoc = await getDoc(doc(db, 'users', serverId));
+      const returnerDoc = await getDoc(doc(db, 'users', returnerId));
       const serverRank = serverDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
       const returnerRank = returnerDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
   
-      if (game.turn === 'point_over') {
-        const newServerRank = returnerRank;
-        const newReturnerRank = serverRank;
-        aiInput = { servingPlayerRank: newServerRank, returningPlayerRank: newReturnerRank };
-        const aiResponse = await playRallyPoint(aiInput);
-        
-        if (!aiResponse.serveOptions) throw new Error("AI failed to generate serve options.");
-  
-        const newCurrentPoint: RallyGame['currentPoint'] = {
-          servingPlayer: game.currentPoint.returningPlayer,
-          returningPlayer: game.currentPoint.servingPlayer,
-          serveOptions: aiResponse.serveOptions,
-        };
-        updatePayload = {
-          turn: 'serving',
-          currentPlayerId: newCurrentPoint.servingPlayer,
-          currentPoint: newCurrentPoint,
-        };
-      } else if (game.turn === 'serving') {
+      if (game.turn === 'serving') {
         aiInput = { serveChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
         const aiResponse = await playRallyPoint(aiInput);
-
         if (!aiResponse.returnOptions) throw new Error("AI failed to generate return options.");
   
         const updatedCurrentPoint: RallyGame['currentPoint'] = {
@@ -582,42 +566,59 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         };
       } else { // returning
         aiInput = { serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
-        const aiResponse = await playRallyPoint(aiInput);
+        const pointEvalResponse = await playRallyPoint(aiInput);
         
-        if (!aiResponse.pointWinner || !aiResponse.narrative) throw new Error("AI failed to evaluate the point.");
-
-        const winnerId = aiResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
+        if (!pointEvalResponse.pointWinner || !pointEvalResponse.narrative) throw new Error("AI failed to evaluate the point.");
+  
+        const winnerId = pointEvalResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
         const newScore = { ...game.score, [winnerId]: (game.score[winnerId] || 0) + 1 };
   
-        const completedPoint: RallyGamePoint = { ...game.currentPoint, returnChoice: choice, winner: winnerId, narrative: aiResponse.narrative! };
+        const completedPoint: RallyGamePoint = { ...game.currentPoint, returnChoice: choice, winner: winnerId, narrative: pointEvalResponse.narrative! };
         const newPointHistory = [...game.pointHistory, completedPoint];
   
-        updatePayload = {
-          turn: 'point_over',
-          score: newScore,
-          pointHistory: newPointHistory,
-        };
-  
         if (newScore[winnerId] >= 5) {
-          updatePayload.status = 'complete';
-          updatePayload.winnerId = winnerId;
-          updatePayload.turn = 'game_over';
+          updatePayload = {
+            score: newScore,
+            pointHistory: newPointHistory,
+            status: 'complete',
+            winnerId: winnerId,
+            turn: 'game_over',
+          };
+        } else {
+          // Game is not over, so set up the next point immediately.
+          const nextServerId = game.currentPoint.returningPlayer;
+          const nextReturnerId = game.currentPoint.servingPlayer;
+          
+          const nextServerDoc = await getDoc(doc(db, 'users', nextServerId));
+          const nextReturnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
+          const nextServerRank = nextServerDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
+          const nextReturnerRank = nextReturnerDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
+          
+          const nextPointServeOptions = await playRallyPoint({ servingPlayerRank: nextServerRank, returningPlayerRank: nextReturnerRank });
+          if (!nextPointServeOptions.serveOptions) throw new Error("AI failed to generate serve options for the next point.");
+          
+          const newCurrentPoint: RallyGame['currentPoint'] = {
+            servingPlayer: nextServerId,
+            returningPlayer: nextReturnerId,
+            serveOptions: nextPointServeOptions.serveOptions,
+          };
+
+          updatePayload = {
+            score: newScore,
+            pointHistory: newPointHistory,
+            turn: 'serving',
+            currentPlayerId: nextServerId,
+            currentPoint: newCurrentPoint,
+          };
         }
       }
   
       await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, 'rallyGames', gameId);
-        const liveGameDoc = await transaction.get(gameRef);
-        if (!liveGameDoc.exists() || liveGameDoc.data()?.updatedAt !== game.updatedAt) {
-          // The game state has changed since we read it. The other player acted first.
-          // This is not an error, we just silently stop.
-          return;
-        }
         transaction.update(gameRef, { ...updatePayload, updatedAt: Timestamp.now().toMillis() });
       });
   
       revalidatePath(`/games/rally/${gameId}`);
-  
     } catch (error: any) {
       console.error('Error playing rally turn:', error);
       throw new Error(error.message || 'Failed to play turn.');

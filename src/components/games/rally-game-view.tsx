@@ -47,83 +47,52 @@ const GameSkeleton = () => (
 export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [pointResult, setPointResult] = useState<{ narrative: string, winnerName: string } | null>(null);
   const [progress, setProgress] = useState(0);
-  
-  // Ref to prevent multiple transition dispatches for the same point
-  const transitionInitiatedRef = useRef(false);
 
-  const opponentId = game.participantIds.find(id => id !== currentUser.uid);
-  const opponent = opponentId ? game.participantsData[opponentId] : null;
-  const isMyTurn = game.currentPlayerId === currentUser.uid;
-  const lastPoint = game.pointHistory[game.pointHistory.length - 1];
-  
-  const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
+  const opponentId = game.participantIds.find(id => id !== currentUser.uid)!;
+  const opponent = game.participantsData[opponentId];
 
-  // Effect to automatically start the next point after a delay.
+  const pointHistoryLength = game.pointHistory.length;
+  const prevPointHistoryLength = useRef(pointHistoryLength);
+  
+  // This effect runs when a point is completed and displays the result for 4 seconds.
   useEffect(() => {
-    // Only proceed if the point is over, the game is ongoing, and we haven't already started the transition.
-    if (game.turn === 'point_over' && game.status === 'ongoing' && !transitionInitiatedRef.current) {
-        // Lock to prevent re-entry
-        transitionInitiatedRef.current = true;
-        setIsTransitioning(true);
-
-        const timer = setTimeout(() => {
-            playRallyTurnAction(game.id, null, currentUser.uid)
-                .catch((error) => {
-                    // This block will now execute because the action throws on error.
-                    toast({
-                        variant: 'destructive',
-                        title: 'Error Starting Next Point',
-                        description: error.message,
-                    });
-                    // IMPORTANT: Reset the UI and the lock on failure so the user isn't stuck.
-                    setIsTransitioning(false);
-                    transitionInitiatedRef.current = false;
-                });
-        }, 4000);
-
-        // Cleanup the timer if the component unmounts or dependencies change
-        return () => clearTimeout(timer);
-    }
-    
-    // When the game successfully moves to a new turn, reset the lock and the transition state.
-    if (game.turn !== 'point_over') {
-        transitionInitiatedRef.current = false;
-        if (isTransitioning) {
-            setIsTransitioning(false);
+    if (pointHistoryLength > prevPointHistoryLength.current) {
+        const lastPoint = game.pointHistory[pointHistoryLength - 1];
+        if (lastPoint) {
+            const winnerName = game.participantsData[lastPoint.winner]?.name ?? 'Somebody';
+            setPointResult({ narrative: lastPoint.narrative, winnerName: `${winnerName} won the point!` });
+            
+            const timer = setTimeout(() => {
+                setPointResult(null);
+            }, 4000);
+            
+            prevPointHistoryLength.current = pointHistoryLength;
+            return () => clearTimeout(timer);
         }
     }
-  }, [game.turn, game.status, game.id, currentUser.uid, isTransitioning, toast]);
+  }, [pointHistoryLength, game.pointHistory, game.participantsData]);
 
-
-  // Effect to animate the progress bar during the transition.
+  // This effect animates the progress bar when a point result is being shown.
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTransitioning) {
+    if (pointResult) {
         setProgress(0);
-        interval = setInterval(() => {
-            setProgress(prev => (prev >= 100 ? 100 : prev + 1));
-        }, 40); // 4000ms total
-    } else {
-        setProgress(0);
+        const interval = setInterval(() => {
+            setProgress(prev => (prev >= 100 ? 100 : prev + 1.25));
+        }, 50); // 4000ms total
+        return () => clearInterval(interval);
     }
-    return () => {
-        if (interval) clearInterval(interval);
-    };
-  }, [isTransitioning]);
-
+  }, [pointResult]);
 
   const handleAction = async (choice: any) => {
-    if (isProcessing || !isMyTurn || isTransitioning) return;
-
+    if (isProcessing || game.currentPlayerId !== currentUser.uid) return;
     setIsProcessing(true);
     try {
         await playRallyTurnAction(game.id, choice, currentUser.uid);
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error', description: error.message });
     } finally {
-        // On success or failure, reset processing state. The snapshot listener will handle UI updates.
         setIsProcessing(false);
     }
   };
@@ -155,12 +124,32 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
 
   const renderContent = () => {
-    if (isMyTurn && game.turn !== 'point_over' && !options) {
-        return <GameSkeleton />;
-    }
+    const isMyTurn = game.currentPlayerId === currentUser.uid;
+    const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
 
     if (game.status === 'complete') {
         return renderFinalScreen();
+    }
+    
+    if (pointResult) {
+        return (
+            <div className="bg-muted/50 p-4 rounded-lg text-center opacity-0 animate-fade-in-slide-up space-y-4">
+                <div>
+                    <p className="font-bold text-lg">{pointResult.winnerName}</p>
+                    <p className="text-muted-foreground italic mt-2">"{pointResult.narrative}"</p>
+                </div>
+                {game.status === 'ongoing' && (
+                    <div className="w-full space-y-2 text-center pt-2">
+                        <p className="text-sm text-muted-foreground">Starting next point...</p>
+                        <Progress value={progress} className="w-full" />
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    if (isMyTurn && !options) {
+        return <GameSkeleton />;
     }
 
     return (
@@ -170,55 +159,36 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
             {`Point ${game.pointHistory.length + 1}`}
           </CardTitle>
           <CardDescription>
-             {game.turn === 'point_over'
-                ? 'Point finished.'
-                : isMyTurn
-                ? "It's your turn to act."
-                : `Waiting for ${opponent.name}...`}
+             {isMyTurn ? "It's your turn to act." : `Waiting for ${opponent.name}...`}
           </CardDescription>
         </CardHeader>
         <CardContent className="min-h-[150px]">
-            {game.turn === 'point_over' && lastPoint ? (
-                <div className="bg-muted/50 p-4 rounded-lg text-center opacity-0 animate-fade-in-slide-up space-y-4">
-                    <div>
-                        <p className="font-bold text-lg">{lastPoint.winner === currentUser.uid ? 'You won the point!' : `${game.participantsData[lastPoint.winner]?.name} won the point!`}</p>
-                        <p className="text-muted-foreground italic mt-2">"{lastPoint.narrative}"</p>
-                    </div>
-                     {isTransitioning && game.status === 'ongoing' && (
-                        <div className="w-full space-y-2 text-center pt-2">
-                            <p className="text-sm text-muted-foreground">Starting next point...</p>
-                            <Progress value={progress} className="w-full" />
-                        </div>
-                    )}
+            <div className="space-y-4">
+                <p className="font-semibold text-center">{game.turn === 'serving' ? 'Choose your serve:' : 'Choose your return:'}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {options?.map((option, idx) => {
+                        const RiskIcon = 'risk' in option ? riskIcons[option.risk as 'low'|'medium'|'high'] : Swords;
+                        return (
+                            <Button
+                                key={`${game.turn}-${idx}`}
+                                variant="outline"
+                                className="h-auto p-4 flex flex-col gap-2 items-start text-left opacity-0 animate-fade-in-slide-up"
+                                style={{ animationDelay: `${idx * 100}ms` }}
+                                disabled={!isMyTurn || isProcessing}
+                                onClick={() => handleAction(option)}
+                            >
+                                <div className="flex items-center gap-2 font-bold">
+                                    <RiskIcon className="h-4 w-4" />
+                                    <span>{option.name}</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground font-normal">{option.description}</p>
+                            </Button>
+                        );
+                    })}
                 </div>
-            ) : game.turn !== 'game_over' ? (
-                <div className="space-y-4">
-                    <p className="font-semibold text-center">{game.turn === 'serving' ? 'Choose your serve:' : 'Choose your return:'}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {options?.map((option, idx) => {
-                            const RiskIcon = 'risk' in option ? riskIcons[option.risk as 'low'|'medium'|'high'] : Swords;
-                            return (
-                                <Button
-                                    key={`${game.turn}-${idx}`}
-                                    variant="outline"
-                                    className="h-auto p-4 flex flex-col gap-2 items-start text-left opacity-0 animate-fade-in-slide-up"
-                                    style={{ animationDelay: `${idx * 100}ms` }}
-                                    disabled={!isMyTurn || isProcessing || isTransitioning}
-                                    onClick={() => handleAction(option)}
-                                >
-                                    <div className="flex items-center gap-2 font-bold">
-                                        <RiskIcon className="h-4 w-4" />
-                                        <span>{option.name}</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground font-normal">{option.description}</p>
-                                </Button>
-                            );
-                        })}
-                    </div>
-                    {isProcessing && <div className="flex justify-center pt-4"><LoadingSpinner className="h-6 w-6" /></div>}
-                    {!isMyTurn && !isTransitioning && <p className="text-muted-foreground text-center pt-4">Waiting for opponent...</p>}
-                </div>
-            ) : null}
+                {isProcessing && <div className="flex justify-center pt-4"><LoadingSpinner className="h-6 w-6" /></div>}
+                {!isMyTurn && <p className="text-muted-foreground text-center pt-4">Waiting for opponent...</p>}
+            </div>
         </CardContent>
       </Card>
     )
