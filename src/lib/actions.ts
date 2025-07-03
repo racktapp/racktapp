@@ -225,7 +225,7 @@ export async function getChallengesAction(userId: string, sport: Sport) {
 export async function acceptChallengeAction(challenge: Challenge, currentUserId: string) {
     try {
         await updateChallengeStatus(challenge.id, 'accepted');
-        const chatId = await getOrCreateChat(challenge.fromId, challenge.toId, currentUserId);
+        const chatId = await getOrCreateChat(challenge.fromId, challenge.toId);
         revalidatePath('/challenges');
         revalidatePath('/chat');
         return { success: true, message: "Challenge accepted! Starting chat...", chatId };
@@ -302,7 +302,7 @@ export async function getOrCreateChatAction(friendId: string, currentUserId: str
       return { success: false, message: "Not authenticated." };
     }
     try {
-      const chatId = await getOrCreateChat(currentUserId, friendId, currentUserId);
+      const chatId = await getOrCreateChat(currentUserId, friendId);
       revalidatePath('/chat');
       return { success: true, message: 'Chat ready.', redirect: `/chat/${chatId}` };
     } catch (error: any) {
@@ -350,8 +350,8 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         if (!userDoc.exists()) throw new Error("Current user not found.");
         const user = userDoc.data() as User;
         
-        await runTransaction(db, async (transaction) => {
-            const gameRef = doc(db, 'legendGames', user.uid); // Using a predictable ID for solo games
+        const gameId = await runTransaction(db, async (transaction) => {
+            const gameRef = doc(collection(db, 'legendGames')); // Always create a new game
             const now = Timestamp.now().toMillis();
             const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
             
@@ -382,11 +382,12 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                     createdAt: now, updatedAt: now,
                 };
             }
-             transaction.set(gameRef, newGame);
+            transaction.set(gameRef, newGame);
+            return gameRef.id;
         });
 
         revalidatePath('/games');
-        return { success: true, message: 'Game started!', redirect: `/games/legend/${user.uid}` };
+        return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
         return { success: false, message: error.message || 'Could not start the game. Please try again.' };
@@ -419,6 +420,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             }
             
             const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
+
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
                 
@@ -427,21 +429,24 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
                     game.winnerId = null;
                 }
                 
-                if (game.mode === 'solo' && (game.score[currentUserId] || 0) >= 10 && game.status === 'ongoing') {
-                    game.status = 'complete';
-                    game.winnerId = currentUserId;
+                const roundsPlayed = game.roundHistory.length + 1;
+                const myScore = game.score[currentUserId] || 0;
+
+                if (game.mode === 'solo' && myScore >= 10 && game.status === 'ongoing') {
+                     game.status = 'complete';
+                     game.winnerId = currentUserId;
                 }
                 
                 if (game.mode === 'friend' && game.status === 'ongoing') {
                     const score1 = game.score[game.participantIds[0]] || 0;
                     const score2 = game.score[game.participantIds[1]] || 0;
-                    const roundsPlayed = game.roundHistory.length + 1;
                     if (roundsPlayed >= 10 || Math.abs(score1 - score2) > (10 - roundsPlayed)) {
                         game.status = 'complete';
                         game.winnerId = score1 > score2 ? game.participantIds[0] : score2 > score1 ? game.participantIds[1] : 'draw';
                     }
                 }
             } else {
+                // This block is for friend mode when waiting for the other player.
                 game.currentPlayerId = game.participantIds.find(id => id !== currentUserId)!;
             }
 
@@ -484,12 +489,12 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             liveGame.turnState = 'playing';
 
             if (liveGame.mode === 'friend') {
-                // In friend mode, toggle to the other player. This is safe as there are always two.
+                // In friend mode, toggle to the other player.
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
                 liveGame.currentPlayerId = otherPlayerId!;
             } else {
                 // In solo mode, it's always the solo player's turn.
-                // We derive this from the game data itself for maximum safety.
+                // Use the game document as the source of truth.
                 liveGame.currentPlayerId = liveGame.participantIds[0];
             }
             
@@ -529,7 +534,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
                 player2Rank: friend.sports?.['Tennis']?.racktRank ?? 1200,
             });
 
-            const gameRef = doc(db, 'rallyGames', nanoid());
+            const gameRef = doc(collection(db, 'rallyGames'));
             const now = Timestamp.now().toMillis();
             const newGame: RallyGame = {
                 id: gameRef.id, sport: 'Tennis',
