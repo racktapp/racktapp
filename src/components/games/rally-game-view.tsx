@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RallyGame, User } from '@/lib/types';
 import { playRallyTurnAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
@@ -49,6 +49,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
+  const prevTurnRef = useRef(game.turn);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
@@ -60,10 +61,13 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   // Effect to automatically start the next point after a delay.
   useEffect(() => {
     let timer: NodeJS.Timeout;
+    
+    const turnChangedToPointOver = game.turn === 'point_over' && prevTurnRef.current !== 'point_over';
 
-    if (game.turn === 'point_over' && game.status === 'ongoing' && !isTransitioning) {
+    if (turnChangedToPointOver && game.status === 'ongoing') {
         setIsTransitioning(true);
-        // After a delay, call the server action to start the next point.
+        // Both clients will attempt to trigger the action.
+        // The server-side action is now idempotent and will only be executed once.
         timer = setTimeout(() => {
             playRallyTurnAction(game.id, null, currentUser.uid)
                 .catch((error) => {
@@ -73,10 +77,13 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
         }, 4000);
     }
     
-    // When the game moves to a new turn, reset the transitioning state.
+    // When the game successfully moves to a new turn, reset the transitioning state.
     if (game.turn !== 'point_over' && isTransitioning) {
         setIsTransitioning(false);
     }
+
+    // Update the ref to the current turn for the next render.
+    prevTurnRef.current = game.turn;
 
     return () => {
         if (timer) clearTimeout(timer);
