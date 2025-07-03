@@ -1,5 +1,4 @@
 
-import { type Sport } from '@/lib/types';
 import {
   Bot,
   Gamepad2,
@@ -16,7 +15,8 @@ import {
   ListOrdered,
 } from 'lucide-react';
 
-export const SPORTS: Sport[] = ['Tennis', 'Padel', 'Badminton', 'Table Tennis'];
+export const SPORTS = ['Tennis', 'Padel', 'Badminton', 'Table Tennis'] as const;
+export type Sport = (typeof SPORTS)[number];
 
 export const SPORT_ICONS: Record<Sport, string> = {
   'Tennis': '/tennis_icon.png',

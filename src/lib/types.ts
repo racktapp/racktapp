@@ -1,10 +1,10 @@
+
 // src/lib/types.ts
 import { z } from 'zod';
-import { SPORTS as sportValues } from './constants';
+import { SPORTS, type Sport as SportType } from './constants';
 
-export const Sport = z.enum(sportValues);
-export type Sport = z.infer<typeof Sport>;
-
+export type Sport = SportType;
+const SportEnum = z.enum(SPORTS);
 
 export interface Socials {
   twitter?: string;
@@ -273,7 +273,7 @@ export interface Achievement {
 
 export const reportMatchSchema = z.object({
   matchType: z.enum(['Singles', 'Doubles']),
-  sport: Sport,
+  sport: SportEnum,
   opponent1: z.string({ required_error: 'Please select an opponent.' }),
   partner: z.string().optional(),
   opponent2: z.string().optional(),
@@ -290,7 +290,7 @@ export const reportMatchSchema = z.object({
 }, { message: "Partner and second opponent are required for Doubles.", path: ["partner"] });
 
 export const challengeSchema = z.object({
-  sport: Sport,
+  sport: SportEnum,
   location: z.string().optional(),
   wager: z.string().optional(),
   date: z.date({ required_error: "Please select a date." }),
@@ -298,14 +298,14 @@ export const challengeSchema = z.object({
 });
 
 export const openChallengeSchema = z.object({
-    sport: Sport,
+    sport: SportEnum,
     location: z.string().min(1, 'Location is required.'),
     note: z.string().max(100, "Note must be 100 characters or less.").optional(),
 });
 
 export const createTournamentSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters.").max(50, "Name must be 50 characters or less."),
-    sport: Sport,
+    sport: SportEnum,
     participantIds: z.array(z.string()).min(3, "You must select at least 3 friends."),
 });
 
@@ -327,7 +327,7 @@ export const PredictMatchInputSchema = z.object({
   player1Streak: z.number().int(),
   player2Streak: z.number().int(),
   headToHead: z.object({ player1Wins: z.number(), player2Wins: z.number() }),
-  sport: Sport,
+  sport: SportEnum,
 });
 export type PredictMatchInput = z.infer<typeof PredictMatchInputSchema>;
 
@@ -341,5 +341,5 @@ export type PredictMatchOutput = z.infer<typeof PredictMatchOutputSchema>;
 export const profileSettingsSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
-    preferredSports: z.array(Sport).min(1, 'Please select at least one preferred sport.'),
+    preferredSports: z.array(SportEnum).min(1, 'Please select at least one preferred sport.'),
 });

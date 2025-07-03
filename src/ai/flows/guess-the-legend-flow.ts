@@ -9,10 +9,10 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { Sport } from '@/lib/types';
+import { SPORTS } from '@/lib/constants';
 
 const LegendGameInputSchema = z.object({
-  sport: z.nativeEnum(Sport),
+  sport: z.enum(SPORTS),
   usedPlayers: z.array(z.string()).describe('A list of players who have already been used in this game to avoid duplicates.'),
 });
 export type LegendGameInput = z.infer<typeof LegendGameInputSchema>;
