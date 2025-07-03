@@ -22,7 +22,7 @@ const ReturnChoiceSchema = z.object({
     description: z.string(),
 });
 
-const RallyGameInputSchema = z.object({
+export const RallyGameInputSchema = z.object({
   servingPlayerRank: z.number().describe('The RacktRank of the player who is serving this turn.'),
   returningPlayerRank: z.number().describe('The RacktRank of the player who is receiving serve this turn.'),
   // The context of the turn is determined by which of the next two fields are present.
@@ -31,7 +31,7 @@ const RallyGameInputSchema = z.object({
 });
 export type RallyGameInput = z.infer<typeof RallyGameInputSchema>;
 
-const RallyGameOutputSchema = z.object({
+export const RallyGameOutputSchema = z.object({
   serveOptions: z.array(ServeChoiceSchema).optional().describe('An array of three distinct serve options.'),
   returnOptions: z.array(ReturnChoiceSchema).optional().describe('An array of three distinct return options based on the serve.'),
   pointWinner: z.enum(['server', 'returner']).optional().describe('The winner of the point after evaluation.'),
@@ -41,75 +41,108 @@ export type RallyGameOutput = z.infer<typeof RallyGameOutputSchema>;
 
 
 export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOutput> {
+  // This wrapper now simply calls the main flow.
+  // The flow itself is now robust and handles errors internally.
   const output = await rallyGameFlow(input);
   if (!output) {
-    throw new Error('The AI failed to generate a valid game action after multiple attempts.');
+      throw new Error('The AI failed to generate a valid game action.');
   }
   return output;
 }
 
-const prompt = ai.definePrompt({
-  name: 'rallyGamePrompt',
-  input: { schema: RallyGameInputSchema },
-  output: { schema: RallyGameOutputSchema },
-  prompt: `You are a tennis strategy AI and commentator that powers a turn-based rally game. Your analysis must always consider the player ranks (a higher rank means a more skilled player). Your entire response MUST be a single, valid JSON object that strictly adheres to the output schema.
+// --- Prompt Definitions ---
 
-{{#if serveChoice}}
-  {{#if returnChoice}}
-    **ROLE: Point Evaluator**
-    The serve has been hit! The serving player (Rank: {{{servingPlayerRank}}}) used: **"{{{serveChoice.name}}}"** ({{serveChoice.description}}).
-    The returning player (Rank: {{{returningPlayerRank}}}) responded with a **"{{{returnChoice.name}}}"** ({{{returnChoice.description}}}).
+// Prompt 1: Generate Serve Options
+const servePrompt = ai.definePrompt({
+    name: 'rallyGameServePrompt',
+    input: { schema: z.object({ servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
+    output: { schema: z.object({ serveOptions: z.array(ServeChoiceSchema).length(3) }) },
+    prompt: `You are a tennis strategy AI. Your task is to generate three distinct and creative serve options for a player.
+    
+    The serving player has a rank of **{{{servingPlayerRank}}}**.
+    The returning player has a rank of **{{{returningPlayerRank}}}**.
 
-    Now, act as the game engine. Based on the serve and the return, decide who wins the point. The logic is a strategic contest, not random:
-    - High-risk serves are powerful but can be countered by smart, defensive returns.
-    - Safe serves are consistent but can be attacked by aggressive returns.
-    - Tricky serves rely on deception and can be beaten by a player who anticipates them well.
-    - **Rank Matters:** A higher-ranked player is more likely to successfully execute their shot and overcome a slight disadvantage in shot selection. A significant rank difference can turn a neutral situation into a winning one.
+    A higher rank means a more skilled player. The options should reflect this; a higher-ranked player might get more advantageous or complex options.
 
-    You MUST determine the \`pointWinner\` ('server' or 'returner') and write a short, exciting, one or two-sentence \`narrative\` of how the point played out. The output must be a JSON object with 'pointWinner' and 'narrative' fields.
-  {{else}}
-    **ROLE: Return Strategist**
-    The serve has been hit! The serving player (Rank: {{{servingPlayerRank}}}) used: **"{{{serveChoice.name}}}"** ({{serveChoice.description}}).
-    The returning player (Rank: {{{returningPlayerRank}}}) must react. Your task is to generate three distinct and logical return options to counter the serve. Each return must have a \`name\` and a \`description\`.
-    - The options must be logical counters. Against a power serve, offer a block or a chip. Against a wide slice, offer a sharp cross-court angle or a down-the-line surprise.
-    - A higher-ranked player should receive slightly better tactical options.
-    - The output MUST be a JSON object with a 'returnOptions' field, which is an array of exactly 3 return option objects.
-  {{/if}}
-{{else}}
-  **ROLE: Serve Strategist**
-  The serving player (Rank: {{{servingPlayerRank}}}) is preparing to serve against the returning player (Rank: {{{returningPlayerRank}}}). Your task is to generate three distinct and creative serve options. Each serve must have a \`name\`, a \`description\`, a \`risk\` level, and a \`reward\` level.
-  - Be creative with the names (e.g., "The Cannonball", "Wicked Slice", "The Ghoster").
-  - A higher-ranked player should receive slightly more advantageous options.
-  - The output MUST be a JSON object with a 'serveOptions' field, which is an array of exactly 3 serve option objects.
-{{/if}}
-  `,
+    You MUST return a valid JSON object with a 'serveOptions' field, which is an array of exactly 3 serve option objects.
+    Each serve option must have a \`name\`, a \`description\`, a \`risk\` level ('low', 'medium', 'high'), and a \`reward\` level ('low', 'medium', 'high').
+    `,
 });
+
+// Prompt 2: Generate Return Options
+const returnPrompt = ai.definePrompt({
+    name: 'rallyGameReturnPrompt',
+    input: { schema: z.object({ serveChoice: ServeChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
+    output: { schema: z.object({ returnOptions: z.array(ReturnChoiceSchema).length(3) }) },
+    prompt: `You are a tennis strategy AI. The serving player (Rank: {{{servingPlayerRank}}}) has just hit a serve:
+    - **Serve Name:** {{{serveChoice.name}}}
+    - **Description:** {{{serveChoice.description}}}
+
+    Your task is to generate three distinct and logical return options for the returning player (Rank: {{{returningPlayerRank}}}).
+    - The options must be logical counters to the specific serve.
+    - A higher-ranked returning player should get slightly better tactical options.
+
+    You MUST return a valid JSON object with a 'returnOptions' field, which is an array of exactly 3 return option objects.
+    Each return option must have a \`name\` and a \`description\`.
+    `,
+});
+
+// Prompt 3: Evaluate the Point
+const evaluatePrompt = ai.definePrompt({
+    name: 'rallyGameEvaluatePrompt',
+    input: { schema: z.object({ serveChoice: ServeChoiceSchema, returnChoice: ReturnChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
+    output: { schema: z.object({ pointWinner: z.enum(['server', 'returner']), narrative: z.string().min(10) }) },
+    prompt: `You are a tennis commentator AI. A point has just been played.
+    
+    - **Serving Player (Rank: {{{servingPlayerRank}}}) chose:** "{{{serveChoice.name}}}" ({{{serveChoice.description}}})
+    - **Returning Player (Rank: {{{returningPlayerRank}}}) responded with:** "{{{returnChoice.name}}}" ({{{returnChoice.description}}})
+
+    Your task is to decide who wins the point and write a short, exciting narrative of how it unfolded.
+    - **The Logic:** High-risk serves are countered by defensive returns. Safe serves are attacked by aggressive returns. A higher-ranked player is more likely to execute their shot successfully and can turn a neutral situation into a winning one.
+    
+    You MUST return a valid JSON object with a 'pointWinner' field ('server' or 'returner') and a 'narrative' field describing the point.
+    `,
+});
+
+
+// --- Main Flow Definition ---
 
 const rallyGameFlow = ai.defineFlow(
   {
     name: 'rallyGameFlow',
     inputSchema: RallyGameInputSchema,
-    outputSchema: RallyGameOutputSchema.nullable(),
+    outputSchema: RallyGameOutputSchema,
   },
   async (input) => {
-    let attempts = 0;
-    while (attempts < 3) {
-        const { output } = await prompt(input);
-        if (output) {
-            // Basic validation to ensure the AI returned the expected structure for the turn.
-            if (
-                (!input.serveChoice && output.serveOptions?.length === 3) ||
-                (input.serveChoice && !input.returnChoice && output.returnOptions?.length === 3) ||
-                (input.serveChoice && input.returnChoice && output.pointWinner && output.narrative)
-            ) {
-                return output;
-            }
-        }
-        attempts++;
-        if (attempts < 3) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
+    // This flow now acts as a router, calling the correct, simple prompt.
+    // This is much more robust than a single complex prompt.
+
+    if (!input.serveChoice) {
+      // Turn 1: Serving
+      const { output } = await servePrompt({
+        servingPlayerRank: input.servingPlayerRank,
+        returningPlayerRank: input.returningPlayerRank,
+      });
+      return output!; // The prompt's output schema ensures this is valid.
+
+    } else if (!input.returnChoice) {
+      // Turn 2: Returning
+      const { output } = await returnPrompt({
+        serveChoice: input.serveChoice,
+        servingPlayerRank: input.servingPlayerRank,
+        returningPlayerRank: input.returningPlayerRank,
+      });
+      return output!;
+
+    } else {
+      // Turn 3: Evaluating
+      const { output } = await evaluatePrompt({
+        serveChoice: input.serveChoice,
+        returnChoice: input.returnChoice,
+        servingPlayerRank: input.servingPlayerRank,
+        returningPlayerRank: input.returningPlayerRank,
+      });
+      return output!;
     }
-    return null; // All attempts failed, the action will throw an error.
   }
 );
