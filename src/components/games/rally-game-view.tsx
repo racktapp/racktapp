@@ -1,11 +1,12 @@
+
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { RallyGame, User } from '@/lib/types';
 import { playRallyTurnAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Swords, Shield, Zap, ArrowRight, Trophy } from 'lucide-react';
+import { Swords, Shield, Zap } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -13,6 +14,7 @@ import { RallyCourt } from './rally-court';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Progress } from '../ui/progress';
+import { Trophy } from 'lucide-react';
 
 interface RallyGameViewProps {
   game: RallyGame;
@@ -45,9 +47,8 @@ const GameSkeleton = () => (
 export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isStartingNextPoint, setIsStartingNextPoint] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
-  const pointTransitionDispatched = useRef(false);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
@@ -56,68 +57,60 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   
   const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
 
-  // Reset state when a new point has successfully started
+  // Effect to automatically start the next point after a delay.
   useEffect(() => {
-    if (game.turn !== 'point_over' && isStartingNextPoint) {
-        setIsProcessing(false);
-        setIsStartingNextPoint(false);
-        setProgress(0);
-        pointTransitionDispatched.current = false; // Reset the flag for the next point
-    }
-  }, [game.turn, isStartingNextPoint]);
-  
-  // Automatically start the next point after a delay
-  useEffect(() => {
-    if (game.turn === 'point_over' && game.status === 'ongoing') {
-        setIsStartingNextPoint(true);
-        // Both clients will attempt to trigger the next point.
-        // The server-side transaction handles the race condition.
-        // The local ref flag prevents multiple triggers from the same client.
-        if (!pointTransitionDispatched.current) {
-            pointTransitionDispatched.current = true; // Set flag to prevent re-dispatch
-            const timer = setTimeout(() => {
-                handleAction(null);
-            }, 4000); // 4-second delay
-            return () => clearTimeout(timer);
-        }
-    }
-  }, [game.turn, game.status]);
+    let timer: NodeJS.Timeout;
 
-  // Animate the progress bar during the delay
-  useEffect(() => {
-    if (isStartingNextPoint) {
-      setProgress(0);
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
-          }
-          return prev + 1;
-        });
-      }, 40); // 40ms * 100 = 4000ms
-      return () => clearInterval(interval);
+    if (game.turn === 'point_over' && game.status === 'ongoing' && !isTransitioning) {
+        setIsTransitioning(true);
+        // After a delay, call the server action to start the next point.
+        timer = setTimeout(() => {
+            playRallyTurnAction(game.id, null, currentUser.uid)
+                .catch((error) => {
+                    toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to start next point.' });
+                    setIsTransitioning(false); // Reset on error
+                });
+        }, 4000);
     }
-  }, [isStartingNextPoint]);
+    
+    // When the game moves to a new turn, reset the transitioning state.
+    if (game.turn !== 'point_over' && isTransitioning) {
+        setIsTransitioning(false);
+    }
+
+    return () => {
+        if (timer) clearTimeout(timer);
+    };
+  }, [game.id, game.turn, game.status, currentUser.uid, isTransitioning, toast]);
+
+  // Effect to animate the progress bar during the transition.
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTransitioning) {
+        setProgress(0);
+        interval = setInterval(() => {
+            setProgress(prev => (prev >= 100 ? 100 : prev + 1));
+        }, 40); // 4000ms total
+    } else {
+        setProgress(0);
+    }
+    return () => {
+        if (interval) clearInterval(interval);
+    };
+  }, [isTransitioning]);
 
 
   const handleAction = async (choice: any) => {
-    // A player can only act if it's their turn (for serves/returns).
-    // The point_over transition is handled by the useEffect.
-    if (isProcessing || (game.turn !== 'point_over' && !isMyTurn)) return;
+    // This function is only for player actions (serve/return).
+    if (isProcessing || !isMyTurn || isTransitioning) return;
 
     setIsProcessing(true);
     const result = await playRallyTurnAction(game.id, choice, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
-      // On failure, reset the UI state to allow the user to see the issue.
-      setIsProcessing(false);
-      if (game.turn === 'point_over') {
-        setIsStartingNextPoint(false);
-        pointTransitionDispatched.current = false;
-      }
     }
-    // On success, the state is reset by the useEffect hook that watches game.turn
+    // On success or failure, reset processing state. The snapshot listener will handle UI updates.
+    setIsProcessing(false);
   };
   
   if (!opponent || !opponentId) {
@@ -147,7 +140,6 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
 
   const renderContent = () => {
-    // Show a skeleton loader if the options for the current turn aren't loaded yet
     if (isMyTurn && game.turn !== 'point_over' && !options) {
         return <GameSkeleton />;
     }
@@ -177,7 +169,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                         <p className="font-bold text-lg">{lastPoint.winner === currentUser.uid ? 'You won the point!' : `${game.participantsData[lastPoint.winner]?.name} won the point!`}</p>
                         <p className="text-muted-foreground italic mt-2">"{lastPoint.narrative}"</p>
                     </div>
-                     {game.status === 'ongoing' && (
+                     {isTransitioning && game.status === 'ongoing' && (
                         <div className="w-full space-y-2 text-center pt-2">
                             <p className="text-sm text-muted-foreground">Starting next point...</p>
                             <Progress value={progress} className="w-full" />
@@ -196,7 +188,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                                     variant="outline"
                                     className="h-auto p-4 flex flex-col gap-2 items-start text-left opacity-0 animate-fade-in-slide-up"
                                     style={{ animationDelay: `${idx * 100}ms` }}
-                                    disabled={!isMyTurn || isProcessing}
+                                    disabled={!isMyTurn || isProcessing || isTransitioning}
                                     onClick={() => handleAction(option)}
                                 >
                                     <div className="flex items-center gap-2 font-bold">
@@ -209,7 +201,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                         })}
                     </div>
                     {isProcessing && <div className="flex justify-center pt-4"><LoadingSpinner className="h-6 w-6" /></div>}
-                    {!isMyTurn && <p className="text-muted-foreground text-center pt-4">Waiting for opponent...</p>}
+                    {!isMyTurn && !isTransitioning && <p className="text-muted-foreground text-center pt-4">Waiting for opponent...</p>}
                 </div>
             ) : null}
         </CardContent>
