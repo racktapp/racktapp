@@ -23,13 +23,12 @@ const ReturnChoiceSchema = z.object({
 });
 
 const RallyGameInputSchema = z.object({
-  turn: z.enum(['serve', 'return']).describe('Whether the AI should generate serve options or evaluate a return.'),
-  player1Rank: z.number().describe('The RacktRank of the serving player.'),
-  player2Rank: z.number().describe('The RacktRank of the returning player.'),
-  serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. Required when turn is "return".'),
-  returnChoice: ReturnChoiceSchema.optional().describe('The return chosen by the returning player. Required for evaluation, but not for generating return options.'),
-  isServeTurn: z.boolean(),
-  isReturnTurn: z.boolean(),
+  servingPlayerRank: z.number().describe('The RacktRank of the player who is serving this turn.'),
+  returningPlayerRank: z.number().describe('The RacktRank of the player who is receiving serve this turn.'),
+  serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. Required for generating returns and evaluating points.'),
+  returnChoice: ReturnChoiceSchema.optional().describe('The return chosen by the returning player. Required for evaluating points.'),
+  isServeTurn: z.boolean().describe("True if the AI should generate serve options."),
+  isReturnTurn: z.boolean().describe("True if the AI should generate return options or evaluate a point."),
 });
 export type RallyGameInput = z.infer<typeof RallyGameInputSchema>;
 
@@ -58,18 +57,18 @@ const prompt = ai.definePrompt({
 
 {{#if isServeTurn}}
 **ROLE: Serve Strategist**
-The serving player (Rank: {{{player1Rank}}}) is preparing to serve against the returning player (Rank: {{{player2Rank}}}). Your task is to generate three distinct and creative serve options. Each serve must have a \`name\`, a \`description\`, a \`risk\` level, and a \`reward\` level.
+The serving player (Rank: {{{servingPlayerRank}}}) is preparing to serve against the returning player (Rank: {{{returningPlayerRank}}}). Your task is to generate three distinct and creative serve options. Each serve must have a \`name\`, a \`description\`, a \`risk\` level, and a \`reward\` level.
 - Be creative with the names (e.g., "The Cannonball", "Wicked Slice", "The Ghoster").
 - A higher-ranked player should receive slightly more advantageous options.
-- The output MUST be an array of 3 serve options in the 'serveOptions' field.
+- The output MUST be a JSON object with a 'serveOptions' field, which is an array of exactly 3 serve option objects.
 {{/if}}
 
 {{#if isReturnTurn}}
-The serve has been hit! The serving player (Rank: {{{player1Rank}}}) used: **"{{{serveChoice.name}}}"** ({{serveChoice.description}}).
+The serve has been hit! The serving player (Rank: {{{servingPlayerRank}}}) used: **"{{{serveChoice.name}}}"** ({{serveChoice.description}}).
 
   {{#if returnChoice}}
     **ROLE: Point Evaluator**
-    The returning player (Rank: {{{player2Rank}}}) responded with a **"{{{returnChoice.name}}}"** ({{{returnChoice.description}}}).
+    The returning player (Rank: {{{returningPlayerRank}}}) responded with a **"{{{returnChoice.name}}}"** ({{{returnChoice.description}}}).
 
     Now, act as the game engine. Based on the serve and the return, decide who wins the point. The logic is a strategic contest, not random:
     - High-risk serves are powerful but can be countered by smart, defensive returns.
@@ -80,10 +79,10 @@ The serve has been hit! The serving player (Rank: {{{player1Rank}}}) used: **"{{
     You must determine the \`pointWinner\` ('server' or 'returner') and write a short, exciting, one or two-sentence \`narrative\` of how the point played out.
   {{else}}
     **ROLE: Return Strategist**
-    The returning player (Rank: {{{player2Rank}}}) must react. Your task is to generate three distinct and logical return options to counter the serve. Each return must have a \`name\` and a \`description\`.
+    The returning player (Rank: {{{returningPlayerRank}}}) must react. Your task is to generate three distinct and logical return options to counter the serve. Each return must have a \`name\` and a \`description\`.
     - The options must be logical counters. Against a power serve, offer a block or a chip. Against a wide slice, offer a sharp cross-court angle or a down-the-line surprise.
     - A higher-ranked player should receive slightly better tactical options.
-    - The output MUST be an array of 3 return options in the 'returnOptions' field.
+    - The output MUST be a JSON object with a 'returnOptions' field, which is an array of exactly 3 return option objects.
   {{/if}}
 {{/if}}
   `,
