@@ -55,12 +55,14 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
     e.preventDefault();
     setIsDeleting(true);
     const result = await deleteGameAction(game.id, gameType, currentUserId);
-    if (!result.success) {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
-      setIsDeleting(false);
-    } else {
+    if (result.success) {
       toast({ title: 'Game Deleted', description: 'The game has been removed.' });
+      // The parent listener will remove this from the UI, and the dialog will be gone.
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
+    // Always reset the loading state to prevent the UI from getting stuck.
+    setIsDeleting(false);
   };
 
 
