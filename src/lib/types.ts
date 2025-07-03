@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -157,17 +156,36 @@ export type GameStatus = 'ongoing' | 'complete' | 'initializing' | 'error';
 export type RallyGameTurn = 'serving' | 'returning' | 'point_over' | 'game_over';
 export type LegendGameTurnState = 'playing' | 'round_over' | 'game_over';
 
-export interface ServeChoice {
-  name: string;
-  description: string;
-  risk: 'low' | 'medium' | 'high';
-  reward: 'low' | 'medium' | 'high';
-}
+export const ServeChoiceSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  risk: z.enum(['low', 'medium', 'high']),
+  reward: z.enum(['low', 'medium', 'high']),
+});
+export type ServeChoice = z.infer<typeof ServeChoiceSchema>;
 
-export interface ReturnChoice {
-  name: string;
-  description: string;
-}
+export const ReturnChoiceSchema = z.object({
+    name: z.string(),
+    description: z.string(),
+});
+export type ReturnChoice = z.infer<typeof ReturnChoiceSchema>;
+
+export const RallyGameInputSchema = z.object({
+  servingPlayerRank: z.number().describe('The RacktRank of the player who is serving this turn.'),
+  returningPlayerRank: z.number().describe('The RacktRank of the player who is receiving serve this turn.'),
+  serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. If present, the AI should generate return options or evaluate the point.'),
+  returnChoice: ReturnChoiceSchema.optional().describe('The return chosen by the returning player. If present (along with serveChoice), the AI should evaluate the point.'),
+});
+export type RallyGameInput = z.infer<typeof RallyGameInputSchema>;
+
+export const RallyGameOutputSchema = z.object({
+  serveOptions: z.array(ServeChoiceSchema).optional().describe('An array of three distinct serve options.'),
+  returnOptions: z.array(ReturnChoiceSchema).optional().describe('An array of three distinct return options based on the serve.'),
+  pointWinner: z.enum(['server', 'returner']).optional().describe('The winner of the point after evaluation.'),
+  narrative: z.string().optional().describe('An exciting, short narrative describing how the point played out.'),
+});
+export type RallyGameOutput = z.infer<typeof RallyGameOutputSchema>;
+
 
 export interface RallyGamePoint {
   servingPlayer: string;

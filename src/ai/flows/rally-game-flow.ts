@@ -3,41 +3,18 @@
  * @fileOverview AI flow for the Rally Game, generating game actions and outcomes.
  *
  * - playRallyPoint - A function that handles the game logic for a single point.
- * - RallyGameInput - The input type for the function.
- * - RallyGameOutput - The return type for the function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-
-const ServeChoiceSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  risk: z.enum(['low', 'medium', 'high']),
-  reward: z.enum(['low', 'medium', 'high']),
-});
-
-const ReturnChoiceSchema = z.object({
-    name: z.string(),
-    description: z.string(),
-});
-
-export const RallyGameInputSchema = z.object({
-  servingPlayerRank: z.number().describe('The RacktRank of the player who is serving this turn.'),
-  returningPlayerRank: z.number().describe('The RacktRank of the player who is receiving serve this turn.'),
-  // The context of the turn is determined by which of the next two fields are present.
-  serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. If present, the AI should generate return options or evaluate the point.'),
-  returnChoice: ReturnChoiceSchema.optional().describe('The return chosen by the returning player. If present (along with serveChoice), the AI should evaluate the point.'),
-});
-export type RallyGameInput = z.infer<typeof RallyGameInputSchema>;
-
-export const RallyGameOutputSchema = z.object({
-  serveOptions: z.array(ServeChoiceSchema).optional().describe('An array of three distinct serve options.'),
-  returnOptions: z.array(ReturnChoiceSchema).optional().describe('An array of three distinct return options based on the serve.'),
-  pointWinner: z.enum(['server', 'returner']).optional().describe('The winner of the point after evaluation.'),
-  narrative: z.string().optional().describe('An exciting, short narrative describing how the point played out.'),
-});
-export type RallyGameOutput = z.infer<typeof RallyGameOutputSchema>;
+import { 
+    ServeChoiceSchema, 
+    ReturnChoiceSchema, 
+    RallyGameInputSchema, 
+    RallyGameOutputSchema,
+    type RallyGameInput, 
+    type RallyGameOutput
+} from '@/lib/types';
 
 
 export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOutput> {
@@ -114,7 +91,7 @@ const rallyGameFlow = ai.defineFlow(
     outputSchema: RallyGameOutputSchema,
   },
   async (input) => {
-    // This flow now acts as a router, calling the correct, simple prompt.
+    // This flow acts as a router, calling the correct, simple prompt.
     // This is much more robust than a single complex prompt.
 
     if (!input.serveChoice) {
