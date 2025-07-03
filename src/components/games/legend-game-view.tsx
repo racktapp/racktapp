@@ -6,52 +6,69 @@ import { submitLegendAnswerAction, startNextLegendRoundAction } from '@/lib/acti
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, ArrowRight, Trophy, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Trophy, AlertTriangle } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '../ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 
 interface LegendGameViewProps {
   game: LegendGame;
   currentUser: User;
 }
 
-const GameSkeleton = () => (
-    <Card>
-        <CardHeader>
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-5 w-full mt-2" />
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-        </CardContent>
-    </Card>
-)
-
 export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   const { toast } = useToast();
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
   const [isStartingNextRound, setIsStartingNextRound] = useState(false);
+  const [progress, setProgress] = useState(0);
   const prevRoundCount = useRef(game.roundHistory?.length || 0);
 
-  // When new game data comes in, check if a new round has started.
+  // When new game data comes in, check if a new round has started and reset local state.
   useEffect(() => {
     const currentRoundCount = game.roundHistory?.length || 0;
     if (currentRoundCount > prevRoundCount.current) {
-        // Reset all local states when a new round begins.
         setIsStartingNextRound(false);
         setSelectedAnswer(null);
         setIsAnswering(false);
+        setProgress(0);
     }
     prevRoundCount.current = currentRoundCount;
   }, [game.roundHistory]);
+
+  // Automatically start the next round after a delay when the current round is over.
+  useEffect(() => {
+    if (game.turnState === 'round_over' && game.status === 'ongoing') {
+        setIsStartingNextRound(true);
+        // Designate one player to trigger the action to prevent race conditions.
+        if (game.currentPlayerId === currentUser.uid) {
+            const timer = setTimeout(() => {
+                startNextLegendRoundAction(game.id);
+            }, 4000); // 4-second delay
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [game.turnState, game.status, game.id, game.currentPlayerId, currentUser.uid]);
+
+  // Animate the progress bar during the delay.
+  useEffect(() => {
+    if (isStartingNextRound) {
+        setProgress(0);
+        const interval = setInterval(() => {
+            setProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    return 100;
+                }
+                return prev + 1;
+            });
+        }, 40); // 40ms * 100 = 4000ms
+        return () => clearInterval(interval);
+    }
+  }, [isStartingNextRound]);
 
 
   // Safely check for a valid, playable round.
@@ -101,28 +118,16 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
       setIsAnswering(false); 
       setSelectedAnswer(null);
     }
-     // Let onSnapshot handle UI updates, which will implicitly set isAnswering to false on re-render.
   };
 
-  const handleNextRound = async () => {
-    setIsStartingNextRound(true);
-    const result = await startNextLegendRoundAction(game.id);
-    if (!result.success) {
-        toast({ variant: 'destructive', title: 'Error', description: result.message });
-        setIsStartingNextRound(false);
-    }
-    // On success, the useEffect watching roundHistory.length will set isStartingNextRound to false.
-  };
-  
   const getButtonState = (option: string) => {
-    if (!myGuess) return 'default'; // Not answered yet
+    if (!myGuess) return 'default';
     if (option === currentRound.correctAnswer) return 'correct';
     if (option === myGuess) return 'incorrect';
     return 'disabled';
   };
 
   const getOpponentGuessState = (option: string) => {
-    // Only show opponent's guess if I have also guessed
     if (!myGuess || !opponentGuess) return 'none';
     if (option === opponentGuess) {
         return opponentGuess === currentRound.correctAnswer ? 'correct' : 'incorrect';
@@ -166,7 +171,6 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
         description={game.mode === 'solo' ? `A solo ${game.sport} trivia challenge.` : `A ${game.sport} trivia challenge vs ${opponentName}.`}
       />
 
-      {/* Scoreboard */}
       <Card className="mb-8">
         <CardContent className="p-4 flex justify-around items-center">
             <div className="flex flex-col items-center gap-2">
@@ -234,12 +238,12 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
                         <AlertDescription className="italic mt-1">{currentRound.justification}</AlertDescription>
                     </Alert>
                 )}
-
-                {game.turnState === 'round_over' && (
-                    <Button onClick={handleNextRound} disabled={isStartingNextRound} className="w-full">
-                        {isStartingNextRound ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                        {isStartingNextRound ? 'Starting Next Round...' : 'Next Round'}
-                    </Button>
+                
+                {game.turnState === 'round_over' && game.status === 'ongoing' && (
+                    <div className="w-full space-y-2 text-center pt-2">
+                        <p className="text-sm text-muted-foreground">Starting next round...</p>
+                        <Progress value={progress} className="w-full" />
+                    </div>
                 )}
             </CardFooter>
         </Card>
