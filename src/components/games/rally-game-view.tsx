@@ -1,6 +1,6 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RallyGame, User } from '@/lib/types';
 import { playRallyTurnAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RallyCourt } from './rally-court';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Progress } from '../ui/progress';
 
 interface RallyGameViewProps {
   game: RallyGame;
@@ -45,6 +46,8 @@ const GameSkeleton = () => (
 export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isStartingNextPoint, setIsStartingNextPoint] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
@@ -53,15 +56,60 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   
   const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
 
+  // Reset state when a new point is finished (and the game state updates)
+  useEffect(() => {
+    // Check if turn is no longer point_over, indicating a new point has begun server-side
+    if (game.turn !== 'point_over' && isStartingNextPoint) {
+        setIsProcessing(false);
+        setIsStartingNextPoint(false);
+        setProgress(0);
+    }
+  }, [game.turn, isStartingNextPoint]);
+  
+  // Automatically start the next point after a delay
+  useEffect(() => {
+    if (game.turn === 'point_over' && game.status === 'ongoing') {
+        setIsStartingNextPoint(true);
+        // The player who served the last point is responsible for starting the next one.
+        if (isMyTurn) {
+            const timer = setTimeout(() => {
+                handleAction(null);
+            }, 4000); // 4-second delay
+            return () => clearTimeout(timer);
+        }
+    }
+  }, [game.turn, game.status, isMyTurn]);
+
+  // Animate the progress bar during the delay
+  useEffect(() => {
+    if (isStartingNextPoint) {
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 1;
+        });
+      }, 40); // 40ms * 100 = 4000ms
+      return () => clearInterval(interval);
+    }
+  }, [isStartingNextPoint]);
+
+
   const handleAction = async (choice: any) => {
-    if (!isMyTurn || isProcessing) return;
+    // A player can only act if it's their turn (for serves/returns) or if they are the designated player to start the next point.
+    // The useEffect hook already ensures only the correct player calls this for 'point_over'.
+    if (isProcessing || (game.turn !== 'point_over' && !isMyTurn)) return;
+
     setIsProcessing(true);
     const result = await playRallyTurnAction(game.id, choice, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
-      setIsProcessing(false);
+      setIsProcessing(false); // Manually reset on failure
     }
-    // Let onSnapshot handle the state update and implicitly set isProcessing to false
+    // On success, the state is reset by the useEffect hook that watches game.turn
   };
   
   if (!opponent || !opponentId) {
@@ -107,21 +155,28 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
             {`Point ${game.pointHistory.length + 1}`}
           </CardTitle>
           <CardDescription>
-            {isMyTurn ? "It's your turn to act." : `Waiting for ${opponent.name}...`}
+             {game.turn === 'point_over'
+                ? 'Point finished.'
+                : isMyTurn
+                ? "It's your turn to act."
+                : `Waiting for ${opponent.name}...`}
           </CardDescription>
         </CardHeader>
         <CardContent className="min-h-[150px]">
-            {game.turn === 'point_over' && lastPoint && (
-                <div className="bg-muted/50 p-4 rounded-lg text-center opacity-0 animate-fade-in-slide-up">
-                    <p className="font-bold text-lg">{lastPoint.winner === currentUser.uid ? 'You won the point!' : `${game.participantsData[lastPoint.winner]?.name} won the point!`}</p>
-                    <p className="text-muted-foreground italic mt-2">"{lastPoint.narrative}"</p>
-                    {isMyTurn && <Button className="mt-4" onClick={() => handleAction(null)} disabled={isProcessing}>
-                        {isProcessing ? <LoadingSpinner className="mr-2" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                        Start Next Point
-                    </Button>}
+            {game.turn === 'point_over' && lastPoint ? (
+                <div className="bg-muted/50 p-4 rounded-lg text-center opacity-0 animate-fade-in-slide-up space-y-4">
+                    <div>
+                        <p className="font-bold text-lg">{lastPoint.winner === currentUser.uid ? 'You won the point!' : `${game.participantsData[lastPoint.winner]?.name} won the point!`}</p>
+                        <p className="text-muted-foreground italic mt-2">"{lastPoint.narrative}"</p>
+                    </div>
+                     {game.status === 'ongoing' && (
+                        <div className="w-full space-y-2 text-center pt-2">
+                            <p className="text-sm text-muted-foreground">Starting next point...</p>
+                            <Progress value={progress} className="w-full" />
+                        </div>
+                    )}
                 </div>
-            )}
-             {game.turn !== 'point_over' && game.turn !== 'game_over' && (
+            ) : game.turn !== 'game_over' ? (
                 <div className="space-y-4">
                     <p className="font-semibold text-center">{game.turn === 'serving' ? 'Choose your serve:' : 'Choose your return:'}</p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -148,7 +203,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                     {isProcessing && <div className="flex justify-center pt-4"><LoadingSpinner className="h-6 w-6" /></div>}
                     {!isMyTurn && <p className="text-muted-foreground text-center pt-4">Waiting for opponent...</p>}
                 </div>
-            )}
+            ) : null}
         </CardContent>
       </Card>
     )
@@ -183,3 +238,4 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     </div>
   );
 }
+
