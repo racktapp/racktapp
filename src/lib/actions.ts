@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db } from '@/lib/firebase/config';
+import { db, auth } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, setDoc } from 'firebase/firestore';
 import { 
     reportPendingMatch,
@@ -44,7 +44,7 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, ServeChoice } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -195,8 +195,8 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
     }
 }
 
-export async function createOpenChallengeAction(values: z.infer<typeof openChallengeSchema>, poster: User, userId: string) {
-    if (!userId) {
+export async function createOpenChallengeAction(values: z.infer<typeof openChallengeSchema>, poster: User) {
+    if (!poster) {
         return { success: false, message: 'Not authenticated' };
     }
     try {
@@ -411,16 +411,35 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             const isCorrect = answer === game.currentRound.correctAnswer;
             const newGuesses = { ...(game.currentRound.guesses || {}), [currentUserId]: answer };
             
-            if(isCorrect) {
-                game.score[currentUserId] = (game.score[currentUserId] || 0) + 1;
-            }
             game.currentRound.guesses = newGuesses;
+
+            if (isCorrect) {
+                game.score[currentUserId] = (game.score[currentUserId] || 0) + 1;
+            } else {
+                // If incorrect in solo mode, end the game.
+                if (game.mode === 'solo') {
+                    game.status = 'complete';
+                    game.winnerId = null; // No winner, just game over.
+                }
+            }
             
             const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
             if (allPlayersAnswered) {
                 game.turnState = 'round_over';
-                // Any player can start the next round
+                
+                // If the game just ended, we still want to show the 'round_over' state to reveal the correct answer.
+                // Now, check for friend mode game over condition since the round is complete.
+                if (game.mode === 'friend' && game.status === 'ongoing') {
+                    const score1 = game.score[game.participantIds[0]] || 0;
+                    const score2 = game.score[game.participantIds[1]] || 0;
+                    const roundsPlayed = game.roundHistory.length + 1; // +1 for the current round that just finished
+                    if (roundsPlayed >= 10 || Math.abs(score1 - score2) > (10 - roundsPlayed)) {
+                        game.status = 'complete';
+                        game.winnerId = score1 > score2 ? game.participantIds[0] : score2 > score1 ? game.participantIds[1] : 'draw';
+                    }
+                }
             } else {
+                // This branch is only for friend mode.
                 game.currentPlayerId = game.participantIds.find(id => id !== currentUserId)!;
             }
 
@@ -443,6 +462,7 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
     if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
+    // Any player can now start the next round if it's over
     if (game.turnState !== 'round_over') throw new Error("Current round is not over.");
 
     const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
@@ -463,25 +483,19 @@ export async function startNextLegendRoundAction(gameId: string, currentUserId: 
             liveGame.currentRound = { ...nextRoundData, guesses: {} };
             liveGame.turnState = 'playing';
 
+            // Set the next player. For solo, it's always the same player. For friend, it toggles.
             if (liveGame.mode === 'friend') {
                 const lastPlayerId = liveGame.currentPlayerId;
                 liveGame.currentPlayerId = liveGame.participantIds.find(id => id !== lastPlayerId)!;
-            } else {
-                liveGame.currentPlayerId = liveGame.participantIds[0];
+            } else { // solo mode
+                 liveGame.currentPlayerId = liveGame.participantIds[0];
             }
 
-            // Game over logic
+            // Check for solo win condition
             const score1 = liveGame.score[liveGame.participantIds[0]] || 0;
-            const roundsPlayed = liveGame.roundHistory.length;
-            if (liveGame.mode === 'solo' && (score1 >= 5 || (roundsPlayed - score1) >= 3)) {
+            if (liveGame.mode === 'solo' && score1 >= 10) { // Win after 10 correct answers
                 liveGame.status = 'complete';
-                liveGame.winnerId = score1 >= 5 ? liveGame.participantIds[0] : null; 
-            } else if (liveGame.mode === 'friend') {
-                const score2 = liveGame.score[liveGame.participantIds[1]] || 0;
-                if (roundsPlayed >= 10 || Math.abs(score1 - score2) > (10 - roundsPlayed)) {
-                    liveGame.status = 'complete';
-                    liveGame.winnerId = score1 > score2 ? liveGame.participantIds[0] : score2 > score1 ? liveGame.participantIds[1] : 'draw';
-                }
+                liveGame.winnerId = liveGame.participantIds[0];
             }
             
             liveGame.updatedAt = Timestamp.now().toMillis();
