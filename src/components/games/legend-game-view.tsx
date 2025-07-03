@@ -57,6 +57,16 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     !Array.isArray(game.currentRound.options) ||
     game.currentRound.options.length === 0
   ) {
+    if (isStartingNextRound) {
+        return (
+            <div className="container mx-auto p-4 md:p-6 lg:p-8">
+                 <PageHeader title="Guess the Legend" description="Starting the next round..." />
+                 <div className="flex justify-center items-center h-64">
+                    <LoadingSpinner className="h-12 w-12" />
+                 </div>
+            </div>
+        )
+    }
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
         <PageHeader 
