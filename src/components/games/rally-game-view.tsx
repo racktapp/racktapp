@@ -49,7 +49,9 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [progress, setProgress] = useState(0);
-  const prevTurnRef = useRef(game.turn);
+  
+  // Ref to prevent multiple transition dispatches for the same point
+  const transitionInitiatedRef = useRef(false);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
@@ -60,35 +62,40 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
   // Effect to automatically start the next point after a delay.
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    
-    const turnChangedToPointOver = game.turn === 'point_over' && prevTurnRef.current !== 'point_over';
-
-    if (turnChangedToPointOver && game.status === 'ongoing') {
+    // Only proceed if the point is over, the game is ongoing, and we haven't already started the transition.
+    if (game.turn === 'point_over' && game.status === 'ongoing' && !transitionInitiatedRef.current) {
+        // Lock to prevent re-entry
+        transitionInitiatedRef.current = true;
         setIsTransitioning(true);
-        // Both clients will attempt to trigger the action.
-        // The server-side action is now idempotent and will only be executed once.
-        timer = setTimeout(() => {
+
+        const timer = setTimeout(() => {
             playRallyTurnAction(game.id, null, currentUser.uid)
                 .catch((error) => {
-                    toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to start next point.' });
-                    setIsTransitioning(false); // Reset on error
+                    // This block will now execute because the action throws on error.
+                    toast({
+                        variant: 'destructive',
+                        title: 'Error Starting Next Point',
+                        description: error.message,
+                    });
+                    // IMPORTANT: Reset the UI and the lock on failure so the user isn't stuck.
+                    setIsTransitioning(false);
+                    transitionInitiatedRef.current = false;
                 });
         }, 4000);
+
+        // Cleanup the timer if the component unmounts or dependencies change
+        return () => clearTimeout(timer);
     }
     
-    // When the game successfully moves to a new turn, reset the transitioning state.
-    if (game.turn !== 'point_over' && isTransitioning) {
-        setIsTransitioning(false);
+    // When the game successfully moves to a new turn, reset the lock and the transition state.
+    if (game.turn !== 'point_over') {
+        transitionInitiatedRef.current = false;
+        if (isTransitioning) {
+            setIsTransitioning(false);
+        }
     }
+  }, [game.turn, game.status, game.id, currentUser.uid, isTransitioning, toast]);
 
-    // Update the ref to the current turn for the next render.
-    prevTurnRef.current = game.turn;
-
-    return () => {
-        if (timer) clearTimeout(timer);
-    };
-  }, [game.id, game.turn, game.status, currentUser.uid, isTransitioning, toast]);
 
   // Effect to animate the progress bar during the transition.
   useEffect(() => {
@@ -108,16 +115,17 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
 
   const handleAction = async (choice: any) => {
-    // This function is only for player actions (serve/return).
     if (isProcessing || !isMyTurn || isTransitioning) return;
 
     setIsProcessing(true);
-    const result = await playRallyTurnAction(game.id, choice, currentUser.uid);
-    if (!result.success) {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    try {
+        await playRallyTurnAction(game.id, choice, currentUser.uid);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+        // On success or failure, reset processing state. The snapshot listener will handle UI updates.
+        setIsProcessing(false);
     }
-    // On success or failure, reset processing state. The snapshot listener will handle UI updates.
-    setIsProcessing(false);
   };
   
   if (!opponent || !opponentId) {
