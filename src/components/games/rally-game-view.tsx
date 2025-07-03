@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { RallyGame, User } from '@/lib/types';
@@ -57,13 +56,13 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   
   const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
 
-  // Reset state when a new point is finished (and the game state updates)
+  // Reset state when a new point has successfully started
   useEffect(() => {
     if (game.turn !== 'point_over' && isStartingNextPoint) {
         setIsProcessing(false);
         setIsStartingNextPoint(false);
         setProgress(0);
-        pointTransitionDispatched.current = false; // Reset the flag
+        pointTransitionDispatched.current = false; // Reset the flag for the next point
     }
   }, [game.turn, isStartingNextPoint]);
   
@@ -71,8 +70,10 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   useEffect(() => {
     if (game.turn === 'point_over' && game.status === 'ongoing') {
         setIsStartingNextPoint(true);
-        // The player who served the last point is responsible for starting the next one.
-        if (isMyTurn && !pointTransitionDispatched.current) {
+        // Both clients will attempt to trigger the next point.
+        // The server-side transaction handles the race condition.
+        // The local ref flag prevents multiple triggers from the same client.
+        if (!pointTransitionDispatched.current) {
             pointTransitionDispatched.current = true; // Set flag to prevent re-dispatch
             const timer = setTimeout(() => {
                 handleAction(null);
@@ -80,7 +81,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
             return () => clearTimeout(timer);
         }
     }
-  }, [game.turn, game.status, isMyTurn]);
+  }, [game.turn, game.status]);
 
   // Animate the progress bar during the delay
   useEffect(() => {
@@ -101,15 +102,20 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
 
   const handleAction = async (choice: any) => {
-    // A player can only act if it's their turn (for serves/returns) or if they are the designated player to start the next point.
-    // The useEffect hook already ensures only the correct player calls this for 'point_over'.
+    // A player can only act if it's their turn (for serves/returns).
+    // The point_over transition is handled by the useEffect.
     if (isProcessing || (game.turn !== 'point_over' && !isMyTurn)) return;
 
     setIsProcessing(true);
     const result = await playRallyTurnAction(game.id, choice, currentUser.uid);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
-      setIsProcessing(false); // Manually reset on failure
+      // On failure, reset the UI state to allow the user to see the issue.
+      setIsProcessing(false);
+      if (game.turn === 'point_over') {
+        setIsStartingNextPoint(false);
+        pointTransitionDispatched.current = false;
+      }
     }
     // On success, the state is reset by the useEffect hook that watches game.turn
   };
@@ -240,5 +246,3 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     </div>
   );
 }
-
-
