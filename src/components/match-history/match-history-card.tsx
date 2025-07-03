@@ -43,7 +43,7 @@ export function MatchHistoryCard({ match, currentUserId, className, style }: Mat
     setIsLoading(true);
     setRecap(null);
     try {
-      const result = await handleRecapAction(match);
+      const result = await handleRecapAction(match, currentUserId);
       setRecap(result.recap);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to generate AI recap.' });

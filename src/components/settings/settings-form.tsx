@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -48,7 +49,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
 
   async function onSubmit(values: z.infer<typeof profileSettingsSchema>) {
     setIsLoading(true);
-    const result = await updateUserProfileAction(values);
+    const result = await updateUserProfileAction(values, user.uid);
     if (result.success) {
       toast({ title: 'Success', description: result.message });
       router.refresh(); // Refresh the page to get the updated user data in the layout

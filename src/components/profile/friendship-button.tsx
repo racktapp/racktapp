@@ -33,7 +33,7 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
   useEffect(() => {
     async function checkStatus() {
       try {
-        const result = await getFriendshipStatusAction(profileUser.uid);
+        const result = await getFriendshipStatusAction(profileUser.uid, currentUser.uid);
         setStatus(result.status);
         setRequestId(result.requestId);
       } catch (error) {
@@ -42,13 +42,13 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
       }
     }
     checkStatus();
-  }, [profileUser.uid]);
+  }, [profileUser.uid, currentUser.uid]);
   
   const handleAction = async (action: () => Promise<any>) => {
     setIsProcessing(true);
     try {
         await action();
-        const result = await getFriendshipStatusAction(profileUser.uid);
+        const result = await getFriendshipStatusAction(profileUser.uid, currentUser.uid);
         setStatus(result.status);
         setRequestId(result.requestId);
     } catch (error: any) {
