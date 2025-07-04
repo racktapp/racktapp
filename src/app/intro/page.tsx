@@ -3,12 +3,12 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import useEmblaCarousel from 'embla-carousel-react';
 
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
+  type CarouselApi,
 } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
@@ -53,7 +53,7 @@ const introSlides = [
 ];
 
 export default function IntroPage() {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [emblaApi, setEmblaApi] = React.useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [scrollSnaps, setScrollSnaps] = React.useState<number[]>([]);
 
@@ -72,7 +72,11 @@ export default function IntroPage() {
 
   return (
     <div className="relative min-h-screen w-full bg-slate-900">
-      <Carousel ref={emblaRef} className="absolute inset-0">
+      <Carousel
+        setApi={setEmblaApi}
+        opts={{ loop: true }}
+        className="absolute inset-0"
+      >
         <CarouselContent>
           {introSlides.map((slide, index) => (
             <CarouselItem key={index} className="relative h-screen w-full">
