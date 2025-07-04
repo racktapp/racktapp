@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
-import { SPORT_ICONS } from '@/lib/constants';
 
 const introSlides = [
   {
@@ -72,38 +71,33 @@ export default function IntroPage() {
   }, [emblaApi]);
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col">
+    <div className="relative min-h-screen w-full bg-slate-900">
+      <Carousel ref={emblaRef} className="absolute inset-0">
+        <CarouselContent>
+          {introSlides.map((slide, index) => (
+            <CarouselItem key={index} className="relative h-screen w-full">
+              <Image
+                src={slide.image.src}
+                data-ai-hint={slide.image.hint}
+                alt={slide.title}
+                fill
+                className="object-cover"
+                priority={index === 0}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent" />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+      </Carousel>
+
       <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-6">
         <Link href="/" className="flex items-center gap-2 font-bold text-white">
           <Logo className="h-8 w-8" />
           <span className="text-2xl font-headline">Rackt</span>
         </Link>
       </header>
-
-      <Carousel
-        ref={emblaRef}
-        className="absolute inset-0 -z-10"
-        opts={{ loop: true }}
-      >
-        <CarouselContent>
-          {introSlides.map((slide, index) => (
-            <CarouselItem key={index}>
-              <Image
-                src={slide.image.src}
-                data-ai-hint={slide.image.hint}
-                alt={slide.title}
-                width={800}
-                height={1200}
-                className="h-full w-full object-cover"
-                priority={index === 0}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-      </Carousel>
-
-      <div className="mt-auto flex flex-col items-center justify-end px-6 pb-8 text-center text-white">
+      
+      <div className="relative z-10 flex h-screen flex-col items-center justify-end px-6 pb-8 text-center text-white">
         <div className="max-w-md space-y-2">
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
                 {introSlides[selectedIndex].title}
