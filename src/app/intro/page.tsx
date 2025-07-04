@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,36 +17,24 @@ import { cn } from '@/lib/utils';
 
 const introSlides = [
   {
-    image: {
-      src: 'https://placehold.co/800x1200.png',
-      hint: 'tennis players shaking hands',
-    },
+    imageSrc: 'https://images.unsplash.com/photo-1554167683-1a2f64799538?q=80&w=1200&auto=format&fit=crop',
     title: 'Welcome to Rackt',
     description: 'The social hub for racket sports enthusiasts. Challenge friends, track stats, and climb the ranks.',
   },
   {
-    image: {
-      src: 'https://placehold.co/800x1200.png',
-      hint: 'padel players high five',
-    },
+    imageSrc: 'https://images.unsplash.com/photo-1629539227653-83f5968d956a?q=80&w=1200&auto=format&fit=crop',
     title: 'Challenge Anyone, Anywhere',
     description:
       'Directly challenge your friends or post open challenges for the community to accept.',
   },
   {
-    image: {
-      src: 'https://placehold.co/800x1200.png',
-      hint: 'badminton shuttlecock net',
-    },
+    imageSrc: 'https://images.unsplash.com/photo-1550953952-95f04907954b?q=80&w=1200&auto=format&fit=crop',
     title: 'Climb the Leaderboard',
     description:
       'Every match updates your RacktRank using a sophisticated ELO system. See how you stack up.',
   },
   {
-    image: {
-      src: 'https://placehold.co/800x1200.png',
-      hint: 'table tennis action',
-    },
+    imageSrc: 'https://images.unsplash.com/photo-1587795995589-9e3205164293?q=80&w=1200&auto=format&fit=crop',
     title: 'AI-Powered Insights',
     description:
       'Analyze your swing with our AI Coach and get predictions for upcoming matches.',
@@ -81,8 +70,7 @@ export default function IntroPage() {
           {introSlides.map((slide, index) => (
             <CarouselItem key={index} className="relative h-screen w-full">
               <Image
-                src={slide.image.src}
-                data-ai-hint={slide.image.hint}
+                src={slide.imageSrc}
                 alt={slide.title}
                 fill
                 className="object-cover"
@@ -94,44 +82,46 @@ export default function IntroPage() {
         </CarouselContent>
       </Carousel>
 
-      <header className="pointer-events-none absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-6">
-        <Link href="/" className="pointer-events-auto flex items-center gap-2 font-bold text-white">
-          <Logo className="h-8 w-8" />
-          <span className="text-2xl font-headline">Rackt</span>
-        </Link>
-      </header>
-      
-      <div className="pointer-events-none relative z-10 flex h-screen flex-col items-center justify-end px-6 pb-8 text-center text-white">
-        <div className="max-w-md space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-                {introSlides[selectedIndex].title}
-            </h1>
-            <p className="text-white/80">
-                {introSlides[selectedIndex].description}
-            </p>
-        </div>
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col">
+        <header className="pointer-events-auto flex items-center justify-between p-6">
+            <Link href="/" className="flex items-center gap-2 font-bold text-white">
+                <Logo className="h-8 w-8" />
+                <span className="text-2xl font-headline">Rackt</span>
+            </Link>
+        </header>
 
-        <div className="pointer-events-auto my-8 flex justify-center gap-2">
-          {scrollSnaps.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => emblaApi?.scrollTo(index)}
-              className={cn(
-                'h-2 w-2 rounded-full transition-all duration-300',
-                index === selectedIndex ? 'w-4 bg-white' : 'bg-white/50'
-              )}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
-        </div>
-        
-        <div className="pointer-events-auto w-full max-w-sm space-y-4">
-          <Button asChild size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-            <Link href="/signup">Get Started</Link>
-          </Button>
-          <Button asChild variant="link" size="lg" className="w-full text-white">
-            <Link href="/login">Log In</Link>
-          </Button>
+        <div className="flex flex-1 flex-col items-center justify-end px-6 pb-8 text-center text-white">
+            <div className="max-w-md space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+                    {introSlides[selectedIndex].title}
+                </h1>
+                <p className="text-white/80">
+                    {introSlides[selectedIndex].description}
+                </p>
+            </div>
+
+            <div className="pointer-events-auto my-8 flex justify-center gap-2">
+            {scrollSnaps.map((_, index) => (
+                <button
+                key={index}
+                onClick={() => emblaApi?.scrollTo(index)}
+                className={cn(
+                    'h-2 w-2 rounded-full transition-all duration-300',
+                    index === selectedIndex ? 'w-4 bg-white' : 'bg-white/50'
+                )}
+                aria-label={`Go to slide ${index + 1}`}
+                />
+            ))}
+            </div>
+            
+            <div className="pointer-events-auto w-full max-w-sm space-y-4">
+            <Button asChild size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                <Link href="/signup">Get Started</Link>
+            </Button>
+            <Button asChild variant="link" size="lg" className="w-full text-white">
+                <Link href="/login">Log In</Link>
+            </Button>
+            </div>
         </div>
       </div>
     </div>
