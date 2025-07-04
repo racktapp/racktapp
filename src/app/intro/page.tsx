@@ -94,14 +94,14 @@ export default function IntroPage() {
         </CarouselContent>
       </Carousel>
 
-      <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-6">
-        <Link href="/" className="flex items-center gap-2 font-bold text-white">
+      <header className="pointer-events-none absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-6">
+        <Link href="/" className="pointer-events-auto flex items-center gap-2 font-bold text-white">
           <Logo className="h-8 w-8" />
           <span className="text-2xl font-headline">Rackt</span>
         </Link>
       </header>
       
-      <div className="relative z-10 flex h-screen flex-col items-center justify-end px-6 pb-8 text-center text-white">
+      <div className="pointer-events-none relative z-10 flex h-screen flex-col items-center justify-end px-6 pb-8 text-center text-white">
         <div className="max-w-md space-y-2">
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
                 {introSlides[selectedIndex].title}
@@ -111,7 +111,7 @@ export default function IntroPage() {
             </p>
         </div>
 
-        <div className="my-8 flex justify-center gap-2">
+        <div className="pointer-events-auto my-8 flex justify-center gap-2">
           {scrollSnaps.map((_, index) => (
             <button
               key={index}
@@ -125,7 +125,7 @@ export default function IntroPage() {
           ))}
         </div>
         
-        <div className="w-full max-w-sm space-y-4">
+        <div className="pointer-events-auto w-full max-w-sm space-y-4">
           <Button asChild size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
             <Link href="/signup">Get Started</Link>
           </Button>
