@@ -25,6 +25,12 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [...config.externals, 'handlebars'];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
