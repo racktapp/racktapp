@@ -56,29 +56,30 @@ export default function CoachPage() {
     setAnalysis(null);
     setError(null);
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(videoFile);
-      reader.onload = async (event) => {
-        const videoDataUri = event.target?.result as string;
-        if (!videoDataUri) {
-          throw new Error('Could not read video file.');
+    const reader = new FileReader();
+    reader.readAsDataURL(videoFile);
+    reader.onload = async (event) => {
+        try {
+            const videoDataUri = event.target?.result as string;
+            if (!videoDataUri) {
+                throw new Error('Could not read video file.');
+            }
+            const result = await analyzeSwingAction({ videoDataUri, shotType }, user.uid);
+            setAnalysis(result);
+        } catch (err: any) {
+            const errorMessage = err.message || 'An unexpected error occurred during analysis.';
+            setError(errorMessage);
+            toast({ variant: 'destructive', title: 'Analysis Failed', description: errorMessage });
+        } finally {
+            setIsLoading(false);
         }
-
-        const result = await analyzeSwingAction({ videoDataUri, shotType }, user.uid);
-        setAnalysis(result);
+    };
+    reader.onerror = () => {
+        const errorMessage = 'Failed to process video file.';
+        setError(errorMessage);
+        toast({ variant: 'destructive', title: 'File Error', description: errorMessage });
         setIsLoading(false);
-      };
-      reader.onerror = () => {
-        throw new Error('Failed to process video file.');
-        setIsLoading(false);
-      };
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'An unexpected error occurred during analysis.');
-      toast({ variant: 'destructive', title: 'Analysis Failed', description: error });
-      setIsLoading(false);
-    }
+    };
   };
   
   const resetState = () => {
@@ -94,7 +95,7 @@ export default function CoachPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
-        title={<><span>AI Coach</span><Badge variant="outline">Beta</Badge></>}
+        title={<><span>AI Coach</span><Badge variant="outline" className="ml-2">Beta</Badge></>}
         description="Upload a video of your swing for AI-powered analysis."
       />
       <Card>

@@ -29,8 +29,9 @@ import { cn } from '@/lib/utils';
 import { UserAvatar } from '../user-avatar';
 
 const STOCK_AVATARS = [
-  'https://placehold.co/100x100/EBF4FF/7097FF.png', 
-  'https://placehold.co/100x100/F6EBF4/B470FF.png'
+  'https://placehold.co/100x100/EBF4FF/3982F6.png', 
+  'https://placehold.co/100x100/FFF0E6/E67700.png',
+  'https://placehold.co/100x100/2D3748/F4F7F9.png'
 ];
 
 interface EditProfileDialogProps {
@@ -85,7 +86,6 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
       }
       setHasCameraPermission(true);
     } catch (error) {
-      console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
       toast({
         variant: 'destructive',
@@ -168,7 +168,6 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
         setOpen(false);
       }
     } catch (error: any) {
-      console.error("Profile picture update failed:", error);
       toast({
         variant: 'destructive',
         title: 'Upload Failed',
@@ -252,7 +251,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
           
           <TabsContent value="stock" className="mt-4">
             <div className="grid grid-cols-3 gap-4">
-                {STOCK_AVATARS.map((avatarUrl) => (
+                {STOCK_AVATARS.map((avatarUrl, index) => (
                     <button
                         key={avatarUrl}
                         type="button"
@@ -262,7 +261,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
                             selectedStockAvatar === avatarUrl ? "border-primary" : "border-transparent"
                         )}
                     >
-                        <Image src={avatarUrl} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" data-ai-hint="avatar" />
+                        <Image src={avatarUrl} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" data-ai-hint={index === 0 ? "gradient avatar" : (index === 1 ? "abstract pattern" : "dark mode pattern")} />
                     </button>
                 ))}
             </div>
