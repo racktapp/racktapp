@@ -5,30 +5,30 @@
 
 @layer base {
   :root {
-    --background: 216 67% 97%; /* Cool Light Grey */
-    --foreground: 216 13% 12%; /* Gunmetal Grey */
+    --background: 220 20% 97%; /* Marble White / Cool Light Grey */
+    --foreground: 224 13% 15%; /* Dark Gunmetal */
     --card: 0 0% 100%;
-    --card-foreground: 216 13% 12%;
+    --card-foreground: 224 13% 15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 216 13% 12%;
-    --primary: 195 100% 50%; /* Neon Blue */
-    --primary-foreground: 0 0% 0%;
-    --secondary: 216 30% 94%;
-    --secondary-foreground: 216 13% 12%;
-    --muted: 216 30% 96%;
-    --muted-foreground: 216 15% 45%;
-    --accent: 75 100% 50%; /* Electric Lime */
-    --accent-foreground: 75 100% 10%;
-    --destructive: 0 100% 62%; /* Padel Red */
-    --destructive-foreground: 0 0% 96%;
-    --border: 216 20% 90%;
-    --input: 216 20% 90%;
-    --ring: 195 100% 50%;
-    --chart-1: 195 100% 50%;
-    --chart-2: 75 100% 50%;
-    --chart-3: 144 76% 57%;
-    --chart-4: 240 100% 60%;
-    --chart-5: 30 100% 60%;
+    --popover-foreground: 224 13% 15%;
+    --primary: 217 91% 60%; /* Vibrant Blue */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 224 13% 15%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 45%;
+    --accent: 142 60% 50%; /* Sporty Green */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%; /* Action Red */
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 60% 50%;
+    --chart-3: 358 79% 66%;
+    --chart-4: 44 94% 59%;
+    --chart-5: 262 82% 69%;
     --radius: 0.75rem;
     --sidebar-background: hsl(var(--card));
     --sidebar-foreground: hsl(var(--foreground));
@@ -41,30 +41,30 @@
   }
 
   .dark {
-    --background: 216 13% 12%; /* Gunmetal Grey */
+    --background: 224 13% 15%; /* Dark Gunmetal */
     --foreground: 0 0% 96%;
-    --card: 216 13% 17%;
+    --card: 224 13% 20%;
     --card-foreground: 0 0% 96%;
-    --popover: 216 13% 17%;
+    --popover: 224 13% 20%;
     --popover-foreground: 0 0% 96%;
-    --primary: 195 100% 50%; /* Neon Blue */
-    --primary-foreground: 0 0% 0%;
-    --secondary: 216 13% 20%;
+    --primary: 217 91% 60%; /* Vibrant Blue */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 224 13% 25%;
     --secondary-foreground: 0 0% 96%;
-    --muted: 216 13% 20%;
-    --muted-foreground: 216 15% 65%;
-    --accent: 75 100% 50%; /* Electric Lime */
-    --accent-foreground: 75 100% 10%;
-    --destructive: 0 100% 62%; /* Padel Red */
-    --destructive-foreground: 0 0% 96%;
-    --border: 216 13% 25%;
-    --input: 216 13% 25%;
-    --ring: 195 100% 50%;
-    --chart-1: 195 100% 50%;
-    --chart-2: 75 100% 50%;
-    --chart-3: 144 76% 57%;
-    --chart-4: 240 100% 60%;
-    --chart-5: 30 100% 60%;
+    --muted: 224 13% 25%;
+    --muted-foreground: 220 9% 55%;
+    --accent: 142 60% 50%; /* Sporty Green */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 51%; /* Action Red */
+    --destructive-foreground: 0 0% 98%;
+    --border: 224 13% 30%;
+    --input: 224 13% 30%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 60% 50%;
+    --chart-3: 358 79% 66%;
+    --chart-4: 44 94% 59%;
+    --chart-5: 262 82% 69%;
     --sidebar-background: hsl(var(--card));
     --sidebar-foreground: hsl(var(--foreground));
     --sidebar-primary: hsl(var(--primary));
