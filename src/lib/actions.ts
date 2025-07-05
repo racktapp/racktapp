@@ -757,33 +757,28 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 }
 
 /**
- * This action processes an avatar for upload.
- * If the avatarUrl is a data URI, it uploads it to Firebase Storage and returns the public URL.
- * If the avatarUrl is already a public URL (e.g., a stock avatar), it simply returns it.
- * This action does NOT modify any user documents; it only handles the file.
+ * This server action takes a public URL to an image and updates the user's
+ * profile in Firestore and Firebase Authentication. It does not handle file uploads.
  */
-export async function processAvatarAction(userId: string, avatarUrl: string): Promise<{ success: true, finalUrl: string } | { success: false, message: string }> {
+export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        if (!userId) throw new Error("User ID is missing.");
-        if (!avatarUrl) throw new Error("Avatar URL is missing.");
+        if (!userId) throw new Error("User not authenticated.");
+        if (!newAvatarUrl) throw new Error("Avatar URL is missing.");
 
-        // If it's a data URI (new upload or camera capture), upload to Storage
-        if (avatarUrl.startsWith('data:image')) {
-            const storageRef = ref(storage, `avatars/${userId}/${Date.now()}`);
-            const snapshot = await uploadString(storageRef, avatarUrl, 'data_url');
-            const downloadURL = await getDownloadURL(snapshot.ref);
-            return { success: true, finalUrl: downloadURL };
-        }
-        
-        // If it's already a public URL (like a stock avatar or Google avatar), just return it
-        if (avatarUrl.startsWith('http')) {
-             return { success: true, finalUrl: avatarUrl };
-        }
+        // The updateProfile function for Firebase Auth MUST be done on the client.
+        // This server action will only update the Firestore document.
+        // The client will be responsible for updating the Auth user profile.
+        const userDocRef = doc(db, 'users', userId);
+        await updateDoc(userDocRef, { avatar: newAvatarUrl });
 
-        throw new Error("Invalid avatar URL format provided.");
+        // Revalidate paths to ensure the new avatar is shown everywhere.
+        revalidatePath('/settings');
+        revalidatePath(`/profile/${userId}`);
+        revalidatePath('/(app)', 'layout'); // Revalidate the main app layout
 
+        return { success: true, message: 'Profile picture updated.' };
     } catch (error: any) {
-        console.error("Error processing avatar:", error);
+        console.error("Error updating avatar in action:", error);
         return { success: false, message: error.message || 'An unexpected error occurred.' };
     }
 }

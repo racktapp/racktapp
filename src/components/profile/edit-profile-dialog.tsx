@@ -1,13 +1,13 @@
 
 'use client';
 
-import { ReactNode, useState, useRef, useEffect } from 'react';
+import { ReactNode, useState, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { updateProfile } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase/config';
-import { processAvatarAction } from '@/lib/actions';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { auth, storage } from '@/lib/firebase/config';
+import { updateUserAvatarAction } from '@/lib/actions';
 
 import {
   Dialog,
@@ -139,41 +139,44 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     setIsLoading(true);
 
     try {
-        // Step 1: Call the server action to upload the image (if needed) and get the final, public URL.
-        const uploadResult = await processAvatarAction(user.uid, newAvatarUrl);
+      let finalUrl = newAvatarUrl;
 
-        if (!uploadResult.success) {
-            throw new Error(uploadResult.message);
-        }
+      // Step 1: If the new avatar is a data URI, upload it to Firebase Storage.
+      // This is now correctly handled on the client-side.
+      if (newAvatarUrl.startsWith('data:image')) {
+        const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}`);
+        const snapshot = await uploadString(storageRef, newAvatarUrl, 'data_url');
+        finalUrl = await getDownloadURL(snapshot.ref);
+      }
 
-        const finalUrl = uploadResult.finalUrl;
-        
-        // Step 2: Update Firebase Auth and Firestore from the client.
-        // This is a client-side operation because it involves the currently authenticated user.
-        if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
-            throw new Error("Authentication error. Please log in again.");
-        }
-        
-        // Update Firebase Authentication profile (important for consistency)
-        await updateProfile(auth.currentUser, { photoURL: finalUrl });
-        
-        // Update Firestore document
-        const userDocRef = doc(db, 'users', user.uid);
-        await updateDoc(userDocRef, { avatar: finalUrl });
+      // Step 2: Update the Firebase Authentication user profile.
+      // This MUST be done on the client with the authenticated user.
+      if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
+        throw new Error("Authentication error. Please log in again.");
+      }
+      await updateProfile(auth.currentUser, { photoURL: finalUrl });
 
-        toast({ title: 'Success!', description: 'Profile picture updated.' });
-        onOpenChange(false);
-        // Refresh the page to make sure the new avatar is shown everywhere.
-        router.refresh();
+      // Step 3: Call the simplified server action to update the Firestore database.
+      const result = await updateUserAvatarAction(user.uid, finalUrl);
+
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+
+      toast({ title: 'Success!', description: 'Profile picture updated.' });
+      onOpenChange(false);
+      // Refresh the page to make sure the new avatar is shown everywhere.
+      router.refresh();
 
     } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Update Failed',
-            description: error.message || 'An unexpected error occurred.',
-        });
+      console.error("Error during avatar save process:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'An unexpected error occurred.',
+      });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
   
