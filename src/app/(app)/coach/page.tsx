@@ -14,12 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
+import { useSport } from '@/components/providers/sport-provider';
+import { SPORTS, Sport } from '@/lib/constants';
 
 const SHOT_TYPES = ['Forehand', 'Backhand', 'Serve'];
 
 export default function CoachPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const { sport: defaultSport } = useSport();
+  const [sport, setSport] = useState<Sport>(defaultSport);
   const [shotType, setShotType] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [analysis, setAnalysis] = useState<SwingAnalysisOutput | null>(null);
@@ -43,8 +47,8 @@ export default function CoachPage() {
   };
 
   const handleAnalyze = async () => {
-    if (!videoFile || !shotType) {
-      toast({ variant: 'destructive', title: 'Missing information', description: 'Please upload a video and select a shot type.' });
+    if (!videoFile || !shotType || !sport) {
+      toast({ variant: 'destructive', title: 'Missing information', description: 'Please upload a video, select a sport, and select a shot type.' });
       return;
     }
     if (!user) {
@@ -64,7 +68,7 @@ export default function CoachPage() {
             if (!videoDataUri) {
                 throw new Error('Could not read video file.');
             }
-            const result = await analyzeSwingAction({ videoDataUri, shotType }, user.uid);
+            const result = await analyzeSwingAction({ videoDataUri, sport, shotType }, user.uid);
             setAnalysis(result);
         } catch (err: any) {
             const errorMessage = err.message || 'An unexpected error occurred during analysis.';
@@ -118,7 +122,15 @@ export default function CoachPage() {
               </div>
 
               {videoPreview && (
-                <div className="grid sm:grid-cols-2 gap-4 items-end">
+                <div className="grid sm:grid-cols-3 gap-4 items-end">
+                    <Select onValueChange={(v) => setSport(v as Sport)} value={sport}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select sport..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {SPORTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                     <Select onValueChange={setShotType} value={shotType}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select shot type..." />
@@ -127,7 +139,7 @@ export default function CoachPage() {
                             {SHOT_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Button onClick={handleAnalyze} disabled={isLoading || !videoFile || !shotType || !user}>
+                    <Button onClick={handleAnalyze} disabled={isLoading || !videoFile || !shotType || !sport || !user}>
                         {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
                         {isLoading ? 'Analyzing...' : 'Analyze Video'}
                     </Button>
