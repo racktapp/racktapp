@@ -125,9 +125,8 @@ export default function DashboardPage() {
             title={`${sport} RacktRank`}
             value={currentElo}
             description={skillLevel}
-            monthlyChange={monthlyEloChange}
-            footerValue={totalMatches}
-            footerText={`${totalMatches} matches played`}
+            footerValue={monthlyEloChange}
+            footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
             colorClass="bg-gradient-to-br from-blue-500 to-blue-600"
           />

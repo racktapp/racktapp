@@ -12,15 +12,7 @@ interface StatsHighlightCardProps {
   footerValue?: number;
   icon: LucideIcon;
   colorClass: string;
-  monthlyChange?: number;
 }
-
-const HeaderTrendIcon = ({ value }: { value?: number }) => {
-  if (value === undefined) return null;
-  if (value === 0) return <Minus className="h-4 w-4 text-white/80" />;
-  if (value > 0) return <ArrowUp className="h-4 w-4 text-white/80" />;
-  return <ArrowDown className="h-4 w-4 text-white/80" />;
-};
 
 const FooterTrendIcon = ({ value }: { value?: number }) => {
   if (value === undefined) return null;
@@ -37,7 +29,6 @@ export function StatsHighlightCard({
   footerValue,
   icon: Icon,
   colorClass,
-  monthlyChange,
 }: StatsHighlightCardProps) {
   return (
     <Card className="overflow-hidden shadow-sm transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1">
@@ -46,12 +37,6 @@ export function StatsHighlightCard({
           <div>
             <p className="text-sm font-medium text-white/90">{title}</p>
             <p className="text-3xl md:text-4xl font-bold">{value}</p>
-             {monthlyChange !== undefined && (
-              <div className="flex items-center gap-1 text-sm font-medium text-white/80 mt-1">
-                <HeaderTrendIcon value={monthlyChange} />
-                <span>{monthlyChange >= 0 ? `+${monthlyChange}` : monthlyChange} this month</span>
-              </div>
-            )}
             <p className="text-sm text-white/90 mt-1">{description}</p>
           </div>
           <Icon className="h-8 w-8 text-white/80" />
