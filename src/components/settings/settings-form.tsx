@@ -71,11 +71,11 @@ export function SettingsForm() {
     
     try {
       const nameUpdatePromise = (values.name !== user.name) 
-        ? updateUserName(user.id, values.name) 
+        ? updateUserName(user.uid, values.name) 
         : Promise.resolve();
         
       const avatarUpdatePromise = (selectedFile && previewUrl)
-        ? updateUserProfileImage(user.id, previewUrl)
+        ? updateUserProfileImage(user.uid, previewUrl)
         : Promise.resolve();
 
       await Promise.all([nameUpdatePromise, avatarUpdatePromise]);
