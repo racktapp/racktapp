@@ -97,7 +97,9 @@ export default function DashboardPage() {
                         Here's your <span className="font-semibold text-primary">{sport}</span> dashboard.
                     </p>
                 </div>
-                <UserAvatar user={user} className="h-16 w-16" />
+                 <Link href="/profile" className="block">
+                    <UserAvatar user={user} className="h-16 w-16" />
+                </Link>
             </div>
         </Card>
 
@@ -158,4 +160,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

@@ -49,7 +49,7 @@ export const NAV_ITEMS_MOBILE: NavItem[] = [
   { href: '/challenges', label: 'Challenges', icon: Swords },
   { href: '/friends', label: 'Friends', icon: Users },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
-  { href: '/profile', label: 'Profile', icon: UserIcon },
+  { href: '/tournaments', label: 'Tournaments', icon: Trophy },
 ]
 
 export const NAV_ITEMS_PROFILE: NavItem[] = [
