@@ -1,5 +1,6 @@
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -123,6 +124,7 @@ export const createUserDocument = async (user: {
   uid: string;
   email: string;
   displayName: string;
+  emailVerified: boolean;
 }) => {
   const userRef = doc(db, 'users', user.uid);
   const username = await generateUniqueUsername(user.displayName);
@@ -132,6 +134,7 @@ export const createUserDocument = async (user: {
     email: user.email,
     name: user.displayName,
     username: username,
+    emailVerified: user.emailVerified,
     avatar: `https://placehold.co/100x100.png?text=${user.displayName.charAt(0)}`,
     friendIds: [],
     preferredSports: ['Tennis'],

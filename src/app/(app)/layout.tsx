@@ -11,12 +11,16 @@ export default function AuthenticatedAppLayout({ children }: { children: ReactNo
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return; // Wait until loading is done
+    
+    if (!user) {
       router.replace('/login');
+    } else if (!user.emailVerified) {
+      router.replace('/verify-email');
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !user || !user.emailVerified) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <LoadingSpinner className="h-12 w-12" />

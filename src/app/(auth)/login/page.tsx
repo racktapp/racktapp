@@ -75,6 +75,7 @@ export default function LoginPage() {
           uid: user.uid,
           email: user.email!,
           displayName: user.displayName || 'New User',
+          emailVerified: user.emailVerified,
         });
       }
 

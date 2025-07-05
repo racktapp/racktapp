@@ -35,6 +35,7 @@ export interface User {
   name: string;
   username: string;
   email: string;
+  emailVerified: boolean;
   avatar?: string;
   friendIds: string[];
   location?: string;

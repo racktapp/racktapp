@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -76,6 +76,7 @@ export default function SignupPage() {
           uid: user.uid,
           email: user.email!,
           displayName: user.displayName || 'New User',
+          emailVerified: user.emailVerified,
         });
       }
 
@@ -98,17 +99,20 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await updateProfile(userCredential.user, { displayName: values.name });
       
+      await sendEmailVerification(userCredential.user);
+      
       await createUserDocument({
         uid: userCredential.user.uid,
         email: values.email,
         displayName: values.name,
+        emailVerified: userCredential.user.emailVerified,
       });
 
       toast({
         title: 'Account Created',
-        description: 'Welcome to Rackt! Redirecting you to the dashboard.',
+        description: 'Please check your email to verify your account.',
       });
-      router.push('/dashboard');
+      router.push('/verify-email');
     } catch (error: any) {
       toast({
         variant: 'destructive',
