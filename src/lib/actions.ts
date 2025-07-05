@@ -3,8 +3,9 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db } from '@/lib/firebase/config';
+import { db, storage } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -633,8 +634,8 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
   
       revalidatePath(`/games/rally/${gameId}`);
     } catch (error: any) {
-      console.error('Error playing rally turn:', error);
-      throw new Error(error.message || 'Failed to play turn.');
+        console.error('Error playing rally turn:', error);
+        throw new Error(error.message || 'Failed to play turn.');
     }
 }
 
@@ -752,6 +753,38 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
         return { success: true, message: "Profile updated successfully." };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to update profile.' };
+    }
+}
+
+/**
+ * This action processes an avatar for upload.
+ * If the avatarUrl is a data URI, it uploads it to Firebase Storage and returns the public URL.
+ * If the avatarUrl is already a public URL (e.g., a stock avatar), it simply returns it.
+ * This action does NOT modify any user documents; it only handles the file.
+ */
+export async function processAvatarAction(userId: string, avatarUrl: string): Promise<{ success: true, finalUrl: string } | { success: false, message: string }> {
+    try {
+        if (!userId) throw new Error("User ID is missing.");
+        if (!avatarUrl) throw new Error("Avatar URL is missing.");
+
+        // If it's a data URI (new upload or camera capture), upload to Storage
+        if (avatarUrl.startsWith('data:image')) {
+            const storageRef = ref(storage, `avatars/${userId}/${Date.now()}`);
+            const snapshot = await uploadString(storageRef, avatarUrl, 'data_url');
+            const downloadURL = await getDownloadURL(snapshot.ref);
+            return { success: true, finalUrl: downloadURL };
+        }
+        
+        // If it's already a public URL (like a stock avatar or Google avatar), just return it
+        if (avatarUrl.startsWith('http')) {
+             return { success: true, finalUrl: avatarUrl };
+        }
+
+        throw new Error("Invalid avatar URL format provided.");
+
+    } catch (error: any) {
+        console.error("Error processing avatar:", error);
+        return { success: false, message: error.message || 'An unexpected error occurred.' };
     }
 }
 

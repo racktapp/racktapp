@@ -3,6 +3,12 @@
 
 import { ReactNode, useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { updateProfile } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/config';
+import { processAvatarAction } from '@/lib/actions';
+
 import {
   Dialog,
   DialogContent,
@@ -18,14 +24,11 @@ import { Input } from '@/components/ui/input';
 import { Camera, Upload, CheckCircle, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { type User } from '@/lib/types';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
-import { auth, db, storage } from '@/lib/firebase/config';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '../user-avatar';
+
 
 const STOCK_AVATARS = [
   { url: 'https://placehold.co/100x100.png', hint: 'gradient avatar' },
@@ -42,6 +45,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
   
   const [activeTab, setActiveTab] = useState('upload');
   const [newAvatarUrl, setNewAvatarUrl] = useState<string | null>(null); // Can be a data URI or an HTTP URL
@@ -131,41 +135,45 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
       toast({ variant: 'destructive', title: 'No image selected' });
       return;
     }
-    if (!auth.currentUser) {
-      toast({ variant: 'destructive', title: 'Not Authenticated' });
-      return;
-    }
-
-    setIsLoading(true);
     
+    setIsLoading(true);
+
     try {
-      let finalAvatarUrl = newAvatarUrl;
+        // Step 1: Call the server action to upload the image (if needed) and get the final, public URL.
+        const uploadResult = await processAvatarAction(user.uid, newAvatarUrl);
 
-      // This follows the 'Recommended Production Approach' from your guide.
-      // If the avatar is a data URI (from upload or camera), upload it to Firebase Storage.
-      if (newAvatarUrl.startsWith('data:image')) {
-        const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}`);
-        const snapshot = await uploadString(storageRef, newAvatarUrl, 'data_url');
-        finalAvatarUrl = await getDownloadURL(snapshot.ref);
-      }
+        if (!uploadResult.success) {
+            throw new Error(uploadResult.message);
+        }
 
-      // 1. Update the user's profile in Firebase Authentication
-      await updateProfile(auth.currentUser, { photoURL: finalAvatarUrl });
-      
-      // 2. Update the avatar field in the user's Firestore document
-      const userDocRef = doc(db, 'users', user.uid);
-      await updateDoc(userDocRef, { avatar: finalAvatarUrl });
+        const finalUrl = uploadResult.finalUrl;
+        
+        // Step 2: Update Firebase Auth and Firestore from the client.
+        // This is a client-side operation because it involves the currently authenticated user.
+        if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
+            throw new Error("Authentication error. Please log in again.");
+        }
+        
+        // Update Firebase Authentication profile (important for consistency)
+        await updateProfile(auth.currentUser, { photoURL: finalUrl });
+        
+        // Update Firestore document
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, { avatar: finalUrl });
 
-      toast({ title: 'Success', description: 'Profile picture updated! Changes may take a moment to appear.' });
-      onOpenChange(false); // Close the dialog
+        toast({ title: 'Success!', description: 'Profile picture updated.' });
+        onOpenChange(false);
+        // Refresh the page to make sure the new avatar is shown everywhere.
+        router.refresh();
+
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Upload Failed',
-        description: error.message || 'An unexpected error occurred.',
-      });
+        toast({
+            variant: 'destructive',
+            title: 'Update Failed',
+            description: error.message || 'An unexpected error occurred.',
+        });
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
   
