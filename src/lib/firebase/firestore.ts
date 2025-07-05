@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -374,10 +375,13 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
 }
 
 export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), limit(50));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as OpenChallenge);
+    const challenges = snapshot.docs.map(d => d.data() as OpenChallenge);
+    // Manually sort by creation date descending
+    return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
+
 
 export async function deleteOpenChallenge(challengeId: string, userId: string) {
     const challengeRef = doc(db, 'openChallenges', challengeId);
