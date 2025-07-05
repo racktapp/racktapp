@@ -16,18 +16,20 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 
 
-const ActionCard = ({ icon: Icon, title, ...props }: { icon: React.ElementType, title: string, [key:string]: any }) => (
+const ActionCard = ({ icon: Icon, title, description, ...props }: { icon: React.ElementType, title: string, description: string, [key:string]: any }) => (
   <Link href={props.href} className="block group" {...props}>
-    <Card className="h-full transition-all duration-200 group-hover:border-primary group-hover:bg-muted group-hover:-translate-y-1">
-      <CardHeader className="p-4 items-center text-center">
-        <div className="bg-primary/10 p-3 rounded-lg text-primary mb-2">
-          <Icon className="h-6 w-6" />
+    <Card className="h-full transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:bg-muted/50 group-hover:shadow-lg group-hover:-translate-y-1">
+      <CardContent className="p-4 flex flex-col items-center text-center">
+        <div className="bg-primary/10 p-3 rounded-full text-primary mb-3">
+          <Icon className="h-8 w-8" />
         </div>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
+        <CardTitle className="text-base font-bold">{title}</CardTitle>
+        <CardDescription className="text-xs mt-1 px-2">{description}</CardDescription>
+      </CardContent>
     </Card>
   </Link>
 );
+
 
 const StatItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
     <div className="flex flex-col items-center gap-1 text-center">
@@ -88,8 +90,8 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
         <Link href="/profile" className="block group">
-            <Card className="overflow-hidden transition-all duration-200 group-hover:border-primary group-hover:shadow-lg">
-                <div className="p-4 flex flex-col sm:flex-row items-center gap-4 bg-muted/30">
+            <Card className="overflow-hidden transition-all duration-300 ease-in-out group-hover:shadow-primary/20 group-hover:shadow-lg group-hover:-translate-y-1 bg-gradient-to-br from-card via-card to-muted/40">
+                <div className="p-4 flex flex-col sm:flex-row items-center gap-4 bg-transparent">
                     <UserAvatar user={user} className="h-20 w-20" />
                     <div className="text-center sm:text-left">
                         <h1 className="text-2xl font-bold">Welcome, {user.name.split(' ')[0]}!</h1>
@@ -99,14 +101,14 @@ export default function DashboardPage() {
                     </div>
                 </div>
                 {sportStats ? (
-                    <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <CardContent className="p-4 pt-0 sm:pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 bg-transparent">
                         <StatItem icon={Flame} label="RacktRank" value={sportStats.racktRank} />
                         <StatItem icon={Trophy} label="Win Rate" value={`${winRate}%`} />
                         <StatItem icon={Activity} label="Streak" value={sportStats.streak} />
                         <StatItem icon={BarChart} label="Record" value={`${sportStats.wins}W - ${sportStats.losses}L`} />
                     </CardContent>
                 ) : (
-                    <CardContent className="p-4 text-center text-muted-foreground">
+                    <CardContent className="p-4 text-center text-muted-foreground bg-transparent">
                         No stats for {sport} yet. Report a match to get started!
                     </CardContent>
                 )}
@@ -122,10 +124,10 @@ export default function DashboardPage() {
                         <CardDescription>Ready to play? Start here.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <ActionCard href="/report-match" icon={Plus} title="Report Match" />
-                        <ActionCard href="/challenges" icon={Swords} title="Challenges" />
-                        <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" />
-                        <ActionCard href="/games" icon={Gamepad2} title="AI Games" />
+                        <ActionCard href="/report-match" icon={Plus} title="Report Match" description="Log a new match result." />
+                        <ActionCard href="/challenges" icon={Swords} title="Challenges" description="View or issue challenges." />
+                        <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" description="Compete in brackets." />
+                        <ActionCard href="/games" icon={Gamepad2} title="AI Games" description="Test your skills." />
                     </CardContent>
                 </Card>
 
@@ -133,17 +135,17 @@ export default function DashboardPage() {
             </div>
 
             <div className="lg:col-span-1 space-y-6">
-                <Card className="bg-gradient-to-br from-primary/10 to-transparent">
+                <Card className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground">
                     <CardHeader>
                         <div className="flex items-center gap-3">
-                            <BrainCircuit className="h-8 w-8 text-primary" />
+                            <BrainCircuit className="h-8 w-8" />
                             <CardTitle>AI Match Predictor</CardTitle>
                         </div>
-                        <CardDescription>Get AI-powered predictions for matches against your friends.</CardDescription>
+                        <CardDescription className="text-primary-foreground/80">Get AI-powered predictions for matches against your friends.</CardDescription>
                     </CardHeader>
                     <CardFooter>
                          <MatchPredictorDialog>
-                            <Button className="w-full">
+                            <Button variant="secondary" className="w-full">
                                 Launch Predictor <ChevronRight className="ml-2 h-4 w-4" />
                             </Button>
                         </MatchPredictorDialog>
