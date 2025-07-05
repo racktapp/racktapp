@@ -38,7 +38,8 @@ import {
     updateUserProfile,
     getFriendshipStatus,
     deleteGame,
-    getGame
+    getGame,
+    deleteOpenChallenge
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -211,7 +212,7 @@ export async function getChallengesAction(userId: string, sport: Sport) {
     const [incoming, sent, open] = await Promise.all([
         getIncomingChallenges(userId),
         getSentChallenges(userId),
-        getOpenChallenges(userId, sport)
+        getOpenChallenges(sport)
     ]);
     return { incoming, sent, open };
 }
@@ -255,6 +256,16 @@ export async function challengeFromOpenAction(openChallenge: OpenChallenge, chal
         return { success: true, message: `Challenge sent to ${openChallenge.posterName}!` };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to challenge from open post." };
+    }
+}
+
+export async function deleteOpenChallengeAction(challengeId: string, userId: string) {
+    try {
+        await deleteOpenChallenge(challengeId, userId);
+        revalidatePath('/challenges');
+        return { success: true, message: "Open challenge deleted." };
+    } catch (error: any) {
+        return { success: false, message: error.message || "Failed to delete challenge." };
     }
 }
 

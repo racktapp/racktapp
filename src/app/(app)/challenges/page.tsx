@@ -26,6 +26,7 @@ export default function ChallengesPage() {
   const [incoming, setIncoming] = useState<Challenge[]>([]);
   const [sent, setSent] = useState<Challenge[]>([]);
   const [open, setOpen] = useState<OpenChallenge[]>([]);
+  const [myOpen, setMyOpen] = useState<OpenChallenge[]>([]);
 
   const fetchChallenges = useCallback(async () => {
     if (!user) return;
@@ -35,7 +36,8 @@ export default function ChallengesPage() {
         const result = await getChallengesAction(user.uid, sport);
         setIncoming(result.incoming || []);
         setSent(result.sent || []);
-        setOpen(result.open || []);
+        setOpen(result.open?.filter(c => c.posterId !== user.uid) || []);
+        setMyOpen(result.open?.filter(c => c.posterId === user.uid) || []);
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -69,13 +71,17 @@ export default function ChallengesPage() {
         }
       />
         <Tabs defaultValue="incoming">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="incoming">
               Incoming
               {incoming.length > 0 && <Badge className="ml-2">{incoming.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="sent">Sent</TabsTrigger>
             <TabsTrigger value="open">Open</TabsTrigger>
+             <TabsTrigger value="my-posts">
+              My Posts
+              {myOpen.length > 0 && <Badge className="ml-2">{myOpen.length}</Badge>}
+            </TabsTrigger>
           </TabsList>
           {isLoading ? (
             <div className="flex h-64 items-center justify-center">
@@ -142,6 +148,26 @@ export default function ChallengesPage() {
                 ) : (
                   <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
                     <p className="text-muted-foreground">No open {sport} challenges. Post one!</p>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="my-posts">
+                {myOpen.length > 0 ? (
+                  <div className="space-y-4 pt-4">
+                    {myOpen.map((challenge, i) => (
+                      <OpenChallengeCard
+                        key={challenge.id}
+                        challenge={challenge}
+                        challenger={user}
+                        onAction={fetchChallenges}
+                        className="opacity-0 animate-fade-in-slide-up"
+                        style={{ animationDelay: `${i * 100}ms` }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed">
+                    <p className="text-muted-foreground">You have no posted open challenges for {sport}.</p>
                   </div>
                 )}
               </TabsContent>

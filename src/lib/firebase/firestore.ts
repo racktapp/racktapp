@@ -1,3 +1,4 @@
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -372,10 +373,25 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     return snapshot.docs.map(d => d.data() as Challenge);
 }
 
-export async function getOpenChallenges(userId: string, sport: Sport): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), where('posterId', '!=', userId), orderBy('posterId'), orderBy('createdAt', 'desc'), limit(50));
+export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
+    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => d.data() as OpenChallenge);
+}
+
+export async function deleteOpenChallenge(challengeId: string, userId: string) {
+    const challengeRef = doc(db, 'openChallenges', challengeId);
+    const challengeDoc = await getDoc(challengeRef);
+
+    if (!challengeDoc.exists()) {
+        throw new Error("Challenge not found.");
+    }
+
+    if (challengeDoc.data().posterId !== userId) {
+        throw new Error("You are not authorized to delete this challenge.");
+    }
+
+    await deleteDoc(challengeRef);
 }
 
 export async function updateChallengeStatus(id: string, status: ChallengeStatus) {

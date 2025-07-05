@@ -7,13 +7,25 @@ import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
 import { OpenChallenge, User } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { MapPin, Swords } from 'lucide-react';
+import { MapPin, Swords, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { challengeFromOpenAction } from '@/lib/actions';
+import { challengeFromOpenAction, deleteOpenChallengeAction } from '@/lib/actions';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 interface OpenChallengeCardProps {
   challenge: OpenChallenge;
@@ -26,10 +38,23 @@ interface OpenChallengeCardProps {
 export function OpenChallengeCard({ challenge, challenger, onAction, className, style }: OpenChallengeCardProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const isOwner = challenge.posterId === challenger.uid;
 
   const handleChallenge = async () => {
     setIsProcessing(true);
     const result = await challengeFromOpenAction(challenge, challenger);
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      onAction();
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    }
+    setIsProcessing(false);
+  };
+  
+  const handleDelete = async () => {
+    setIsProcessing(true);
+    const result = await deleteOpenChallengeAction(challenge.id, challenger.uid);
     if (result.success) {
       toast({ title: 'Success', description: result.message });
       onAction();
@@ -58,10 +83,33 @@ export function OpenChallengeCard({ challenge, challenger, onAction, className, 
         </div>
 
         <div className="flex flex-col items-end gap-2 self-end sm:self-center">
-            <Button onClick={handleChallenge} disabled={isProcessing} size="sm">
+            {isOwner ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={isProcessing}>
+                    {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete your open challenge. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <Button onClick={handleChallenge} disabled={isProcessing} size="sm">
                 {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                 Challenge
-            </Button>
+              </Button>
+            )}
             <p className="text-xs text-muted-foreground">
                 Posted {formatDistanceToNow(new Date(challenge.createdAt), { addSuffix: true })}
             </p>
