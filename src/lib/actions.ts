@@ -758,7 +758,7 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 /**
  * This server action takes a public URL to an image and updates the user's
- * Firestore document. It does NOT update Firebase Auth.
+ * Firestore document. It does NOT update Firebase Auth, as that must be done client-side.
  */
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
@@ -808,3 +808,5 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         headToHead: null,
     };
 }
+
+    

@@ -145,32 +145,32 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
       toast({ variant: 'destructive', title: 'No image selected' });
       return;
     }
+    if (!auth.currentUser) {
+        toast({ variant: 'destructive', title: 'Authentication Error', description: 'Please log in again.' });
+        return;
+    }
     
     setIsLoading(true);
 
     try {
       let finalUrl = previewUrl;
 
-      // **PRODUCTION-READY APPROACH (Firebase Storage)**
-      // Step 1: If a file was selected (from upload or camera), upload it to Firebase Storage.
+      // Step 1: If a new file was uploaded/captured, upload it to Firebase Storage.
+      // This now happens entirely on the client-side.
       if (selectedFile) {
         const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}_${selectedFile.name}`);
         const uploadResult = await uploadBytes(storageRef, selectedFile);
         finalUrl = await getDownloadURL(uploadResult.ref);
       }
       
-      // If a user selected a stock avatar, `finalUrl` will already be the placehold.co URL.
-      // If they uploaded a file, `finalUrl` is now the Firebase Storage URL.
-
-      if (!finalUrl) throw new Error("Could not get a valid image URL.");
-
-      // Step 2: Update the user's profile in Firebase Authentication (client-side).
-      if (!auth.currentUser) throw new Error("Authentication error. Please log in again.");
+      // If a user selected a stock avatar, `finalUrl` is already the correct URL.
+      
+      // Step 2: Update the user's Firestore document via a simple Server Action.
+      const updateDbResult = await updateUserAvatarAction(user.uid, finalUrl);
+      if (!updateDbResult.success) throw new Error(updateDbResult.message);
+      
+      // Step 3: Update the user's profile in Firebase Authentication (client-side).
       await updateProfile(auth.currentUser, { photoURL: finalUrl });
-
-      // Step 3: Update the user's record in Firestore via a Server Action.
-      const result = await updateUserAvatarAction(user.uid, finalUrl);
-      if (!result.success) throw new Error(result.message);
 
       toast({ title: 'Success!', description: 'Profile picture updated.' });
       onOpenChange(false);
@@ -188,7 +188,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     }
   };
   
-  const displaySrc = previewUrl || user.avatar;
+  const previewSrc = previewUrl || user.avatar;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,8 +202,8 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
         </DialogHeader>
 
         <div className="flex justify-center items-center h-40 bg-muted rounded-md my-4">
-            {displaySrc ? (
-                 <Image src={displaySrc} alt="Avatar preview" width={160} height={160} className="h-full w-auto object-contain rounded-md" />
+            {previewSrc ? (
+                 <Image src={previewSrc} alt="Avatar preview" width={160} height={160} className="h-full w-auto object-contain rounded-md" />
             ) : (
                 <UserAvatar user={user} className="h-24 w-24" />
             )}
@@ -266,7 +266,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
                 ))}
             </div>
             <p className="text-xs text-center text-muted-foreground mt-4">
-              Stock avatars are linked directly and are not uploaded to your storage.
+              Stock avatars are linked directly and not uploaded to your storage.
             </p>
           </TabsContent>
         </Tabs>
@@ -282,3 +282,5 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     </Dialog>
   );
 }
+
+    
