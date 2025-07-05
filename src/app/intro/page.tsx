@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -17,24 +16,24 @@ import { cn } from '@/lib/utils';
 
 const introSlides = [
   {
-    imageSrc: 'https://images.unsplash.com/photo-1554167683-1a2f64799538?q=80&w=1200&auto=format&fit=crop',
+    imageSrc: '/intro1.png',
     title: 'Welcome to Rackt',
     description: 'The social hub for racket sports enthusiasts. Challenge friends, track stats, and climb the ranks.',
   },
   {
-    imageSrc: 'https://images.unsplash.com/photo-1629539227653-83f5968d956a?q=80&w=1200&auto=format&fit=crop',
+    imageSrc: '/intro2.png',
     title: 'Challenge Anyone, Anywhere',
     description:
       'Directly challenge your friends or post open challenges for the community to accept.',
   },
   {
-    imageSrc: 'https://images.unsplash.com/photo-1550953952-95f04907954b?q=80&w=1200&auto=format&fit=crop',
+    imageSrc: '/intro3.png',
     title: 'Climb the Leaderboard',
     description:
       'Every match updates your RacktRank using a sophisticated ELO system. See how you stack up.',
   },
   {
-    imageSrc: 'https://images.unsplash.com/photo-1587795995589-9e3205164293?q=80&w=1200&auto=format&fit=crop',
+    imageSrc: '/intro4.png',
     title: 'AI-Powered Insights',
     description:
       'Analyze your swing with our AI Coach and get predictions for upcoming matches.',
