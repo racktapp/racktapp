@@ -56,6 +56,55 @@ export default function ProfilePage() {
     fetchData();
   }, [id, authUser, sport, authLoading]);
 
+  const {
+    profileUser,
+    recentMatches,
+    friendship,
+    headToHead,
+    sportStats,
+    winRate,
+    eloHistoryData,
+  } = useMemo(() => {
+    if (!profileData?.profileUser) {
+      return {
+        profileUser: null,
+        recentMatches: [],
+        friendship: null,
+        headToHead: null,
+        sportStats: null,
+        winRate: 0,
+        eloHistoryData: [],
+      };
+    }
+
+    const sportStats = profileData.profileUser.sports?.[sport];
+    const winRate =
+      sportStats && sportStats.wins + sportStats.losses > 0
+        ? Math.round(
+            (sportStats.wins / (sportStats.wins + sportStats.losses)) * 100
+          )
+        : 0;
+
+    const eloHistoryData = (sportStats?.eloHistory ?? [])
+      .slice()
+      .sort((a, b) => a.date - b.date)
+      .map((item) => ({
+        date: format(new Date(item.date), 'MMM d'),
+        elo: item.elo,
+      }));
+
+    return {
+      profileUser: profileData.profileUser,
+      recentMatches: profileData.recentMatches,
+      friendship: profileData.friendship,
+      headToHead: profileData.headToHead,
+      sportStats,
+      winRate,
+      eloHistoryData,
+    };
+  }, [profileData, sport]);
+
+
   const handleStartChat = async (friendId: string) => {
     if (!authUser) return;
     setIsProcessingChat(true);
@@ -76,7 +125,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profileData?.profileUser) {
+  if (!profileUser) {
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
         <PageHeader title="Profile Not Found" description="This user does not exist." />
@@ -84,24 +133,7 @@ export default function ProfilePage() {
     );
   }
   
-  const { profileUser, recentMatches, friendship, headToHead } = profileData;
   const isOwnProfile = authUser?.uid === profileUser.uid;
-  
-  const sportStats = profileUser.sports?.[sport];
-  const winRate = sportStats && (sportStats.wins + sportStats.losses) > 0
-    ? Math.round((sportStats.wins / (sportStats.wins + sportStats.losses)) * 100)
-    : 0;
-    
-  const eloHistoryData = useMemo(() => {
-    if (!sportStats?.eloHistory) return [];
-    return [...sportStats.eloHistory]
-      .sort((a, b) => a.date - b.date)
-      .map(item => ({
-        date: format(new Date(item.date), 'MMM d'),
-        elo: item.elo
-      }));
-  }, [sportStats]);
-
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
@@ -204,4 +236,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
 
