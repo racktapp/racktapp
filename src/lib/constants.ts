@@ -47,9 +47,9 @@ export const NAV_ITEMS_MAIN: NavItem[] = [
 export const NAV_ITEMS_MOBILE: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/challenges', label: 'Challenges', icon: Swords },
-  { href: '/friends', label: 'Friends', icon: Users },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
   { href: '/tournaments', label: 'Tournaments', icon: Trophy },
+  { href: '/profile', label: 'Profile', icon: UserIcon },
 ]
 
 export const NAV_ITEMS_PROFILE: NavItem[] = [
