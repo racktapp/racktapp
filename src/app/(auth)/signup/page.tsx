@@ -197,12 +197,13 @@ export default function SignupPage() {
           </Form>
         </div>
         
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-            By continuing, you are agreeing to our{' '}
-            <Link href="/" className="underline hover:text-primary">
+        <p className="mt-6 px-8 text-center text-sm text-muted-foreground">
+            By clicking continue, you agree to our{' '}
+            <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary">
                 Terms of Service
-            </Link> and{' '}
-            <Link href="/" className="underline hover:text-primary">
+            </Link>{' '}
+            and{' '}
+            <Link href="/legal/privacy" className="underline underline-offset-4 hover:text-primary">
                 Privacy Policy
             </Link>
             .
