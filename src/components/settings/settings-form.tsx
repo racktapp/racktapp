@@ -74,14 +74,14 @@ export function SettingsForm() {
         ? updateUserName(user.uid, values.name) 
         : Promise.resolve();
         
-      const avatarUpdatePromise = (selectedFile && previewUrl)
-        ? updateUserProfileImage(user.uid, previewUrl)
+      const avatarUpdatePromise = selectedFile
+        ? updateUserProfileImage(user.uid, selectedFile)
         : Promise.resolve();
 
       await Promise.all([nameUpdatePromise, avatarUpdatePromise]);
 
       toast({ title: "Profile Updated", description: "Your name and avatar have been saved." });
-      setSelectedFile(null);
+      setSelectedFile(null); // Reset file selection after successful upload
     } catch (error) {
       // Error toasts are handled within the auth context functions
       console.error("Error saving profile info", error);
