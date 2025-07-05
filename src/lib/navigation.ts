@@ -13,6 +13,7 @@ import {
   Settings,
   MessageSquare,
   ListOrdered,
+  Menu,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -34,13 +35,21 @@ export const NAV_ITEMS_MAIN: NavItem[] = [
   { href: '/coach', label: 'AI Coach', icon: Bot },
 ];
 
-export const NAV_ITEMS_MOBILE: NavItem[] = [
+export const NAV_ITEMS_MOBILE_MAIN: NavItem[] = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/challenges', label: 'Challenges', icon: Swords },
     { href: '/tournaments', label: 'Tournaments', icon: Trophy },
     { href: '/profile', label: 'Profile', icon: UserIcon },
-    { href: '/chat', label: 'Chat', icon: MessageSquare },
-]
+];
+
+export const NAV_ITEMS_MOBILE_MORE: NavItem[] = [
+  { href: '/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/friends', label: 'Friends', icon: Users },
+  { href: '/match-history', label: 'Match History', icon: History },
+  { href: '/games', label: 'Games', icon: Gamepad2 },
+  { href: '/leaderboard', label: 'Leaderboard', icon: ListOrdered },
+  { href: '/coach', label: 'AI Coach', icon: Bot },
+];
 
 export const NAV_ITEMS_PROFILE: NavItem[] = [
   { href: '/profile', label: 'Profile', icon: UserIcon },

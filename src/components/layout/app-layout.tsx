@@ -1,16 +1,16 @@
 
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, LogOut, Settings, User as UserIcon } from 'lucide-react';
+import { Check, LogOut, Settings, User as UserIcon, Menu } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import Image from 'next/image';
 
 import { type User } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
-import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/navigation';
+import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE_MAIN, NAV_ITEMS_MOBILE_MORE } from '@/lib/navigation';
 import { auth } from '@/lib/firebase/config';
 import { useUnreadChats } from '@/hooks/use-unread-chats';
 
@@ -41,6 +41,13 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { useSport } from '../providers/sport-provider';
 import { Logo } from '../ui/logo';
 
@@ -191,29 +198,67 @@ const AppSidebar = ({ user }: { user: User }) => {
 
 const BottomNav = () => {
     const pathname = usePathname();
+    const router = useRouter();
     const hasUnreadChats = useUnreadChats();
+
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+    const handleMoreMenuLinkClick = (href: string) => {
+        setIsMoreMenuOpen(false);
+        router.push(href);
+    };
 
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
             <div className="grid h-16 grid-cols-5">
-                {NAV_ITEMS_MOBILE.map((item) => (
+                {NAV_ITEMS_MOBILE_MAIN.map((item) => (
                     <Link
                         key={item.href}
                         href={item.href}
-                        className={`relative flex flex-col items-center justify-center gap-1 text-xs ${pathname.startsWith(item.href) ? 'text-primary' : 'text-muted-foreground'}`}
+                        className={`flex flex-col items-center justify-center gap-1 text-xs ${pathname.startsWith(item.href) ? 'text-primary' : 'text-muted-foreground'}`}
                     >
                         <item.icon className="h-5 w-5" />
                         <span>{item.label}</span>
-                        {item.href === '/chat' && hasUnreadChats && (
-                          <span className="absolute top-2 right-[calc(50%-1.25rem)] h-2 w-2 rounded-full bg-primary" />
-                        )}
                     </Link>
                 ))}
+                
+                <Sheet open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
+                    <SheetTrigger asChild>
+                        <button className="relative flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground">
+                            <Menu className="h-5 w-5" />
+                            <span>More</span>
+                            {hasUnreadChats && (
+                                <span className="absolute top-2 right-[calc(50%-1.25rem)] h-2 w-2 rounded-full bg-primary" />
+                            )}
+                        </button>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="h-[75vh] flex flex-col p-0">
+                        <SheetHeader className="p-4 border-b">
+                            <SheetTitle>More</SheetTitle>
+                        </SheetHeader>
+                        <div className="flex-1 overflow-y-auto">
+                            <div className="grid grid-cols-1 p-2">
+                                {NAV_ITEMS_MOBILE_MORE.map((item) => (
+                                    <button
+                                        key={item.href}
+                                        onClick={() => handleMoreMenuLinkClick(item.href)}
+                                        className="relative flex items-center gap-4 rounded-md p-4 text-left text-foreground transition-colors hover:bg-muted"
+                                    >
+                                        <item.icon className="h-6 w-6 text-muted-foreground" />
+                                        <span className="text-base font-medium">{item.label}</span>
+                                        {item.href === '/chat' && hasUnreadChats && (
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full bg-primary" />
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </SheetContent>
+                </Sheet>
             </div>
         </div>
     );
 };
-
 
 export function AppLayout({ children, user }: AppLayoutProps) {
   return (

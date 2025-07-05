@@ -42,7 +42,7 @@ export function StatsHighlightCard({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm font-medium text-white/90">{title}</p>
-            <p className="text-4xl font-bold">{value}</p>
+            <p className="text-3xl md:text-4xl font-bold">{value}</p>
             <p className="text-sm text-white/90">{description}</p>
           </div>
           <Icon className="h-8 w-8 text-white/80" />
