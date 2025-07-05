@@ -1,3 +1,4 @@
+
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -344,7 +345,7 @@ export const PredictMatchInputSchema = z.object({
   player2WinRate: z.number(),
   player1Streak: z.number().int(),
   player2Streak: z.number().int(),
-  headToHead: z.object({ player1Wins: z.number(), player2Wins: z.number() }),
+  headToHead: z.object({ currentUserWins: z.number(), profileUserWins: z.number() }),
   sport: SportEnum,
 });
 export type PredictMatchInput = z.infer<typeof PredictMatchInputSchema>;

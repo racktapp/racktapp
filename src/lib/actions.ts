@@ -727,8 +727,8 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
         player1Streak: currentUserStats.streak,
         player2Streak: friendStats.streak,
         headToHead: {
-            player1Wins: headToHead.player1Wins,
-            player2Wins: headToHead.player2Wins,
+            player1Wins: headToHead.currentUserWins,
+            player2Wins: headToHead.profileUserWins,
         },
         sport,
     };
@@ -751,4 +751,34 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to update profile.' };
     }
+}
+
+
+// --- Profile Page Action ---
+export async function getProfilePageDataAction(profileUserId: string, currentUserId: string | null, sport: Sport) {
+    const profileUserDoc = await getDoc(doc(db, 'users', profileUserId));
+    if (!profileUserDoc.exists()) return null;
+    const profileUser = profileUserDoc.data() as User;
+
+    const recentMatches = await getConfirmedMatchesForUser(profileUserId, 5);
+    
+    if (currentUserId && currentUserId !== profileUserId) {
+        const friendship = await getFriendshipStatus(currentUserId, profileUserId);
+        const headToHead = await getHeadToHeadRecord(currentUserId, profileUserId, sport);
+
+        return {
+            profileUser,
+            recentMatches,
+            friendship,
+            headToHead,
+        };
+    }
+
+    // Data for viewing own profile or when not logged in
+    return {
+        profileUser,
+        recentMatches,
+        friendship: null,
+        headToHead: null,
+    };
 }

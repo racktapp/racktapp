@@ -272,8 +272,16 @@ export async function declineMatchResult(matchId: string, userId: string) {
     await updateDoc(doc(db, 'matches', matchId), { status: 'declined', declinedBy: userId });
 }
 
-export async function getConfirmedMatchesForUser(userId: string): Promise<Match[]> {
-    const q = query(collection(db, 'matches'), where('participants', 'array-contains', userId), where('status', '==', 'confirmed'), orderBy('createdAt', 'desc'));
+export async function getConfirmedMatchesForUser(userId: string, matchLimit?: number): Promise<Match[]> {
+    let q = query(
+        collection(db, 'matches'), 
+        where('participants', 'array-contains', userId), 
+        where('status', '==', 'confirmed'), 
+        orderBy('date', 'desc')
+    );
+    if (matchLimit) {
+        q = query(q, limit(matchLimit));
+    }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as Match);
 }
@@ -375,11 +383,10 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
 }
 
 export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), limit(50));
+    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
     const snapshot = await getDocs(q);
     const challenges = snapshot.docs.map(d => d.data() as OpenChallenge);
-    // Manually sort by creation date descending
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    return challenges;
 }
 
 
@@ -596,18 +603,18 @@ export async function updateLegendGame(gameId: string, updateFn: (game: LegendGa
 }
 
 
-export async function getHeadToHeadRecord(userId1: string, userId2: string, sport: Sport): Promise<{ player1Wins: number; player2Wins: number }> {
-    const q = query(collection(db, 'matches'), where('sport', '==', sport), where('participants', 'array-contains', userId1));
+export async function getHeadToHeadRecord(currentUserId: string, profileUserId: string, sport: Sport): Promise<{ currentUserWins: number; profileUserWins: number }> {
+    const q = query(collection(db, 'matches'), where('sport', '==', sport), where('participants', 'array-contains', currentUserId));
     const snapshot = await getDocs(q);
-    let player1Wins = 0, player2Wins = 0;
+    let currentUserWins = 0, profileUserWins = 0;
     snapshot.forEach(doc => {
         const match = doc.data() as Match;
-        if (match.type === 'Singles' && match.participants.includes(userId2) && match.participants.length === 2) {
-            if (match.winner.includes(userId1)) player1Wins++;
-            else if (match.winner.includes(userId2)) player2Wins++;
+        if (match.status === 'confirmed' && match.participants.includes(profileUserId) && match.participants.length === 2) {
+            if (match.winner.includes(currentUserId)) currentUserWins++;
+            else if (match.winner.includes(profileUserId)) profileUserWins++;
         }
     });
-    return { player1Wins, player2Wins };
+    return { currentUserWins, profileUserWins };
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
