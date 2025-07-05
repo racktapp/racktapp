@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
       
       <h3>Contact Us</h3>
       <p>
-        If you have any questions about this Privacy Policy, please contact us.
+        If you have any questions about this Privacy Policy, please contact us at <a href="mailto:racktapp@gmail.com">racktapp@gmail.com</a>.
       </p>
     </div>
   );

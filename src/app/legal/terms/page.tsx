@@ -47,7 +47,7 @@ export default function TermsOfServicePage() {
 
       <h3>Contact Us</h3>
       <p>
-        If you have any questions about these Terms, please contact us.
+        If you have any questions about these Terms, please contact us at <a href="mailto:racktapp@gmail.com">racktapp@gmail.com</a>.
       </p>
     </div>
   );
