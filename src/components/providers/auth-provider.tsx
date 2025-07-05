@@ -83,8 +83,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateUserName = async (userId: string, newName: string) => {
     if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        toast({ title: "Error", description: "Unauthorized or user not found.", variant: "destructive"});
-        throw new Error("Unauthorized action or user not found.");
+        const errorMsg = "Unauthorized or user not found.";
+        toast({ title: "Error", description: errorMsg, variant: "destructive"});
+        throw new Error(errorMsg);
     }
     
     const userDocRef = doc(db, "users", userId);
@@ -92,7 +93,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await updateFirebaseProfile(auth.currentUser, { displayName: newName });
         await updateDoc(userDocRef, { name: newName });
         
-        // Update local state
         setUser(prevUser => prevUser ? ({ ...prevUser, name: newName }) : null);
     } catch (error: any) {
         console.error("Error updating user name:", error);
@@ -103,28 +103,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateUserProfileImage = async (userId: string, file: File) => {
     if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        toast({ title: "Error", description: "Unauthorized action.", variant: "destructive"});
-        throw new Error("Unauthorized action");
+      const errorMsg = "Unauthorized action.";
+      toast({ title: "Error", description: errorMsg, variant: "destructive"});
+      throw new Error(errorMsg);
     }
     
     const userDocRef = doc(db, "users", userId);
     const fileRef = storageRef(storage, `avatars/${userId}/${Date.now()}_${file.name}`);
 
     try {
-        // 1. Upload file to Firebase Storage
         const snapshot = await uploadBytes(fileRef, file);
-        // 2. Get the public URL
         const downloadURL = await getDownloadURL(snapshot.ref);
 
-        // 3. Update Firebase Auth and Firestore with the new URL
         await updateFirebaseProfile(auth.currentUser, { photoURL: downloadURL });
         await updateDoc(userDocRef, { avatarUrl: downloadURL });
 
-        // Update local state
         setUser(prevUser => prevUser ? ({ ...prevUser, avatarUrl: downloadURL }) : null);
     } catch (error: any) {
         console.error("Error updating profile image:", error);
-        toast({ title: "Error", description: "Could not update profile image.", variant: "destructive"});
+        toast({ title: "Image Upload Failed", description: error.message || 'An unknown error occurred. Please check storage rules in Firebase.', variant: "destructive"});
         throw error;
     }
   };

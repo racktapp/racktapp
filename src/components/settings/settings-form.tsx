@@ -44,8 +44,8 @@ export function SettingsForm() {
   useEffect(() => {
     if (user) {
       form.reset({ name: user.name || "" });
-      if (user.avatarUrl && !selectedFile) {
-        setPreviewUrl(user.avatarUrl);
+      if (!selectedFile) {
+        setPreviewUrl(user.avatarUrl || null);
       }
     }
   }, [user, form, selectedFile]);
@@ -53,6 +53,10 @@ export function SettingsForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload an image smaller than 5MB.' });
+        return;
+      }
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -70,21 +74,25 @@ export function SettingsForm() {
     setIsSaving(true);
     
     try {
-      const nameUpdatePromise = (values.name !== user.name) 
-        ? updateUserName(user.uid, values.name) 
-        : Promise.resolve();
-        
-      const avatarUpdatePromise = selectedFile
-        ? updateUserProfileImage(user.uid, selectedFile)
-        : Promise.resolve();
+      const promises = [];
+      if (values.name !== user.name) {
+        promises.push(updateUserName(user.uid, values.name));
+      }
+      if (selectedFile) {
+        promises.push(updateUserProfileImage(user.uid, selectedFile));
+      }
 
-      await Promise.all([nameUpdatePromise, avatarUpdatePromise]);
+      if (promises.length > 0) {
+        await Promise.all(promises);
+        toast({ title: "Profile Updated", description: "Your changes have been saved." });
+        setSelectedFile(null);
+      } else {
+        toast({ title: "No Changes", description: "You haven't made any changes to save." });
+      }
 
-      toast({ title: "Profile Updated", description: "Your name and avatar have been saved." });
-      setSelectedFile(null); // Reset file selection after successful upload
     } catch (error) {
-      // Error toasts are handled within the auth context functions
       console.error("Error saving profile info", error);
+      // Errors are already toasted by the context functions
     } finally {
       setIsSaving(false);
     }
