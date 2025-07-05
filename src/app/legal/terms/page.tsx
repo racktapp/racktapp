@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/page-header';
 export default function TermsOfServicePage() {
   return (
     <div className="prose prose-sm md:prose-base dark:prose-invert max-w-4xl mx-auto">
-      <PageHeader title="Terms of Service" description="Last updated: August 1, 2024" />
+      <PageHeader title="Terms of Service" description="Last updated: July 5, 2025" />
 
       <h2>Welcome to Rackt!</h2>
       <p>
