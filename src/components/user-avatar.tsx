@@ -14,6 +14,15 @@ const achievementIcons: { [key: string]: React.ComponentType<{ className?: strin
   'top-100': Flame,
 };
 
+const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+}
+
 export function UserAvatar({ user, className }: UserAvatarProps) {
   const flexedAchievementId = user?.sports?.Tennis?.flexedAchievementId;
   const FlexIcon = flexedAchievementId ? achievementIcons[flexedAchievementId] : null;
@@ -22,7 +31,7 @@ export function UserAvatar({ user, className }: UserAvatarProps) {
     <div className={cn('relative', className)}>
       <Avatar className="h-full w-full">
         <AvatarImage src={user?.avatar} alt={user?.name} />
-        <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+        <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
       </Avatar>
       {FlexIcon && (
         <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-accent">
