@@ -67,9 +67,9 @@ export default function DashboardPage() {
   
   const sportStats = user?.sports?.[sport];
 
-  const { winRate, totalMatches, skillLevel, currentElo, record, streak, eloHistoryData } = useMemo(() => {
+  const { winRate, totalMatches, skillLevel, currentElo, record, streak, eloHistoryData, monthlyEloChange } = useMemo(() => {
     if (!sportStats || !user) {
-        return { winRate: 0, totalMatches: 0, skillLevel: 'N/A', currentElo: 1200, record: '0-0', streak: 0, eloHistoryData: [] };
+        return { winRate: 0, totalMatches: 0, skillLevel: 'N/A', currentElo: 1200, record: '0-0', streak: 0, eloHistoryData: [], monthlyEloChange: 0 };
     }
     const wr = (sportStats.wins + sportStats.losses) > 0
       ? Math.round((sportStats.wins / (sportStats.wins + sportStats.losses)) * 100)
@@ -79,11 +79,26 @@ export default function DashboardPage() {
     const sl = getSkillLevel(ce);
     const rec = `${sportStats.wins}W - ${sportStats.losses}L`;
     const str = sportStats.streak;
-    const ehd = [...(sportStats.eloHistory || [])]
-      .sort((a, b) => a.date - b.date)
-      .map(item => ({ date: format(new Date(item.date), 'MMM d'), elo: item.elo }));
+    
+    const sortedEloHistory = [...(sportStats.eloHistory || [])]
+      .sort((a, b) => a.date - b.date);
 
-    return { winRate: wr, totalMatches: tm, skillLevel: sl, currentElo: ce, record: rec, streak: str, eloHistoryData: ehd };
+    const ehd = sortedEloHistory.map(item => ({ date: format(new Date(item.date), 'MMM d'), elo: item.elo }));
+
+    // Calculate monthly ELO change
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    
+    // Find the last ELO entry from *before* the start of this month.
+    const lastMonthEntry = sortedEloHistory
+      .filter(entry => entry.date < startOfMonth)
+      .pop();
+      
+    // Default to 1200 if no history exists at all before this month.
+    const startOfMonthElo = lastMonthEntry ? lastMonthEntry.elo : 1200;
+    const mec = ce - startOfMonthElo;
+
+    return { winRate: wr, totalMatches: tm, skillLevel: sl, currentElo: ce, record: rec, streak: str, eloHistoryData: ehd, monthlyEloChange: mec };
   }, [sportStats, user]);
 
 
@@ -110,6 +125,7 @@ export default function DashboardPage() {
             title={`${sport} RacktRank`}
             value={currentElo}
             description={skillLevel}
+            monthlyChange={monthlyEloChange}
             footerValue={totalMatches}
             footerText={`${totalMatches} matches played`}
             icon={Trophy}
