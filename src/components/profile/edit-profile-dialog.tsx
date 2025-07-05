@@ -243,6 +243,9 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
                     </button>
                 ))}
             </div>
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              Stock avatars are linked directly and are not uploaded to your storage.
+            </p>
           </TabsContent>
         </Tabs>
 
