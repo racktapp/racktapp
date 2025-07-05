@@ -30,7 +30,7 @@ export function UserAvatar({ user, className }: UserAvatarProps) {
   return (
     <div className={cn('relative', className)}>
       <Avatar className="h-full w-full">
-        <AvatarImage src={user?.avatar} alt={user?.name} />
+        <AvatarImage src={user?.avatarUrl} alt={user?.name} />
         <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
       </Avatar>
       {FlexIcon && (

@@ -1,174 +1,148 @@
 
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Check, ChevronsUpDown } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
-import { useToast } from '@/hooks/use-toast';
-import { type User, profileSettingsSchema } from '@/lib/types';
-import { SPORTS } from '@/lib/constants';
-import { updateUserProfileAction } from '@/lib/actions';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { cn } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Save, Image as ImageIcon, UploadCloud, Loader2, User as UserIcon } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import React, { useState, useRef, useEffect } from "react";
+import NextImage from "next/image";
 
-interface SettingsFormProps {
-  user: User;
-}
+const profileFormSchema = z.object({
+  name: z.string().min(1, { message: "Name cannot be empty." }).max(50),
+});
 
-export function SettingsForm({ user }: SettingsFormProps) {
+export function SettingsForm() {
   const { toast } = useToast();
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, updateUserName, updateUserProfileImage } = useAuth();
+  
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const form = useForm<z.infer<typeof profileSettingsSchema>>({
-    resolver: zodResolver(profileSettingsSchema),
+  const form = useForm<z.infer<typeof profileFormSchema>>({
+    resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: user.name || '',
-      username: user.username || '',
-      preferredSports: user.preferredSports || [],
+      name: user?.name || "",
     },
   });
 
-  async function onSubmit(values: z.infer<typeof profileSettingsSchema>) {
-    setIsLoading(true);
-    const result = await updateUserProfileAction(values, user.uid);
-    if (result.success) {
-      toast({ title: 'Success', description: result.message });
-      router.refresh(); // Refresh the page to get the updated user data in the layout
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
+  useEffect(() => {
+    if (user) {
+      form.reset({ name: user.name || "" });
+      if (user.avatarUrl && !selectedFile) {
+        setPreviewUrl(user.avatarUrl);
+      }
     }
-    setIsLoading(false);
+  }, [user, form, selectedFile]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  async function onSubmit(values: z.infer<typeof profileFormSchema>) {
+    if (!user) {
+      toast({ title: "Not Logged In", description: "Please log in.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+    
+    try {
+      const nameUpdatePromise = (values.name !== user.name) 
+        ? updateUserName(user.id, values.name) 
+        : Promise.resolve();
+        
+      const avatarUpdatePromise = (selectedFile && previewUrl)
+        ? updateUserProfileImage(user.id, previewUrl)
+        : Promise.resolve();
+
+      await Promise.all([nameUpdatePromise, avatarUpdatePromise]);
+
+      toast({ title: "Profile Updated", description: "Your name and avatar have been saved." });
+      setSelectedFile(null);
+    } catch (error) {
+      // Error toasts are handled within the auth context functions
+      console.error("Error saving profile info", error);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
-    <Card>
-        <CardHeader>
-            <CardTitle>Profile Settings</CardTitle>
-            <CardDescription>Update your personal information and preferences.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Full Name</FormLabel>
-                                <FormControl>
-                                <Input placeholder="John Doe" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="username"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Username</FormLabel>
-                                <FormControl>
-                                <Input placeholder="johndoe" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                    Used for your public profile URL.
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                    </div>
-
-                    <FormField
-                        control={form.control}
-                        name="preferredSports"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                            <FormLabel>Preferred Sports</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        className={cn(
-                                            "w-full justify-between",
-                                            !field.value.length && "text-muted-foreground"
-                                        )}
-                                        >
-                                        {field.value.length > 0 ? field.value.join(', ') : "Select sports"}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
-                                    <CommandInput placeholder="Search sports..." />
-                                    <CommandEmpty>No sport found.</CommandEmpty>
-                                    <CommandGroup>
-                                    {SPORTS.map((sport) => (
-                                        <CommandItem
-                                            value={sport}
-                                            key={sport}
-                                            onSelect={() => {
-                                                const currentValue = field.value;
-                                                const newValue = currentValue.includes(sport)
-                                                    ? currentValue.filter(s => s !== sport)
-                                                    : [...currentValue, sport];
-                                                form.setValue("preferredSports", newValue, { shouldValidate: true });
-                                            }}
-                                        >
-                                            <Check
-                                                className={cn(
-                                                "mr-2 h-4 w-4",
-                                                field.value.includes(sport) ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            {sport}
-                                        </CommandItem>
-                                    ))}
-                                    </CommandGroup>
-                                </Command>
-                                </PopoverContent>
-                            </Popover>
-                            <FormDescription>
-                                Select your favorite sports.
-                            </FormDescription>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
-                            Save Changes
-                        </Button>
-                    </div>
-                </form>
-            </Form>
-        </CardContent>
+    <Card className="shadow-lg">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><UserIcon /> Profile Information</CardTitle>
+            <CardDescription>Update your public name and avatar.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Your full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div>
+              <FormLabel>Profile Picture</FormLabel>
+              <div className="mt-1 flex flex-col items-center gap-3">
+                {previewUrl ? (
+                  <NextImage src={previewUrl} alt="Avatar preview" width={128} height={128} className="h-32 w-32 rounded-full border object-cover" data-ai-hint="user avatar" />
+                ) : (
+                  <div className="flex h-32 w-32 items-center justify-center rounded-full border bg-muted">
+                    <ImageIcon className="h-16 w-16 text-muted-foreground" />
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  ref={fileInputRef}
+                />
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <UploadCloud className="mr-2 h-4 w-4" /> Choose File
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" className="w-full sm:w-auto" disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save Profile
+            </Button>
+          </CardFooter>
+        </form>
+      </Form>
     </Card>
   );
 }

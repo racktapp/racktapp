@@ -36,7 +36,7 @@ export interface User {
   username: string;
   email: string;
   emailVerified: boolean;
-  avatar?: string;
+  avatarUrl?: string;
   friendIds: string[];
   location?: string;
   handPreference?: 'left' | 'right';
@@ -64,7 +64,7 @@ export interface Match {
   status: MatchStatus;
   participants: string[]; // All user IDs in the match
   participantsData: {
-    [key: string]: { name: string; avatar?: string; uid: string };
+    [key: string]: { name: string; avatarUrl?: string; uid: string };
   };
   teams: {
     team1: {
@@ -90,10 +90,10 @@ export interface Challenge {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatar?: string;
+  fromAvatarUrl?: string;
   toId: string;
   toName: string;
-  toAvatar?: string;
+  toAvatarUrl?: string;
   status: ChallengeStatus;
   sport: Sport;
   wager?: string;
@@ -106,7 +106,7 @@ export interface OpenChallenge {
   id: string;
   posterId: string;
   posterName: string;
-  posterAvatar?: string;
+  posterAvatarUrl?: string;
   sport: Sport;
   location: string;
   note?: string;
@@ -120,10 +120,10 @@ export interface FriendRequest {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatar?: string;
+  fromAvatarUrl?: string;
   toId: string;
   toName: string;
-  toAvatar?: string;
+  toAvatarUrl?: string;
   status: FriendRequestStatus;
   createdAt: number; // timestamp
 }
@@ -142,7 +142,7 @@ export interface Chat {
   participantsData: {
     [key: string]: { // key is userId
         name: string;
-        avatar?: string;
+        avatarUrl?: string;
     }
   };
   lastMessage?: Message;
@@ -203,7 +203,7 @@ export interface RallyGame {
   sport: Sport;
   participantIds: string[];
   participantsData: {
-    [key: string]: { name: string; avatar?: string; uid: string };
+    [key: string]: { name: string; avatarUrl?: string; uid: string };
   };
   score: {
     [key: string]: number;
@@ -239,7 +239,7 @@ export interface LegendGame {
     mode: 'solo' | 'friend';
     sport: Sport;
     participantIds: string[];
-    participantsData: { [key: string]: { name: string; avatar?: string; uid: string } };
+    participantsData: { [key: string]: { name: string; avatarUrl?: string; uid: string } };
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
@@ -274,7 +274,7 @@ export interface Tournament {
   sport: Sport;
   organizerId: string;
   participantIds: string[];
-  participantsData: { uid: string; name: string; avatar?: string }[];
+  participantsData: { uid: string; name: string; avatarUrl?: string }[];
   status: 'pending' | 'ongoing' | 'complete';
   winnerId?: string;
   bracket: TournamentRound[];

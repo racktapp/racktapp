@@ -5,8 +5,6 @@ import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { UserAvatar } from '@/components/user-avatar';
-import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
@@ -38,16 +36,7 @@ export default function SettingsPage() {
         description="Manage your account settings and preferences."
       />
       <div className="max-w-2xl mx-auto space-y-8">
-        <div className="flex flex-col items-center gap-4">
-            <UserAvatar user={user} className="h-24 w-24" />
-            <EditProfileDialog user={user}>
-                <Button variant="outline">Change Picture</Button>
-            </EditProfileDialog>
-        </div>
-        
-        <Separator />
-
-        <SettingsForm user={user} />
+        <SettingsForm />
         
         <Separator />
 
