@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/page-header';
 export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-sm md:prose-base dark:prose-invert max-w-4xl mx-auto">
-      <PageHeader title="Privacy Policy" description="Last updated: July 5, 2025" />
+      <PageHeader title="Privacy Policy" description="Last updated: August 1, 2024" />
 
       <p>
         Your privacy is important to us. It is Rackt's policy to respect your privacy regarding any information we may collect from you through our app.
