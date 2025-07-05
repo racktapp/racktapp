@@ -22,9 +22,10 @@ import { Swords } from 'lucide-react';
 
 interface StartRallyFriendDialogProps {
   children: ReactNode;
+  opponent?: User;
 }
 
-export function StartRallyFriendDialog({ children }: StartRallyFriendDialogProps) {
+export function StartRallyFriendDialog({ children, opponent }: StartRallyFriendDialogProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -47,8 +48,11 @@ export function StartRallyFriendDialog({ children }: StartRallyFriendDialogProps
     }
     if (open) {
         fetchFriends();
+        if (opponent) {
+            setSelectedFriendId(opponent.uid);
+        }
     }
-  }, [open, user]);
+  }, [open, user, opponent]);
 
   const handleOpenChange = (isOpen: boolean) => {
       setOpen(isOpen);
@@ -83,8 +87,8 @@ export function StartRallyFriendDialog({ children }: StartRallyFriendDialogProps
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
-          <DialogTitle>Challenge a Friend</DialogTitle>
-          <DialogDescription>Start a Rally Game with one of your friends.</DialogDescription>
+          <DialogTitle>{opponent ? `Rematch ${opponent.name}` : 'Challenge a Friend'}</DialogTitle>
+          <DialogDescription>{opponent ? 'Start a new Rally Game.' : 'Start a Rally Game with one of your friends.'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
             <Select onValueChange={setSelectedFriendId} value={selectedFriendId}>
@@ -110,7 +114,7 @@ export function StartRallyFriendDialog({ children }: StartRallyFriendDialogProps
             <DialogFooter>
                 <Button onClick={handleChallenge} disabled={isLoading || isFetchingFriends || !selectedFriendId} className="w-full">
                     {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
-                    Start Game
+                    {opponent ? 'Send Rematch' : 'Start Game'}
                 </Button>
             </DialogFooter>
         </div>

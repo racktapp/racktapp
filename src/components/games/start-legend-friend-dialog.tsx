@@ -23,9 +23,10 @@ import { SPORTS } from '@/lib/constants';
 
 interface StartLegendFriendDialogProps {
   children: ReactNode;
+  opponent?: User;
 }
 
-export function StartLegendFriendDialog({ children }: StartLegendFriendDialogProps) {
+export function StartLegendFriendDialog({ children, opponent }: StartLegendFriendDialogProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -48,8 +49,11 @@ export function StartLegendFriendDialog({ children }: StartLegendFriendDialogPro
     }
     if (open) {
         fetchFriends();
+        if (opponent) {
+            setSelectedFriendId(opponent.uid);
+        }
     }
-  }, [open, user]);
+  }, [open, user, opponent]);
 
   const handleOpenChange = (isOpen: boolean) => {
       setOpen(isOpen);
@@ -85,8 +89,8 @@ export function StartLegendFriendDialog({ children }: StartLegendFriendDialogPro
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
-          <DialogTitle>Challenge a Friend</DialogTitle>
-          <DialogDescription>Start a "Guess the Legend" game with a friend.</DialogDescription>
+          <DialogTitle>{opponent ? `Rematch ${opponent.name}` : 'Challenge a Friend'}</DialogTitle>
+          <DialogDescription>{opponent ? 'Choose a sport for the rematch.' : 'Start a "Guess the Legend" game with a friend.'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
             <div className='space-y-2'>
@@ -126,7 +130,7 @@ export function StartLegendFriendDialog({ children }: StartLegendFriendDialogPro
             <DialogFooter>
                 <Button onClick={handleChallenge} disabled={isLoading || isFetchingFriends || !selectedFriendId} className="w-full">
                     {isLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Users className="mr-2 h-4 w-4" />}
-                    Challenge
+                    {opponent ? 'Send Rematch' : 'Challenge'}
                 </Button>
             </DialogFooter>
         </div>

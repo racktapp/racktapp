@@ -6,13 +6,15 @@ import { submitLegendAnswerAction, startNextLegendRoundAction } from '@/lib/acti
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, Trophy, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Trophy, AlertTriangle, ArrowRight, Users } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { StartLegendSoloDialog } from './start-legend-solo-dialog';
+import { StartLegendFriendDialog } from './start-legend-friend-dialog';
 
 interface LegendGameViewProps {
   game: LegendGame;
@@ -104,7 +106,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
   
   const currentRound = game.currentRound;
   const opponentId = game.participantIds.find(id => id !== currentUser.uid);
-  const opponent = opponentId ? game.participantsData[opponentId] : null;
+  const opponent = opponentId ? game.participantsData[opponentId] as User : null;
   const myGuess = currentRound.guesses?.[currentUser.uid];
   const opponentGuess = opponentId ? currentRound.guesses?.[opponentId] : null;
 
@@ -150,17 +152,34 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
         else titleText = 'You Lost!';
     }
 
-
     return (
-        <Alert className="mt-8 text-center">
-            <Trophy className="mx-auto h-6 w-6" />
-            <AlertTitle className="text-2xl font-bold mt-2">
-                {titleText}
-            </AlertTitle>
-            <AlertDescription>
-                Final Score: {finalScore}
-            </AlertDescription>
-        </Alert>
+        <div className="mt-8 text-center space-y-4">
+            <Alert>
+                <Trophy className="mx-auto h-6 w-6" />
+                <AlertTitle className="text-2xl font-bold mt-2">
+                    {titleText}
+                </AlertTitle>
+                <AlertDescription>
+                    Final Score: {finalScore}
+                </AlertDescription>
+            </Alert>
+
+            {game.mode === 'solo' ? (
+                <StartLegendSoloDialog>
+                    <Button>
+                        Play Again
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </StartLegendSoloDialog>
+            ) : opponent && (
+                <StartLegendFriendDialog opponent={opponent}>
+                    <Button>
+                        Rematch
+                        <Users className="ml-2 h-4 w-4" />
+                    </Button>
+                </StartLegendFriendDialog>
+            )}
+        </div>
     );
   };
 

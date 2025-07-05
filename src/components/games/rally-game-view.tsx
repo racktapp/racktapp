@@ -6,7 +6,7 @@ import { playRallyTurnAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Swords, Shield, Zap } from 'lucide-react';
+import { Swords, Shield, Zap, Users } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -15,6 +15,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Progress } from '../ui/progress';
 import { Trophy } from 'lucide-react';
+import { StartRallyFriendDialog } from './start-rally-friend-dialog';
 
 interface RallyGameViewProps {
   game: RallyGame;
@@ -51,7 +52,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const [progress, setProgress] = useState(0);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid)!;
-  const opponent = game.participantsData[opponentId];
+  const opponent = game.participantsData[opponentId] as User;
 
   const pointHistoryLength = game.pointHistory.length;
   const prevPointHistoryLength = useRef(pointHistoryLength);
@@ -110,15 +111,23 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     const finalScore = `${game.score[currentUser.uid]} - ${game.score[opponentId]}`;
 
     return (
-        <Alert className="mt-8 text-center">
-            <Trophy className="mx-auto h-6 w-6" />
-            <AlertTitle className="text-2xl font-bold mt-2">
-                {isWinner ? 'You Win!' : 'You Lost'}
-            </AlertTitle>
-            <AlertDescription>
-                Final Score: {finalScore}
-            </AlertDescription>
-        </Alert>
+        <div className="text-center space-y-4">
+            <Alert className="mt-8 text-center">
+                <Trophy className="mx-auto h-6 w-6" />
+                <AlertTitle className="text-2xl font-bold mt-2">
+                    {isWinner ? 'You Win!' : 'You Lost'}
+                </AlertTitle>
+                <AlertDescription>
+                    Final Score: {finalScore}
+                </AlertDescription>
+            </Alert>
+            <StartRallyFriendDialog opponent={opponent}>
+                <Button>
+                    Rematch
+                    <Users className="mr-2 h-4 w-4" />
+                </Button>
+            </StartRallyFriendDialog>
+        </div>
     );
   };
 
@@ -126,10 +135,6 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const renderContent = () => {
     const isMyTurn = game.currentPlayerId === currentUser.uid;
     const options = game.turn === 'serving' ? game.currentPoint?.serveOptions : game.currentPoint?.returnOptions;
-
-    if (game.status === 'complete') {
-        return renderFinalScreen();
-    }
     
     if (pointResult) {
         return (
@@ -218,7 +223,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
       <RallyCourt game={game} currentUser={currentUser} />
 
       {/* Game State */}
-      {renderContent()}
+      {game.status === 'complete' ? renderFinalScreen() : renderContent()}
 
     </div>
   );
