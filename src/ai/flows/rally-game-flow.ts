@@ -8,14 +8,37 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { 
-    ServeChoiceSchema, 
-    ReturnChoiceSchema, 
-    RallyGameInputSchema, 
-    RallyGameOutputSchema,
-    type RallyGameInput, 
-    type RallyGameOutput
-} from '@/lib/types';
+import { SPORTS } from '@/lib/constants';
+
+// --- Schema Definitions ---
+const ServeChoiceSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  risk: z.enum(['low', 'medium', 'high']),
+  reward: z.enum(['low', 'medium', 'high']),
+});
+
+const ReturnChoiceSchema = z.object({
+    name: z.string(),
+    description: z.string(),
+});
+
+const RallyGameInputSchema = z.object({
+  sport: z.enum(SPORTS),
+  servingPlayerRank: z.number().describe('The RacktRank of the player who is serving this turn.'),
+  returningPlayerRank: z.number().describe('The RacktRank of the player who is receiving serve this turn.'),
+  serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. If present, the AI should generate return options or evaluate the point.'),
+  returnChoice: ReturnChoiceSchema.optional().describe('The return chosen by the returning player. If present (along with serveChoice), the AI should evaluate the point.'),
+});
+export type RallyGameInput = z.infer<typeof RallyGameInputSchema>;
+
+const RallyGameOutputSchema = z.object({
+  serveOptions: z.array(ServeChoiceSchema).optional().describe('An array of three distinct serve options.'),
+  returnOptions: z.array(ReturnChoiceSchema).optional().describe('An array of three distinct return options based on the serve.'),
+  pointWinner: z.enum(['server', 'returner']).optional().describe('The winner of the point after evaluation.'),
+  narrative: z.string().optional().describe('An exciting, short narrative describing how the point played out.'),
+});
+export type RallyGameOutput = z.infer<typeof RallyGameOutputSchema>;
 
 
 export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOutput> {
@@ -31,9 +54,9 @@ export async function playRallyPoint(input: RallyGameInput): Promise<RallyGameOu
 // Prompt 1: Generate Serve Options
 const servePrompt = ai.definePrompt({
     name: 'rallyGameServePrompt',
-    input: { schema: z.object({ servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
+    input: { schema: z.object({ sport: z.enum(SPORTS), servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
     output: { schema: z.object({ serveOptions: z.array(ServeChoiceSchema).length(3) }) },
-    prompt: `You are a tennis strategy AI. Your task is to generate three distinct and creative serve options for a player.
+    prompt: `You are a {{{sport}}} strategy AI. Your task is to generate three distinct and creative serve options for a player.
     
     The serving player has a rank of **{{{servingPlayerRank}}}**.
     The returning player has a rank of **{{{returningPlayerRank}}}**.
@@ -48,9 +71,9 @@ const servePrompt = ai.definePrompt({
 // Prompt 2: Generate Return Options
 const returnPrompt = ai.definePrompt({
     name: 'rallyGameReturnPrompt',
-    input: { schema: z.object({ serveChoice: ServeChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
+    input: { schema: z.object({ sport: z.enum(SPORTS), serveChoice: ServeChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
     output: { schema: z.object({ returnOptions: z.array(ReturnChoiceSchema).length(3) }) },
-    prompt: `You are a tennis strategy AI. The serving player (Rank: {{{servingPlayerRank}}}) has just hit a serve:
+    prompt: `You are a {{{sport}}} strategy AI. The serving player (Rank: {{{servingPlayerRank}}}) has just hit a serve:
     - **Serve Name:** {{{serveChoice.name}}}
     - **Description:** {{{serveChoice.description}}}
 
@@ -66,9 +89,9 @@ const returnPrompt = ai.definePrompt({
 // Prompt 3: Evaluate the Point
 const evaluatePrompt = ai.definePrompt({
     name: 'rallyGameEvaluatePrompt',
-    input: { schema: z.object({ serveChoice: ServeChoiceSchema, returnChoice: ReturnChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
+    input: { schema: z.object({ sport: z.enum(SPORTS), serveChoice: ServeChoiceSchema, returnChoice: ReturnChoiceSchema, servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
     output: { schema: z.object({ pointWinner: z.enum(['server', 'returner']), narrative: z.string().min(10) }) },
-    prompt: `You are an expert tennis analyst and commentator AI. Your task is to determine the winner of a single point of tennis and write a compelling narrative for how it unfolded.
+    prompt: `You are an expert {{{sport}}} analyst and commentator AI. Your task is to determine the winner of a single point of {{{sport}}} and write a compelling narrative for how it unfolded.
 
 **MATCHUP DATA:**
 - **Serving Player (Rank: {{{servingPlayerRank}}}) chose a serve:**
@@ -113,6 +136,7 @@ const rallyGameFlow = ai.defineFlow(
     if (!input.serveChoice) {
       // Turn 1: Serving
       const { output } = await servePrompt({
+        sport: input.sport,
         servingPlayerRank: input.servingPlayerRank,
         returningPlayerRank: input.returningPlayerRank,
       });
@@ -121,6 +145,7 @@ const rallyGameFlow = ai.defineFlow(
     } else if (!input.returnChoice) {
       // Turn 2: Returning
       const { output } = await returnPrompt({
+        sport: input.sport,
         serveChoice: input.serveChoice,
         servingPlayerRank: input.servingPlayerRank,
         returningPlayerRank: input.returningPlayerRank,
@@ -130,6 +155,7 @@ const rallyGameFlow = ai.defineFlow(
     } else {
       // Turn 3: Evaluating
       const { output } = await evaluatePrompt({
+        sport: input.sport,
         serveChoice: input.serveChoice,
         returnChoice: input.returnChoice,
         servingPlayerRank: input.servingPlayerRank,

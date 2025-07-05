@@ -44,8 +44,8 @@ import {
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
-import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, RallyGameInput, RallyGameOutput } from '@/lib/types';
+import type { SwingAnalysisInput, RallyGameInput, RallyGameOutput } from '@/ai/flows/swing-analysis-flow';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -497,7 +497,7 @@ export async function startNextLegendRoundAction(gameId: string) {
     }
 }
 
-export async function createRallyGameAction(friendId: string, currentUserId: string) {
+export async function createRallyGameAction(friendId: string, currentUserId: string, sport: Sport) {
     try {
         const userDoc = await getDoc(doc(db, 'users', currentUserId));
         const friendDoc = await getDoc(doc(db, 'users', friendId));
@@ -510,15 +510,17 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
         const friend = friendDoc.data() as User;
 
         const initialAiResponse = await playRallyPoint({ 
-            servingPlayerRank: user.sports?.['Tennis']?.racktRank ?? 1200,
-            returningPlayerRank: friend.sports?.['Tennis']?.racktRank ?? 1200,
+            sport: sport,
+            servingPlayerRank: user.sports?.[sport]?.racktRank ?? 1200,
+            returningPlayerRank: friend.sports?.[sport]?.racktRank ?? 1200,
         });
 
         const gameId = await runTransaction(db, async (transaction) => {
             const gameRef = doc(collection(db, 'rallyGames'));
             const now = Timestamp.now().toMillis();
             const newGame: RallyGame = {
-                id: gameRef.id, sport: 'Tennis',
+                id: gameRef.id,
+                sport: sport,
                 participantIds: [user.uid, friend.uid],
                 participantsData: { [user.uid]: { name: user.name, avatar: user.avatar, uid: user.uid }, [friend.uid]: { name: friend.name, avatar: friend.avatar, uid: friend.uid } },
                 score: { [user.uid]: 0, [friend.uid]: 0 },
@@ -557,11 +559,11 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
   
       const serverDoc = await getDoc(doc(db, 'users', serverId));
       const returnerDoc = await getDoc(doc(db, 'users', returnerId));
-      const serverRank = serverDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
-      const returnerRank = returnerDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
+      const serverRank = serverDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
+      const returnerRank = returnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
   
       if (game.turn === 'serving') {
-        aiInput = { serveChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
+        aiInput = { sport: game.sport, serveChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
         const aiResponse = await playRallyPoint(aiInput);
         if (!aiResponse.returnOptions) throw new Error("AI failed to generate return options.");
   
@@ -576,7 +578,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
           currentPoint: updatedCurrentPoint,
         };
       } else { // returning
-        aiInput = { serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
+        aiInput = { sport: game.sport, serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
         const pointEvalResponse = await playRallyPoint(aiInput);
         
         if (!pointEvalResponse.pointWinner || !pointEvalResponse.narrative) throw new Error("AI failed to evaluate the point.");
@@ -602,10 +604,10 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
           
           const nextServerDoc = await getDoc(doc(db, 'users', nextServerId));
           const nextReturnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
-          const nextServerRank = nextServerDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
-          const nextReturnerRank = nextReturnerDoc.data()?.sports?.['Tennis']?.racktRank ?? 1200;
+          const nextServerRank = nextServerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
+          const nextReturnerRank = nextReturnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
           
-          const nextPointServeOptions = await playRallyPoint({ servingPlayerRank: nextServerRank, returningPlayerRank: nextReturnerRank });
+          const nextPointServeOptions = await playRallyPoint({ sport: game.sport, servingPlayerRank: nextServerRank, returningPlayerRank: nextReturnerRank });
           if (!nextPointServeOptions.serveOptions) throw new Error("AI failed to generate serve options for the next point.");
           
           const newCurrentPoint: RallyGame['currentPoint'] = {

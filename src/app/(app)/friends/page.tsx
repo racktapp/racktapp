@@ -195,7 +195,7 @@ export default function FriendsPage() {
                                     </DropdownMenuSubTrigger>
                                      <DropdownMenuPortal>
                                         <DropdownMenuSubContent>
-                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid, currentUser.uid), friend.uid + 'rally')}>
+                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid, currentUser.uid, currentUser.preferredSports[0] || 'Tennis'), friend.uid + 'rally')}>
                                                 {processingIds.includes(friend.uid + 'rally') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                                                 Rally Game
                                             </DropdownMenuItem>
