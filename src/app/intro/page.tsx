@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,19 +22,19 @@ const introSlides = [
     description: 'The social hub for racket sports enthusiasts. Challenge friends, track stats, and climb the ranks.',
   },
   {
-    imageSrc: '/intro2.png',
+    imageSrc: '/intro2.jpg',
     title: 'Challenge Anyone, Anywhere',
     description:
       'Directly challenge your friends or post open challenges for the community to accept.',
   },
   {
-    imageSrc: '/intro3.png',
+    imageSrc: '/intro3.jpg',
     title: 'Climb the Leaderboard',
     description:
       'Every match updates your RacktRank using a sophisticated ELO system. See how you stack up.',
   },
   {
-    imageSrc: '/intro4.png',
+    imageSrc: '/intro4.jpg',
     title: 'AI-Powered Insights',
     description:
       'Analyze your swing with our AI Coach and get predictions for upcoming matches.',
