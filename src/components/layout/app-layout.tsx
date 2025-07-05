@@ -9,7 +9,8 @@ import { signOut } from 'firebase/auth';
 import Image from 'next/image';
 
 import { type User } from '@/lib/types';
-import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE, SPORTS, SPORT_ICONS } from '@/lib/constants';
+import { SPORTS, SPORT_ICONS } from '@/lib/constants';
+import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE } from '@/lib/navigation';
 import { auth } from '@/lib/firebase/config';
 import { useUnreadChats } from '@/hooks/use-unread-chats';
 
