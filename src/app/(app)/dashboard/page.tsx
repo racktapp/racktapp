@@ -4,32 +4,37 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { Bot, BarChart, History, Plus, Users, Swords, Trophy, Activity, Flame, ChevronRight, Gamepad2, BrainCircuit } from 'lucide-react';
-import { StatsCard } from '@/components/dashboard/stats-card';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { getMatchHistoryAction } from '@/lib/actions';
-import { Match, Sport } from '@/lib/types';
+import { Match } from '@/lib/types';
 import { UserAvatar } from '@/components/user-avatar';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 
-const ActionCard = ({ icon: Icon, title, description, href, ...props }: { icon: React.ElementType, title: string, description: string, href: string, [key:string]: any }) => (
-  <Link href={href} className="block group" {...props}>
-    <Card className="h-full transition-all duration-200 group-hover:border-primary group-hover:-translate-y-1">
-      <CardHeader className="flex-row items-center gap-4 p-4">
-        <div className="bg-primary/10 p-3 rounded-lg text-primary">
+const ActionCard = ({ icon: Icon, title, ...props }: { icon: React.ElementType, title: string, [key:string]: any }) => (
+  <Link href={props.href} className="block group" {...props}>
+    <Card className="h-full transition-all duration-200 group-hover:border-primary group-hover:bg-muted group-hover:-translate-y-1">
+      <CardHeader className="p-4 items-center text-center">
+        <div className="bg-primary/10 p-3 rounded-lg text-primary mb-2">
           <Icon className="h-6 w-6" />
         </div>
-        <div>
-          <CardTitle className="text-base">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </div>
+        <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
     </Card>
   </Link>
+);
+
+const StatItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
+    <div className="flex flex-col items-center gap-1 text-center">
+        <Icon className="h-6 w-6 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-lg font-bold">{value}</p>
+    </div>
 );
 
 
@@ -80,78 +85,69 @@ export default function DashboardPage() {
       }));
   }, [sportStats]);
 
-  const statCards = [
-    { title: "RacktRank", value: sportStats?.racktRank ?? 'N/A', icon: Flame },
-    { title: "Win Rate", value: `${winRate}%`, icon: Trophy },
-    { title: "Win Streak", value: sportStats?.streak ?? 0, icon: Activity },
-    { title: "Total Wins", value: sportStats?.wins ?? 0, icon: BarChart },
-  ];
-
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
-        <Card>
-            <div className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold">Welcome, {user.name.split(' ')[0]}!</h1>
-                    <p className="mt-1 text-muted-foreground">
-                        Here's your <span className="font-semibold text-primary">{sport}</span> dashboard.
-                    </p>
-                </div>
-                 <Link href="/profile" className="block">
-                    <UserAvatar user={user} className="h-16 w-16" />
-                </Link>
-            </div>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3 space-y-6">
-                {sportStats ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {statCards.map((card, i) => (
-                            <StatsCard
-                                key={card.title}
-                                title={card.title}
-                                value={card.value}
-                                icon={card.icon}
-                                className="opacity-0 animate-fade-in-slide-up"
-                                style={{ animationDelay: `${i * 100}ms` }}
-                            />
-                        ))}
+        <Link href="/profile" className="block group">
+            <Card className="overflow-hidden transition-all duration-200 group-hover:border-primary group-hover:shadow-lg">
+                <div className="p-4 flex flex-col sm:flex-row items-center gap-4 bg-muted/30">
+                    <UserAvatar user={user} className="h-20 w-20" />
+                    <div className="text-center sm:text-left">
+                        <h1 className="text-2xl font-bold">Welcome, {user.name.split(' ')[0]}!</h1>
+                        <p className="mt-1 text-muted-foreground">
+                            Your <span className="font-semibold text-primary">{sport}</span> dashboard.
+                        </p>
                     </div>
+                </div>
+                {sportStats ? (
+                    <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <StatItem icon={Flame} label="RacktRank" value={sportStats.racktRank} />
+                        <StatItem icon={Trophy} label="Win Rate" value={`${winRate}%`} />
+                        <StatItem icon={Activity} label="Streak" value={sportStats.streak} />
+                        <StatItem icon={BarChart} label="Record" value={`${sportStats.wins}W - ${sportStats.losses}L`} />
+                    </CardContent>
                 ) : (
-                <Card>
-                    <CardContent className="pt-6">
-                    <p className="text-center text-muted-foreground">No stats for {sport} yet. Report a match to get started!</p>
+                    <CardContent className="p-4 text-center text-muted-foreground">
+                        No stats for {sport} yet. Report a match to get started!
+                    </CardContent>
+                )}
+            </Card>
+        </Link>
+        
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Get in the Game</CardTitle>
+                        <CardDescription>Ready to play? Start here.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <ActionCard href="/report-match" icon={Plus} title="Report Match" />
+                        <ActionCard href="/challenges" icon={Swords} title="Challenges" />
+                        <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" />
+                        <ActionCard href="/games" icon={Gamepad2} title="AI Games" />
                     </CardContent>
                 </Card>
-                )}
+
                 <EloChart data={eloHistoryData} />
             </div>
-            <div className="lg:col-span-2 space-y-6">
-                <Card>
+
+            <div className="lg:col-span-1 space-y-6">
+                <Card className="bg-gradient-to-br from-primary/10 to-transparent">
                     <CardHeader>
-                        <CardTitle>Play</CardTitle>
+                        <div className="flex items-center gap-3">
+                            <BrainCircuit className="h-8 w-8 text-primary" />
+                            <CardTitle>AI Match Predictor</CardTitle>
+                        </div>
+                        <CardDescription>Get AI-powered predictions for matches against your friends.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <ActionCard icon={Plus} title="Report Match" description="Log a completed game." href="/report-match" />
-                        <ActionCard icon={Swords} title="Challenges" description="Accept or post challenges." href="/challenges" />
-                        <ActionCard icon={Gamepad2} title="AI Games" description="Test your skills." href="/games" />
+                    <CardFooter>
                          <MatchPredictorDialog>
-                            <div className="block group cursor-pointer">
-                                <Card className="h-full transition-all duration-200 group-hover:border-primary group-hover:-translate-y-1">
-                                    <CardHeader className="flex-row items-center gap-4 p-4">
-                                        <div className="bg-primary/10 p-3 rounded-lg text-primary">
-                                        <BrainCircuit className="h-6 w-6" />
-                                        </div>
-                                        <div>
-                                        <CardTitle className="text-base">AI Predictor</CardTitle>
-                                        <CardDescription>Get AI-powered match predictions.</CardDescription>
-                                        </div>
-                                    </CardHeader>
-                                </Card>
-                            </div>
+                            <Button className="w-full">
+                                Launch Predictor <ChevronRight className="ml-2 h-4 w-4" />
+                            </Button>
                         </MatchPredictorDialog>
-                    </CardContent>
+                    </CardFooter>
                 </Card>
 
                 <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
