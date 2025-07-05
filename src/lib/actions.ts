@@ -758,23 +758,19 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 /**
  * This server action takes a public URL to an image and updates the user's
- * profile in Firestore and Firebase Authentication. It does not handle file uploads.
+ * Firestore document. It does NOT update Firebase Auth.
  */
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
         if (!userId) throw new Error("User not authenticated.");
         if (!newAvatarUrl) throw new Error("Avatar URL is missing.");
 
-        // The updateProfile function for Firebase Auth MUST be done on the client.
-        // This server action will only update the Firestore document.
-        // The client will be responsible for updating the Auth user profile.
         const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, { avatar: newAvatarUrl });
 
-        // Revalidate paths to ensure the new avatar is shown everywhere.
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
-        revalidatePath('/(app)', 'layout'); // Revalidate the main app layout
+        revalidatePath('/(app)', 'layout');
 
         return { success: true, message: 'Profile picture updated.' };
     } catch (error: any) {

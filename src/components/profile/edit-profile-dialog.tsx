@@ -141,7 +141,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
   
   // --- Main save handler ---
   const handleSave = async () => {
-    if (!selectedFile && !previewUrl) {
+    if (!previewUrl) {
       toast({ variant: 'destructive', title: 'No image selected' });
       return;
     }
@@ -149,38 +149,32 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     setIsLoading(true);
 
     try {
-      let finalUrl = previewUrl; // Default to stock avatar URL if no file is selected
+      let finalUrl = previewUrl;
 
+      // **PRODUCTION-READY APPROACH (Firebase Storage)**
       // Step 1: If a file was selected (from upload or camera), upload it to Firebase Storage.
-      // This is the recommended production approach.
       if (selectedFile) {
         const storageRef = ref(storage, `avatars/${user.uid}/${Date.now()}_${selectedFile.name}`);
         const uploadResult = await uploadBytes(storageRef, selectedFile);
         finalUrl = await getDownloadURL(uploadResult.ref);
       }
+      
+      // If a user selected a stock avatar, `finalUrl` will already be the placehold.co URL.
+      // If they uploaded a file, `finalUrl` is now the Firebase Storage URL.
 
-      if (!finalUrl) {
-        throw new Error("Could not get a valid image URL.");
-      }
+      if (!finalUrl) throw new Error("Could not get a valid image URL.");
 
-      // Step 2: Update the Firebase Authentication user profile.
-      // This MUST be done on the client with the authenticated user.
-      if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
-        throw new Error("Authentication error. Please log in again.");
-      }
+      // Step 2: Update the user's profile in Firebase Authentication (client-side).
+      if (!auth.currentUser) throw new Error("Authentication error. Please log in again.");
       await updateProfile(auth.currentUser, { photoURL: finalUrl });
 
-      // Step 3: Call the simplified server action to update the Firestore database.
+      // Step 3: Update the user's record in Firestore via a Server Action.
       const result = await updateUserAvatarAction(user.uid, finalUrl);
-
-      if (!result.success) {
-        throw new Error(result.message);
-      }
+      if (!result.success) throw new Error(result.message);
 
       toast({ title: 'Success!', description: 'Profile picture updated.' });
       onOpenChange(false);
-      // Refresh the page to make sure the new avatar is shown everywhere.
-      router.refresh();
+      router.refresh(); // Refresh page to show new avatar everywhere.
 
     } catch (error: any) {
       console.error("Error during avatar save process:", error);
@@ -288,5 +282,3 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     </Dialog>
   );
 }
-
-    
