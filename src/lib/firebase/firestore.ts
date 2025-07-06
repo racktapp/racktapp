@@ -1,14 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -519,7 +509,7 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     await setDoc(newChatRef, {
         id: newChatRef.id, participantIds: [userId1, userId2],
-        participantsData: { [userId1]: { name: user1.name, avatarUrl: user1.avatarUrl }, [userId2]: { name: user2.name, avatarUrl: user2.avatarUrl } },
+        participantsData: { [userId1]: { name: user1.name, avatarUrl: user1.avatarUrl || null }, [userId2]: { name: user2.name, avatarUrl: user2.avatarUrl || null } },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
     } as Omit<Chat, 'lastMessage'>);
     return newChatRef.id;

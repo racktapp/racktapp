@@ -181,10 +181,10 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
         await createDirectChallenge({
             fromId: fromUser.uid,
             fromName: fromUser.name,
-            fromAvatarUrl: fromUser.avatarUrl,
+            fromAvatarUrl: fromUser.avatarUrl || null,
             toId: toUser.uid,
             toName: toUser.name,
-            toAvatarUrl: toUser.avatarUrl,
+            toAvatarUrl: toUser.avatarUrl || null,
             sport: values.sport,
             location: values.location,
             wager: values.wager,
@@ -202,7 +202,7 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
         await createOpenChallenge({
             posterId: poster.uid,
             posterName: poster.name,
-            posterAvatarUrl: poster.avatarUrl,
+            posterAvatarUrl: poster.avatarUrl || null,
             sport: values.sport,
             location: values.location,
             note: values.note,
@@ -361,7 +361,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                 newGame = {
                     id: gameRef.id, mode: 'friend', sport,
                     participantIds: [currentUserId, friendId],
-                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { name: friend.name, avatarUrl: friend.avatarUrl, uid: friend.uid } },
+                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { name: friend.name, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
                     score: { [currentUserId]: 0, [friendId]: 0 },
                     currentPlayerId: currentUserId,
                     turnState: 'playing', status: 'ongoing',
@@ -372,7 +372,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                 newGame = {
                     id: gameRef.id, mode: 'solo', sport,
                     participantIds: [currentUserId],
-                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid } },
+                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl || null, uid: user.uid } },
                     score: { [currentUserId]: 0 },
                     currentPlayerId: currentUserId,
                     turnState: 'playing', status: 'ongoing',
@@ -528,7 +528,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
                 id: gameRef.id,
                 sport: sport,
                 participantIds: [user.uid, friend.uid],
-                participantsData: { [user.uid]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid }, [friend.uid]: { name: friend.name, avatarUrl: friend.avatarUrl, uid: friend.uid } },
+                participantsData: { [user.uid]: { name: user.name, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friend.uid]: { name: friend.name, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
                 score: { [user.uid]: 0, [friend.uid]: 0 },
                 turn: 'serving', currentPlayerId: user.uid,
                 currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialAiResponse.serveOptions },
