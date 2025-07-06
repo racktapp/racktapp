@@ -53,6 +53,7 @@ import {
 import { useSport } from '../providers/sport-provider';
 import { Logo } from '../ui/logo';
 import { NotificationBell } from './notification-bell';
+import { OnboardingTour } from '../onboarding-tour';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -70,7 +71,7 @@ const MobileHeader = () => {
             <div className="flex-1" />
             <NotificationBell />
             <Select value={sport} onValueChange={(value) => setSport(value as any)}>
-                <SelectTrigger className="h-9 w-auto justify-start gap-2 border-muted-foreground/50 px-2">
+                <SelectTrigger id="tour-step-sport-selector" className="h-9 w-auto justify-start gap-2 border-muted-foreground/50 px-2">
                     <Image src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} className="rounded-sm" unoptimized />
                     <span className="flex-1 text-left">{sport}</span>
                 </SelectTrigger>
@@ -125,6 +126,10 @@ const AppSidebar = ({ user }: { user: User }) => {
                 isActive={pathname.startsWith(item.href)}
                 tooltip={item.label}
                 className="relative"
+                id={
+                    item.href === '/challenges' ? 'tour-step-challenges' :
+                    item.href === '/coach' ? 'tour-step-ai-coach' : undefined
+                }
               >
                 <Link href={item.href}>
                   <item.icon />
@@ -142,7 +147,7 @@ const AppSidebar = ({ user }: { user: User }) => {
       <SidebarFooter>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-auto w-full justify-start p-2 text-left">
+            <Button id="tour-step-profile-menu" variant="ghost" className="h-auto w-full justify-start p-2 text-left">
               <div className="flex w-full items-center justify-start gap-3">
                 <UserAvatar user={user} className="h-10 w-10" />
                 <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
@@ -300,6 +305,7 @@ export function AppLayout({ children, user }: AppLayoutProps) {
         </main>
       </SidebarInset>
       <BottomNav />
+      <OnboardingTour />
     </SidebarProvider>
   );
 }

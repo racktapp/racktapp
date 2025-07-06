@@ -141,7 +141,7 @@ export default function DashboardPage() {
           />
       </div>
 
-      <Card className="bg-gradient-to-br from-primary to-violet-500 text-primary-foreground">
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-primary to-violet-500 text-primary-foreground">
           <CardHeader>
               <div className="flex items-center gap-3">
                   <Plus className="h-8 w-8" />
