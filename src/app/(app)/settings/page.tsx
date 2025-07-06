@@ -10,8 +10,10 @@ import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { LogOut } from 'lucide-react';
+import { LogOut, Palette, User as UserIcon } from 'lucide-react';
 import { ThemeSwitcher } from '@/components/settings/theme-switcher';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { AvatarSelector } from '@/components/settings/avatar-selector';
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -34,20 +36,24 @@ export default function SettingsPage() {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Settings"
-        description="Manage your account settings and preferences."
+        description="Manage your account, profile, and preferences."
       />
-      <div className="max-w-2xl mx-auto space-y-8">
-        <SettingsForm />
+      <div className="max-w-2xl mx-auto grid gap-8">
+        <SettingsForm user={user} />
+        <AvatarSelector user={user} />
         <ThemeSwitcher />
         
-        <Separator />
-
-        <div className="pt-4">
-            <Button variant="outline" onClick={handleLogout} className="w-full">
-                <LogOut className="mr-2 h-4 w-4" />
-                Log Out
-            </Button>
-        </div>
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><LogOut /> Log Out</CardTitle>
+                <CardDescription>End your current session.</CardDescription>
+            </CardHeader>
+            <CardFooter>
+                <Button variant="outline" onClick={handleLogout} className="w-full sm:w-auto">
+                    Log Out
+                </Button>
+            </CardFooter>
+        </Card>
       </div>
     </div>
   );

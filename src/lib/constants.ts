@@ -10,3 +10,13 @@ export const SPORT_ICONS: Record<Sport, string> = {
   'Table Tennis': '/tabletennis_icon.png',
   'Pickleball': '/pickleball_icon.png',
 };
+
+// IMPORTANT: These paths must correspond to actual files in the /public/avatars folder.
+export const STOCK_AVATARS = [
+  { url: '/avatars/01.png' },
+  { url: '/avatars/02.png' },
+  { url: '/avatars/03.png' },
+  { url: '/avatars/04.png' },
+  { url: '/avatars/05.png' },
+  { url: '/avatars/06.png' },
+];
