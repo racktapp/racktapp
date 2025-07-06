@@ -2,110 +2,103 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Joyride, { Step, CallBackProps, STATUS } from 'react-joyride';
-import { useTheme } from 'next-themes';
-import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Swords, Bot, User, LayoutDashboard } from 'lucide-react';
 
-const DESKTOP_STEPS: Step[] = [
-  {
-    target: '#tour-step-report-match',
-    content: 'Welcome to Rackt! Start by reporting a match result to update your stats and RacktRank.',
-    placement: 'bottom',
-    disableBeacon: true,
-  },
-  {
-    target: '#tour-step-challenges',
-    content: 'Find opponents by accepting or posting challenges. This is the heart of the competition!',
-    placement: 'right',
-  },
-   {
-    target: '#tour-step-ai-coach',
-    content: 'Use our AI-powered tools to analyze your swing or get match predictions.',
-    placement: 'right',
-  },
-  {
-    target: '#tour-step-profile-menu',
-    content: 'Click here to change your sport, switch themes, edit your profile, or log out.',
-    placement: 'top',
-  },
-];
+const TOUR_COMPLETED_KEY = 'onboardingTourCompleted';
 
-const MOBILE_STEPS: Step[] = [
-    {
-      target: '#tour-step-report-match',
-      content: 'Welcome to Rackt! Start by reporting a match result to update your stats and RacktRank.',
-      placement: 'bottom',
-      disableBeacon: true,
-    },
-    {
-      target: '#tour-step-sport-selector',
-      content: 'You can switch between different sports here. Your stats and leaderboards are specific to each sport.',
-      placement: 'bottom',
-    },
+const features = [
+  {
+    icon: LayoutDashboard,
+    title: 'Your Dashboard',
+    description: 'This is your home base. Report matches, see your stats, and access all key features from here.',
+  },
+  {
+    icon: Swords,
+    title: 'Challenges',
+    description: 'Find opponents by accepting open challenges or sending direct challenges to your friends.',
+  },
+  {
+    icon: Bot,
+    title: 'AI-Powered Tools',
+    description: 'Use the AI Coach to analyze your swing and the Match Predictor to get insights on upcoming games.',
+  },
+  {
+    icon: User,
+    title: 'Profile & Settings',
+    description: 'Manage your profile, switch sports, and change your theme from the user menu.',
+  },
 ];
 
 export const OnboardingTour = () => {
-  const [run, setRun] = useState(false);
-  const { theme } = useTheme();
-  const isMobile = useIsMobile();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    try {
-        const tourCompleted = localStorage.getItem('onboardingTourCompleted');
+    // We need a delay to ensure the rest of the app has mounted.
+    const timer = setTimeout(() => {
+      try {
+        const tourCompleted = localStorage.getItem(TOUR_COMPLETED_KEY);
         if (!tourCompleted) {
-          setTimeout(() => {
-            setRun(true);
-          }, 1500);
+          setIsOpen(true);
         }
-    } catch (error) {
-        // localStorage is not available (e.g. in server-side rendering or private browsing)
+      } catch (error) {
         console.error("Could not access localStorage for onboarding tour.", error);
-    }
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status } = data;
-    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
-
-    if (finishedStatuses.includes(status)) {
-      try {
-        localStorage.setItem('onboardingTourCompleted', 'true');
-      } catch (error) {
-         console.error("Could not save tour completion status to localStorage.", error);
-      }
-      setRun(false);
+  const handleComplete = () => {
+    try {
+      localStorage.setItem(TOUR_COMPLETED_KEY, 'true');
+    } catch (error) {
+      console.error("Could not save tour completion status to localStorage.", error);
     }
+    setIsOpen(false);
   };
-  
-  // Don't render anything until we know if we're on mobile or not
-  if (isMobile === undefined) {
+
+  if (!isOpen) {
     return null;
   }
 
   return (
-    <Joyride
-      run={run}
-      steps={isMobile ? MOBILE_STEPS : DESKTOP_STEPS}
-      callback={handleJoyrideCallback}
-      continuous
-      showProgress
-      showSkipButton
-      styles={{
-        options: {
-          arrowColor: theme === 'dark' ? '#27272A' : '#FFFFFF',
-          backgroundColor: theme === 'dark' ? '#27272A' : '#FFFFFF',
-          primaryColor: '#2563EB',
-          textColor: theme === 'dark' ? '#F4F4F5' : '#18181B',
-          zIndex: 1001, // Ensure it's above the mobile nav sheet (z-50)
-        },
-        buttonClose: {
-          display: 'none',
-        },
-        // Ensure tooltip is above mobile navigation
-        spotlight: {
-           zIndex: 1001,
-        }
-      }}
-    />
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-center">Welcome to Rackt!</DialogTitle>
+          <DialogDescription className="text-center">
+            Here are a few key features to get you started.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {features.map((feature, index) => (
+            <div key={index} className="flex items-start gap-4">
+              <div className="bg-primary/10 p-2 rounded-full mt-1">
+                <feature.icon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">{feature.title}</p>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button onClick={handleComplete} className="w-full">
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Got it, let's go!
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

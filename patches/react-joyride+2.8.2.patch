@@ -1,40 +1,41 @@
-patch-package
 --- a/node_modules/react-joyride/dist/index.mjs
 +++ b/node_modules/react-joyride/dist/index.mjs
-@@ -1,7 +1,7 @@
- import React, { Component } from 'react';
- import { PropTypes } from 'prop-types';
- import Floater from 'react-floater';
+@@ -1,6 +1,6 @@
 -import ReactDOM from 'react-dom';
+ import React, { useLayoutEffect, useState, forwardRef, useEffect, useRef, useCallback } from 'react';
+ import { Popper } from 'react-popper';
 +import { createRoot } from 'react-dom/client';
- import { canUseDOM, isNumber, isObject, getElement, hasKey, isReactElement, getElementPosition, getClientRect, getArrowPosition, scrollTo, getElementFromRef, getFloaterPosition, getStyle } from 'react-floater/lib/utils';
- import { isEqual, isFunction, deepmerge, isString } from 'deepmerge-all';
+ import { computePortal, deepmerge, getClientRect, getDocument, getWindow, isElement, isFixed, isFunction, isObject, isReactElement, isString, log, scroll, setScope, shouldScroll, step, store, stylis } from '@react-joyride/core';
+ import { RemoveScroll } from 'react-remove-scroll';
+ import { FocusOn } from 'react-focus-on';
+@@ -23,21 +23,17 @@
  
-@@ -1659,7 +1659,7 @@
-       }
+ function Beacon(props) {
+     const { beaconComponent, step: step$1, continuous, controlled, index, locale, next, prev, size, skip, status, type } = props;
+-    const [element, setElement] = useState(null);
+     const target = usePortal('joyride-beacon', step$1.target);
+     useLayoutEffect(() => {
+-        if (target) {
+-            setElement(createPortal(target, beaconComponent, { beacon, continuous, controlled, index, locale, next, prev, size, skip, status, step: step$1, type }));
+-            return () => {
+-                ReactDOM.unmountComponentAtNode(target);
+-            };
++        if (!target) {
++            return;
+         }
+-    }, [target]);
+-    useLayoutEffect(() => {
+-        if (element) {
+-            ReactDOM.render(element, target);
+-        }
+-    }, [element, target]);
++        const root = createRoot(target);
++        const element = createPortal(target, beaconComponent, { beacon, continuous, controlled, index, locale, next, prev, size, skip, status, step: step$1, type });
++        root.render(element);
++        return () => {
++            root.unmount();
++        };
++    }, [target, beaconComponent, continuous, controlled, index, locale, next, prev, size, skip, status, step$1, type]);
+     return null;
+ }
  
-       if (this.tooltip) {
--        ReactDOM.unmountComponentAtNode(this.tooltip);
-+        this.tooltip.unmount();
-       }
- 
-       if (this.portal) {
-@@ -1673,7 +1673,8 @@
-     }
- 
-     this.portal = document.createElement('div');
--    document.body.appendChild(this.portal);
-+    document.body.appendChild(this.portal);
-+    this.tooltip = createRoot(this.portal);
- 
-     this.renderTooltip();
-   }
-@@ -1684,7 +1685,7 @@
- 
-     const tooltip = /*#__PURE__*/React.createElement(Tooltip, this.getTooltipProps());
- 
--    ReactDOM.render(tooltip, this.portal);
-+    this.tooltip.render(tooltip);
-   }
- 
-   render() {
