@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { ReactNode, useState } from 'react';
@@ -50,6 +51,7 @@ import {
 } from '@/components/ui/sheet';
 import { useSport } from '../providers/sport-provider';
 import { Logo } from '../ui/logo';
+import { NotificationBell } from './notification-bell';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -65,6 +67,7 @@ const MobileHeader = () => {
                 <Logo />
             </Link>
             <div className="flex-1" />
+            <NotificationBell />
             <Select value={sport} onValueChange={(value) => setSport(value as any)}>
                 <SelectTrigger className="h-9 w-auto justify-start gap-2 border-muted-foreground/50 px-2">
                     <Image src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} className="rounded-sm" unoptimized />
@@ -104,8 +107,9 @@ const AppSidebar = ({ user }: { user: User }) => {
             <Logo />
             <span className="font-headline group-data-[collapsible=icon]:hidden">Rackt</span>
           </Link>
-          <div className="group-data-[collapsible=icon]:hidden">
-            <SidebarTrigger />
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
+             <NotificationBell />
+             <SidebarTrigger />
           </div>
         </div>
       </SidebarHeader>

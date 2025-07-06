@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, Suspense } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +28,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ChallengeFriendDialog } from '@/components/challenges/challenge-friend-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -61,11 +61,12 @@ const ActionButton = ({ onClick, isProcessing, idleIcon, processingText, buttonT
 }
 
 // --- Main Page Component ---
-
-export default function FriendsPage() {
+function FriendsPageContent() {
     const { user: currentUser } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get('tab') || 'friends';
 
     // State for all data
     const [friends, setFriends] = useState<User[]>([]);
@@ -152,7 +153,7 @@ export default function FriendsPage() {
         description="Manage your connections and find new people."
       />
       
-      <Tabs defaultValue="friends" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="friends"><Users className="mr-2" /> Friends</TabsTrigger>
             <TabsTrigger value="requests">
@@ -329,4 +330,13 @@ export default function FriendsPage() {
       </Tabs>
     </div>
   );
+}
+
+
+export default function FriendsPage() {
+    return (
+        <Suspense fallback={<div className="container mx-auto flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner className="h-8 w-8" /></div>}>
+            <FriendsPageContent />
+        </Suspense>
+    );
 }
