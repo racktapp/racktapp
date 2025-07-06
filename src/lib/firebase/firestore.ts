@@ -5,6 +5,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -173,7 +174,7 @@ export const reportPendingMatch = async (data: ReportMatchData): Promise<string>
     const participantsData = userDocs.reduce((acc, doc) => {
         if (doc.exists()) {
             const player = doc.data() as User;
-            acc[player.uid] = { uid: player.uid, name: player.name, avatarConfig: player.avatarConfig };
+            acc[player.uid] = { uid: player.uid, name: player.name, avatarConfig: player.avatarConfig || defaultAvatarConfig };
         }
         return acc;
     }, {} as Match['participantsData']);
@@ -428,8 +429,8 @@ export async function updateChallengeStatus(id: string, status: ChallengeStatus)
 export async function challengeFromOpen(openChallenge: OpenChallenge, challenger: User) {
     if (openChallenge.posterId === challenger.uid) throw new Error("You cannot challenge your own post.");
     await createDirectChallenge({
-        fromId: challenger.uid, fromName: challenger.name, fromAvatarConfig: challenger.avatarConfig,
-        toId: openChallenge.posterId, toName: openChallenge.posterName, toAvatarConfig: openChallenge.posterAvatarConfig,
+        fromId: challenger.uid, fromName: challenger.name, fromAvatarConfig: challenger.avatarConfig || defaultAvatarConfig,
+        toId: openChallenge.posterId, toName: openChallenge.posterName, toAvatarConfig: openChallenge.posterAvatarConfig || defaultAvatarConfig,
         sport: openChallenge.sport, location: openChallenge.location,
         matchDateTime: Timestamp.now().toMillis(), wager: "A friendly match",
     });
@@ -447,7 +448,7 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
     await setDoc(newTournamentRef, {
         id: newTournamentRef.id, name: values.name, sport: values.sport,
         organizerId: organizer.uid, participantIds: participantIds,
-        participantsData: participantsData.map(p => ({ uid: p.uid, name: p.name, avatarConfig: p.avatarConfig })),
+        participantsData: participantsData.map(p => ({ uid: p.uid, name: p.name, avatarConfig: p.avatarConfig || defaultAvatarConfig })),
         status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
     } as Omit<Tournament, 'winnerId'>);
 }
@@ -515,7 +516,7 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     await setDoc(newChatRef, {
         id: newChatRef.id, participantIds: [userId1, userId2],
-        participantsData: { [userId1]: { name: user1.name, avatarConfig: user1.avatarConfig }, [userId2]: { name: user2.name, avatarConfig: user2.avatarConfig } },
+        participantsData: { [userId1]: { name: user1.name, avatarConfig: user1.avatarConfig || defaultAvatarConfig }, [userId2]: { name: user2.name, avatarConfig: user2.avatarConfig || defaultAvatarConfig } },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
     } as Omit<Chat, 'lastMessage'>);
     return newChatRef.id;
@@ -654,7 +655,6 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
         name: data.name,
         username: data.username,
         preferredSports: data.preferredSports,
-        avatarConfig: data.avatarConfig
     }
     await updateDoc(doc(db, 'users', userId), updateData);
 }

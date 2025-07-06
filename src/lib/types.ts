@@ -105,10 +105,10 @@ export interface Challenge {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatarUrl?: string | null;
+  fromAvatarConfig: AvatarConfig;
   toId: string;
   toName: string;
-  toAvatarUrl?: string | null;
+  toAvatarConfig: AvatarConfig;
   status: ChallengeStatus;
   sport: Sport;
   wager?: string;
@@ -121,7 +121,7 @@ export interface OpenChallenge {
   id: string;
   posterId: string;
   posterName: string;
-  posterAvatarUrl?: string | null;
+  posterAvatarConfig: AvatarConfig;
   sport: Sport;
   location: string;
   note?: string;
@@ -219,7 +219,7 @@ export interface RallyGame {
   sport: Sport;
   participantIds: string[];
   participantsData: {
-    [key: string]: { name: string; avatarUrl?: string | null; uid: string };
+    [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
   };
   score: {
     [key: string]: number;
@@ -255,7 +255,7 @@ export interface LegendGame {
     mode: 'solo' | 'friend';
     sport: Sport;
     participantIds: string[];
-    participantsData: { [key: string]: { name: string; avatarUrl?: string | null; uid: string } };
+    participantsData: { [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string } };
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
@@ -379,5 +379,4 @@ export const profileSettingsSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
     preferredSports: z.array(SportEnum).min(1, 'Please select at least one preferred sport.'),
-    avatarConfig: AvatarConfigSchema.default(defaultAvatarConfig),
 });
