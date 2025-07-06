@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { SportProvider } from '@/components/providers/sport-provider';
+import { ThemeProvider } from '@/components/providers/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 const APP_NAME = "Rackt";
@@ -51,12 +52,19 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <SportProvider>
-            {children}
-            <Toaster />
-          </SportProvider>
-        </AuthProvider>
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+          <AuthProvider>
+            <SportProvider>
+              {children}
+              <Toaster />
+            </SportProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

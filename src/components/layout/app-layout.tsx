@@ -5,9 +5,10 @@
 import { ReactNode, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, LogOut, Settings, User as UserIcon, Menu } from 'lucide-react';
+import { Check, LogOut, Settings, User as UserIcon, Menu, Sun, Moon, Laptop } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import Image from 'next/image';
+import { useTheme } from 'next-themes';
 
 import { type User } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
@@ -93,6 +94,7 @@ const AppSidebar = ({ user }: { user: User }) => {
   const router = useRouter();
   const { sport, setSport } = useSport();
   const hasUnreadChats = useUnreadChats();
+  const { setTheme } = useTheme();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -176,6 +178,29 @@ const AppSidebar = ({ user }: { user: User }) => {
                         {sport === s && <Check className="ml-auto h-4 w-4" />}
                     </DropdownMenuItem>
                     ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+             <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="ml-2">Theme</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem onClick={() => setTheme("light")}>
+                    <Sun className="mr-2 h-4 w-4" />
+                    <span>Light</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("dark")}>
+                    <Moon className="mr-2 h-4 w-4" />
+                    <span>Dark</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setTheme("system")}>
+                    <Laptop className="mr-2 h-4 w-4" />
+                    <span>System</span>
+                  </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>
