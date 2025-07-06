@@ -291,6 +291,17 @@ export interface Achievement {
   icon: string; // lucide-react icon name
 }
 
+export interface PracticeSession {
+  id: string;
+  userId: string;
+  sport: Sport;
+  date: number; // timestamp
+  duration: number; // in minutes
+  notes: string;
+  intensity: 'low' | 'medium' | 'high';
+  createdAt: number;
+}
+
 
 // --- Zod Schemas ---
 
@@ -331,6 +342,14 @@ export const createTournamentSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters.").max(50, "Name must be 50 characters or less."),
     sport: SportEnum,
     participantIds: z.array(z.string()).min(3, "You must select at least 3 friends."),
+});
+
+export const practiceSessionSchema = z.object({
+  sport: SportEnum,
+  date: z.date({ required_error: 'Please select a date.' }),
+  duration: z.coerce.number().min(5, 'Duration must be at least 5 minutes.').max(240, 'Duration cannot exceed 4 hours.'),
+  intensity: z.enum(['low', 'medium', 'high']),
+  notes: z.string().min(3, 'Notes must be at least 3 characters.').max(500, 'Notes cannot exceed 500 characters.'),
 });
 
 export const LegendGameOutputSchema = z.object({

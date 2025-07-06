@@ -8,6 +8,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -30,7 +31,7 @@ import {
   Transaction,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -671,4 +672,39 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
     if (!gameDoc.exists()) throw new Error("Game not found.");
     if (!gameDoc.data().participantIds.includes(userId)) throw new Error("You are not authorized to delete this game.");
     await deleteDoc(gameRef);
+}
+
+// Practice Log Functions
+
+export async function logPracticeSession(
+  data: z.infer<typeof practiceSessionSchema>,
+  userId: string
+): Promise<void> {
+  const sessionRef = doc(collection(db, 'practiceSessions'));
+  const newSession: PracticeSession = {
+    id: sessionRef.id,
+    userId,
+    sport: data.sport,
+    date: data.date.getTime(),
+    duration: data.duration,
+    intensity: data.intensity,
+    notes: data.notes,
+    createdAt: Timestamp.now().toMillis(),
+  };
+  await setDoc(sessionRef, newSession);
+}
+
+export async function getPracticeSessionsForUser(
+  userId: string,
+  sport: Sport
+): Promise<PracticeSession[]> {
+  const q = query(
+    collection(db, 'practiceSessions'),
+    where('userId', '==', userId),
+    where('sport', '==', sport),
+    orderBy('date', 'desc'),
+    limit(50)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((doc) => doc.data() as PracticeSession);
 }

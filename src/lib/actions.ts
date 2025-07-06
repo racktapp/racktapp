@@ -40,13 +40,15 @@ import {
     getFriendshipStatus,
     deleteGame,
     getGame,
-    deleteOpenChallenge
+    deleteOpenChallenge,
+    logPracticeSession,
+    getPracticeSessionsForUser
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput, RallyGameInput, RallyGameOutput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -844,4 +846,26 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         headToHead: null,
         achievements: [],
     };
+}
+
+
+// --- Practice Log Actions ---
+
+export async function logPracticeSessionAction(values: z.infer<typeof practiceSessionSchema>, userId: string) {
+    try {
+        await logPracticeSession(values, userId);
+        revalidatePath('/practice');
+        return { success: true, message: 'Practice session logged!' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to log practice session.' };
+    }
+}
+
+export async function getPracticeSessionsAction(userId: string, sport: Sport) {
+    try {
+        const sessions = await getPracticeSessionsForUser(userId, sport);
+        return { success: true, data: sessions };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
+    }
 }

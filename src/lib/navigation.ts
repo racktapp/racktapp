@@ -14,6 +14,7 @@ import {
   MessageSquare,
   ListOrdered,
   Menu,
+  Dumbbell,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -29,6 +30,7 @@ export const NAV_ITEMS_MAIN: NavItem[] = [
   { href: '/friends', label: 'Friends', icon: Users },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
   { href: '/match-history', label: 'Match History', icon: History },
+  { href: '/practice', label: 'Practice Log', icon: Dumbbell },
   { href: '/games', label: 'Games', icon: Gamepad2 },
   { href: '/tournaments', label: 'Tournaments', icon: Trophy },
   { href: '/leaderboard', label: 'Leaderboard', icon: ListOrdered },
@@ -46,6 +48,7 @@ export const NAV_ITEMS_MOBILE_MORE: NavItem[] = [
   { href: '/chat', label: 'Chat', icon: MessageSquare },
   { href: '/friends', label: 'Friends', icon: Users },
   { href: '/match-history', label: 'Match History', icon: History },
+  { href: '/practice', label: 'Practice Log', icon: Dumbbell },
   { href: '/games', label: 'Games', icon: Gamepad2 },
   { href: '/leaderboard', label: 'Leaderboard', icon: ListOrdered },
   { href: '/coach', label: 'AI Coach', icon: Bot },
