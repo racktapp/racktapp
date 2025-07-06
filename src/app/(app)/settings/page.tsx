@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { LogOut } from 'lucide-react';
+import { ThemeSwitcher } from '@/components/settings/theme-switcher';
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -37,6 +38,7 @@ export default function SettingsPage() {
       />
       <div className="max-w-2xl mx-auto space-y-8">
         <SettingsForm />
+        <ThemeSwitcher />
         
         <Separator />
 
