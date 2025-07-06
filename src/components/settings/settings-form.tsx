@@ -47,7 +47,10 @@ export function SettingsForm() {
   const { toast } = useToast();
   const { user, updateUserName, updateUserAvatarConfig } = useAuth();
   
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(user?.avatarConfig || defaultAvatarConfig);
+  // Robustly initialize state by merging potential partial config with defaults
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(
+    () => ({ ...defaultAvatarConfig, ...(user?.avatarConfig || {}) })
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
@@ -58,7 +61,8 @@ export function SettingsForm() {
   useEffect(() => {
     if (user) {
       form.reset({ name: user.name || "" });
-      setAvatarConfig(user.avatarConfig || defaultAvatarConfig);
+      // On user load, ensure config is fully populated by merging with defaults
+      setAvatarConfig({ ...defaultAvatarConfig, ...(user.avatarConfig || {}) });
     }
   }, [user, form]);
 

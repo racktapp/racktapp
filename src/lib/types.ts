@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -10,8 +9,14 @@ export const AvatarConfigSchema = z.object({
   skinColor: z.string().default('#f2d5b1'),
   hairColor: z.string().default('#4a312a'),
   hairStyle: z.string().default('short'),
-}).default({});
+});
 export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
+
+export const defaultAvatarConfig: AvatarConfig = {
+  skinColor: '#f2d5b1',
+  hairColor: '#4a312a',
+  hairStyle: 'short',
+};
 
 export interface Socials {
   twitter?: string;
@@ -369,5 +374,5 @@ export const profileSettingsSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
     preferredSports: z.array(SportEnum).min(1, 'Please select at least one preferred sport.'),
-    avatarConfig: AvatarConfigSchema,
+    avatarConfig: AvatarConfigSchema.default(defaultAvatarConfig),
 });

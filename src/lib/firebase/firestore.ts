@@ -3,6 +3,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -25,7 +26,7 @@ import {
   Transaction,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, AvatarConfig } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, AvatarConfig, defaultAvatarConfig } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -121,12 +122,6 @@ async function generateUniqueUsername(name: string): Promise<string> {
     if (!isUnique) throw new Error("Could not generate a unique username.");
     return finalUsername;
 }
-
-const defaultAvatarConfig: AvatarConfig = {
-    skinColor: '#f2d5b1',
-    hairColor: '#4a312a',
-    hairStyle: 'short',
-};
 
 export const createUserDocument = async (user: {
   uid: string;
