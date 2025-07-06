@@ -4,69 +4,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    // USERS: Authenticated users can read profiles, owners can write.
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if request.auth.uid == userId;
-    }
-    
-    // FRIEND REQUESTS: Read/delete if you are the sender or receiver. Create if you are the sender.
-    match /friendRequests/{requestId} {
-      allow read, delete: if isAuthenticated() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.fromId == request.auth.uid;
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // OPEN CHALLENGES: Public to read. Create/delete your own.
-    match /openChallenges/{challengeId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.posterId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.posterId == request.auth.uid;
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow update: if isUser(userId);
+      allow create: if isUser(userId);
     }
-    
-    // CHALLENGES: Private to participants.
+
+    match /matches/{matchId} {
+      allow get, update: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.reportedById;
+      allow list: if isSignedIn() && request.query.where.get('participants', 'array-contains') == request.auth.uid;
+    }
+
     match /challenges/{challengeId} {
-       allow read, write: if isAuthenticated() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow get, update, delete: if isSignedIn() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
+      allow list: if isSignedIn() && (request.query.where.get('fromId', '==') == request.auth.uid || request.query.where.get('toId', '==') == request.auth.uid);
+    }
+
+    match /openChallenges/{challengeId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.posterId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.posterId == request.auth.uid;
+    }
+
+    match /friendRequests/{requestId} {
+      allow get, delete: if isSignedIn() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
+      allow list: if isSignedIn() && (request.query.where.get('fromId', '==') == request.auth.uid || request.query.where.get('toId', '==') == request.auth.uid);
     }
     
-    // CHATS
+    match /tournaments/{tournamentId} {
+      allow get: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isSignedIn() && request.resource.data.organizerId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.organizerId == request.auth.uid;
+      allow list: if isSignedIn() && request.query.where.get('participantIds', 'array-contains') == request.auth.uid;
+    }
+
+    match /rallyGames/{gameId} {
+      allow get, update, delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow list: if isSignedIn() && request.query.where.get('participantIds', 'array-contains') == request.auth.uid;
+    }
+
+    match /legendGames/{gameId} {
+      allow get, update, delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow list: if isSignedIn() && request.query.where.get('participantIds', 'array-contains') == request.auth.uid;
+    }
+
     match /chats/{chatId} {
-      allow read, write: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
-      // For create, we check the incoming data (request.resource)
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
+      allow get, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow list: if isSignedIn() && request.query.where.get('participantIds', 'array-contains') == request.auth.uid;
       
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        allow list, get: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        allow update, delete: if false;
       }
-    }
-
-    // MATCHES
-    match /matches/{matchId} {
-      // Note: 'participants' is the field name here
-      allow read, update: if isAuthenticated() && request.auth.uid in resource.data.participants;
-      allow create: if isAuthenticated(); // Server action handles this
-    }
-    
-    // TOURNAMENTS
-    match /tournaments/{tournamentId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
-      allow create: if isAuthenticated() && request.resource.data.organizerId == request.auth.uid;
-      allow update: if isAuthenticated() && request.auth.uid == resource.data.organizerId;
-    }
-
-    // RALLY GAMES
-    match /rallyGames/{gameId} {
-      allow read, write: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
-    }
-    
-    // LEGEND GAMES
-    match /legendGames/{gameId} {
-      allow read, write: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
     }
   }
 }

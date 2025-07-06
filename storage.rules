@@ -3,23 +3,12 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow anyone to read public assets like intro images, logos, etc.
-    match /public/{allPaths=**} {
-      allow read;
-    }
-
-    // User avatars can be read by anyone (since they are public).
-    // A user can only write (upload/update/delete) their own avatar.
-    // The path is structured to include the user's UID.
+    // Rules for user avatars
     match /avatars/{userId}/{allPaths=**} {
-      allow read;
+      // Allow authenticated users to read any avatar
+      allow read: if request.auth != null;
+      // Allow a user to write (upload/update/delete) to their own avatar folder
       allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // AI Coach videos can only be written by the authenticated user.
-    // They are not publicly readable.
-    match /coach_videos/{userId}/{allPaths=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
