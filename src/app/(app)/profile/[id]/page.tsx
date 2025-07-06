@@ -6,9 +6,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
-import { Settings, BarChart, Trophy, Activity, Flame, MessageSquare, Swords } from 'lucide-react';
+import { Settings, BarChart, Activity, Flame, MessageSquare, Swords, Trophy, Users, Undo2, type LucideIcon } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { User, Match, Sport } from '@/lib/types';
+import { User, Match, Sport, Achievement } from '@/lib/types';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Link from 'next/link';
 import { useSport } from '@/components/providers/sport-provider';
@@ -23,6 +23,27 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 type ProfileData = Awaited<ReturnType<typeof getProfilePageDataAction>>;
+
+const achievementIconMap: Record<string, LucideIcon> = {
+    Swords, Flame, Trophy, Users, Undo2
+};
+
+const AchievementCard = ({ achievement }: { achievement: Achievement }) => {
+    const Icon = achievementIconMap[achievement.icon] || Trophy;
+
+    return (
+        <div className="flex items-center gap-4 rounded-lg border p-4 bg-card">
+            <div className="bg-yellow-500/10 text-yellow-500 p-3 rounded-full">
+                <Icon className="h-6 w-6" />
+            </div>
+            <div>
+                <p className="font-semibold">{achievement.name}</p>
+                <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">Earned on {format(new Date(achievement.date), 'MMM d, yyyy')}</p>
+            </div>
+        </div>
+    )
+}
 
 export default function ProfilePage() {
   const params = useParams();
@@ -64,6 +85,7 @@ export default function ProfilePage() {
     sportStats,
     winRate,
     eloHistoryData,
+    achievements,
   } = useMemo(() => {
     if (!profileData?.profileUser) {
       return {
@@ -74,6 +96,7 @@ export default function ProfilePage() {
         sportStats: null,
         winRate: 0,
         eloHistoryData: [],
+        achievements: [],
       };
     }
 
@@ -101,6 +124,7 @@ export default function ProfilePage() {
       sportStats,
       winRate,
       eloHistoryData,
+      achievements: profileData.achievements || [],
     };
   }, [profileData, sport]);
 
@@ -216,7 +240,18 @@ export default function ProfilePage() {
         </div>
       </div>
       
-      <div>
+      {achievements && achievements.length > 0 && (
+        <div className="mt-6">
+            <h2 className="text-2xl font-bold tracking-tight mb-4">Rivalry Trophies</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {achievements.map(ach => (
+                    <AchievementCard key={ach.id} achievement={ach} />
+                ))}
+            </div>
+        </div>
+      )}
+
+      <div className="mt-6">
         <h2 className="text-2xl font-bold tracking-tight mb-4">Recent Match History</h2>
         {recentMatches && recentMatches.length > 0 && authUser ? (
             <div className="space-y-4">

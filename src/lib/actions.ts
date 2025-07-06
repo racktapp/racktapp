@@ -34,7 +34,7 @@ import {
     markChatAsRead,
     getConfirmedMatchesForUser,
     getPendingMatchesForUser,
-    getHeadToHeadRecord,
+    getHeadToHeadMatches,
     getLeaderboard,
     updateUserProfile,
     getFriendshipStatus,
@@ -51,6 +51,7 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { updateProfile } from 'firebase/auth';
+import { calculateRivalryAchievements } from '@/lib/achievements';
 
 
 // Action to report a match
@@ -717,7 +718,9 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
     const currentUserStats = currentUserData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
     const friendStats = friendData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
 
-    const headToHead = await getHeadToHeadRecord(currentUserId, friendId, sport);
+    const headToHeadMatches = await getHeadToHeadMatches(currentUserId, friendId, sport);
+    const currentUserWins = headToHeadMatches.filter(m => m.winner.includes(currentUserId)).length;
+    const profileUserWins = headToHeadMatches.filter(m => m.winner.includes(friendId)).length;
 
     const currentUserTotalGames = currentUserStats.wins + currentUserStats.losses;
     const friendTotalGames = friendStats.wins + friendStats.losses;
@@ -732,8 +735,8 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
         player1Streak: currentUserStats.streak,
         player2Streak: friendStats.streak,
         headToHead: {
-            player1Wins: headToHead.currentUserWins,
-            player2Wins: headToHead.profileUserWins,
+            player1Wins: currentUserWins,
+            player2Wins: profileUserWins,
         },
         sport,
     };
@@ -788,13 +791,21 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
     
     if (currentUserId && currentUserId !== profileUserId) {
         const friendship = await getFriendshipStatus(currentUserId, profileUserId);
-        const headToHead = await getHeadToHeadRecord(currentUserId, profileUserId, sport);
+        
+        const headToHeadMatches = await getHeadToHeadMatches(currentUserId, profileUserId, sport);
+        
+        const currentUserWins = headToHeadMatches.filter(m => m.winner.includes(currentUserId)).length;
+        const profileUserWins = headToHeadMatches.filter(m => m.winner.includes(profileUserId)).length;
+        const headToHead = { currentUserWins, profileUserWins };
+        
+        const achievements = calculateRivalryAchievements(headToHeadMatches, currentUserId, profileUser.name.split(' ')[0]);
 
         return {
             profileUser,
             recentMatches,
             friendship,
             headToHead,
+            achievements,
         };
     }
 
@@ -804,5 +815,6 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         recentMatches,
         friendship: null,
         headToHead: null,
+        achievements: [],
     };
 }

@@ -283,13 +283,14 @@ export interface Tournament {
   createdAt: number;
 }
 
-
 export interface Achievement {
   id: string;
   name: string;
   description: string;
-  icon: string; // url or identifier for the icon
+  date: number; // timestamp
+  icon: string; // lucide-react icon name
 }
+
 
 // --- Zod Schemas ---
 
@@ -349,7 +350,7 @@ export const PredictMatchInputSchema = z.object({
   player2WinRate: z.number(),
   player1Streak: z.number().int(),
   player2Streak: z.number().int(),
-  headToHead: z.object({ currentUserWins: z.number(), profileUserWins: z.number() }),
+  headToHead: z.object({ player1Wins: z.number(), player2Wins: z.number() }),
   sport: SportEnum,
 });
 export type PredictMatchInput = z.infer<typeof PredictMatchInputSchema>;

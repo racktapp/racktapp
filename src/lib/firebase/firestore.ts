@@ -7,6 +7,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -621,18 +622,22 @@ export async function updateLegendGame(gameId: string, updateFn: (game: LegendGa
 }
 
 
-export async function getHeadToHeadRecord(currentUserId: string, profileUserId: string, sport: Sport): Promise<{ currentUserWins: number; profileUserWins: number }> {
-    const q = query(collection(db, 'matches'), where('sport', '==', sport), where('participants', 'array-contains', currentUserId));
+export async function getHeadToHeadMatches(userId1: string, userId2: string, sport: Sport): Promise<Match[]> {
+    const q = query(
+        collection(db, 'matches'), 
+        where('sport', '==', sport),
+        where('status', '==', 'confirmed'),
+        where('participants', 'array-contains', userId1)
+    );
     const snapshot = await getDocs(q);
-    let currentUserWins = 0, profileUserWins = 0;
+    const matches: Match[] = [];
     snapshot.forEach(doc => {
         const match = doc.data() as Match;
-        if (match.status === 'confirmed' && match.participants.includes(profileUserId) && match.participants.length === 2) {
-            if (match.winner.includes(currentUserId)) currentUserWins++;
-            else if (match.winner.includes(profileUserId)) profileUserWins++;
+        if (match.participants.includes(userId2) && match.participants.length === 2) {
+            matches.push(match);
         }
     });
-    return { currentUserWins, profileUserWins };
+    return matches.sort((a, b) => a.date - b.date);
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
@@ -667,4 +672,3 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
     if (!gameDoc.data().participantIds.includes(userId)) throw new Error("You are not authorized to delete this game.");
     await deleteDoc(gameRef);
 }
-
