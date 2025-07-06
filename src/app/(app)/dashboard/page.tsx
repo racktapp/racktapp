@@ -128,7 +128,7 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-gradient-to-br from-blue-500 to-blue-600"
+            colorClass="bg-gradient-to-br from-slate-800 to-slate-900"
           />
           <StatsHighlightCard 
             title="Win Rate"
@@ -137,7 +137,7 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-gradient-to-br from-green-500 to-green-600"
+            colorClass="bg-gradient-to-br from-emerald-700 to-teal-900"
           />
       </div>
 
