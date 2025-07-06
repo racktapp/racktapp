@@ -30,10 +30,16 @@ import { cn } from '@/lib/utils';
 import { UserAvatar } from '../user-avatar';
 
 
+// IMPORTANT: Replace these placeholder paths with your actual image paths in the /public folder.
+// For example, if you have an image at /public/avatars/my-cool-avatar.png,
+// the url should be '/avatars/my-cool-avatar.png'.
 const STOCK_AVATARS = [
-  { url: 'https://placehold.co/100x100.png', hint: 'gradient avatar' },
-  { url: 'https://placehold.co/100x100.png', hint: 'abstract pattern' },
-  { url: 'https://placehold.co/100x100.png', hint: 'dark mode pattern' },
+  { url: '/avatars/01.png' },
+  { url: '/avatars/02.png' },
+  { url: '/avatars/03.png' },
+  { url: '/avatars/04.png' },
+  { url: '/avatars/05.png' },
+  { url: '/avatars/06.png' },
 ];
 
 interface EditProfileDialogProps {
@@ -261,7 +267,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
                             previewUrl === avatar.url ? "border-primary" : "border-transparent"
                         )}
                     >
-                        <Image src={avatar.url} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" data-ai-hint={avatar.hint} />
+                        <Image src={avatar.url} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" />
                     </button>
                 ))}
             </div>
@@ -282,5 +288,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     </Dialog>
   );
 }
+
+    
 
     
