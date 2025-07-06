@@ -41,25 +41,25 @@
   }
 
   .dark {
-    --background: 224 13% 15%; /* Dark Gunmetal */
-    --foreground: 0 0% 96%;
-    --card: 224 13% 20%;
-    --card-foreground: 0 0% 96%;
-    --popover: 224 13% 20%;
-    --popover-foreground: 0 0% 96%;
-    --primary: 217 60% 17%; /* Dark Navy Blue */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 224 13% 25%;
-    --secondary-foreground: 0 0% 96%;
-    --muted: 224 13% 25%;
-    --muted-foreground: 220 9% 55%;
-    --accent: 142 60% 50%; /* Sporty Green */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 72% 51%; /* Action Red */
-    --destructive-foreground: 0 0% 98%;
-    --border: 224 13% 30%;
-    --input: 224 13% 30%;
-    --ring: 217 60% 17%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 217.2 91.2% 59.8%;
     --chart-1: 217 91% 60%;
     --chart-2: 142 60% 50%;
     --chart-3: 358 79% 66%;
