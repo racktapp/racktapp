@@ -1,9 +1,11 @@
 
+'use client';
 
 import { type User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSport } from './providers/sport-provider';
 
 interface UserAvatarProps {
   user?: User | null;
@@ -25,7 +27,8 @@ const getInitials = (name?: string | null) => {
 }
 
 export function UserAvatar({ user, className }: UserAvatarProps) {
-  const flexedAchievementId = user?.sports?.Tennis?.flexedAchievementId;
+  const { sport } = useSport();
+  const flexedAchievementId = user?.sports?.[sport]?.flexedAchievementId;
   const FlexIcon = flexedAchievementId ? achievementIcons[flexedAchievementId] : null;
 
   return (
