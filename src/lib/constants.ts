@@ -12,27 +12,10 @@ export const SPORT_ICONS: Record<Sport, string> = {
 };
 
 // IMPORTANT: These paths must correspond to actual files in the /public/avatars folder.
-export const STOCK_AVATARS = [
-  { url: '/avatars/01.png' },
-  { url: '/avatars/02.png' },
-  { url: '/avatars/03.png' },
-  { url: '/avatars/04.png' },
-  { url: '/avatars/05.png' },
-  { url: '/avatars/06.png' },
-  { url: '/avatars/07.png' },
-  { url: '/avatars/08.png' },
-  { url: '/avatars/09.png' },
-  { url: '/avatars/10.png' },
-  { url: '/avatars/11.png' },
-  { url: '/avatars/12.png' },
-  { url: '/avatars/13.png' },
-  { url: '/avatars/14.png' },
-  { url: '/avatars/15.png' },
-  { url: '/avatars/16.png' },
-  { url: '/avatars/17.png' },
-  { url: '/avatars/18.png' },
-  { url: '/avatars/19.png' },
-  { url: '/avatars/20.png' },
-  { url: '/avatars/21.png' },
-  { url: '/avatars/22.png' },
-];
+// This generates a list from 01.png to 22.png, excluding 06.png and 16.png.
+const excludedAvatarNumbers = [6, 16];
+export const STOCK_AVATARS = Array.from({ length: 22 }, (_, i) => i + 1)
+  .filter(num => !excludedAvatarNumbers.includes(num))
+  .map(num => ({
+    url: `/avatars/${String(num).padStart(2, '0')}.png`,
+  }));
