@@ -1,0 +1,40 @@
+patch-package
+--- a/node_modules/react-joyride/dist/index.mjs
++++ b/node_modules/react-joyride/dist/index.mjs
+@@ -1,7 +1,7 @@
+ import React, { Component } from 'react';
+ import { PropTypes } from 'prop-types';
+ import Floater from 'react-floater';
+-import ReactDOM from 'react-dom';
++import { createRoot } from 'react-dom/client';
+ import { canUseDOM, isNumber, isObject, getElement, hasKey, isReactElement, getElementPosition, getClientRect, getArrowPosition, scrollTo, getElementFromRef, getFloaterPosition, getStyle } from 'react-floater/lib/utils';
+ import { isEqual, isFunction, deepmerge, isString } from 'deepmerge-all';
+ 
+@@ -1659,7 +1659,7 @@
+       }
+ 
+       if (this.tooltip) {
+-        ReactDOM.unmountComponentAtNode(this.tooltip);
++        this.tooltip.unmount();
+       }
+ 
+       if (this.portal) {
+@@ -1673,7 +1673,8 @@
+     }
+ 
+     this.portal = document.createElement('div');
+-    document.body.appendChild(this.portal);
++    document.body.appendChild(this.portal);
++    this.tooltip = createRoot(this.portal);
+ 
+     this.renderTooltip();
+   }
+@@ -1684,7 +1685,7 @@
+ 
+     const tooltip = /*#__PURE__*/React.createElement(Tooltip, this.getTooltipProps());
+ 
+-    ReactDOM.render(tooltip, this.portal);
++    this.tooltip.render(tooltip);
+   }
+ 
+   render() {
