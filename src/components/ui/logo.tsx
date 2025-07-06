@@ -8,7 +8,7 @@ export const Logo = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <Image
     ref={ref}
-    src="/my-logo1.png"
+    src="/logo2.png"
     alt="Rackt Logo"
     width={28}
     height={28}

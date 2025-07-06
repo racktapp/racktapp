@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 export function LoadingSpinner({ className }: { className?: string }) {
   return (
     <Image
-      src="/tennis_icon.png"
+      src="/logo2.png"
       alt="Loading..."
       width={28}
       height={28}
