@@ -19,4 +19,10 @@ export const STOCK_AVATARS = [
   { url: '/avatars/04.png' },
   { url: '/avatars/05.png' },
   { url: '/avatars/06.png' },
+  { url: '/avatars/07.png' },
+  { url: '/avatars/08.png' },
+  { url: '/avatars/09.png' },
+  { url: '/avatars/10.png' },
+  { url: '/avatars/11.png' },
+  { url: '/avatars/12.png' },
 ];
