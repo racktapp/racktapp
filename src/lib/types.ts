@@ -314,7 +314,7 @@ export const reportMatchSchema = z.object({
   opponent2: z.string().optional(),
   score: z.string()
     .min(3, "Please enter a valid score (e.g., 6-4, 6-3).")
-    .regex(/^(\d+-\d+)(, \d+-\d+)*$/, "Score format must be sets separated by commas (e.g., 6-4, 7-5)."),
+    .regex(/^(\d+-\d+)(\s*,\s*\d+-\d+)*$/, "Score format must be sets separated by commas (e.g., 6-4, 7-5)."),
   winnerId: z.string({ required_error: 'Please select the winner.' }),
   date: z.date({ required_error: 'Please select the date of the match.' }),
 }).refine(data => {

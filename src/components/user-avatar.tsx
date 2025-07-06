@@ -20,7 +20,7 @@ const achievementIcons: { [key: string]: React.ComponentType<{ className?: strin
 const getInitials = (name?: string | null) => {
     if (!name) return 'U';
     const names = name.split(' ');
-    if (names.length > 1) {
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
         return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();

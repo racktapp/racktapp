@@ -2,12 +2,12 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, Suspense } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserPlus, Search, UserMinus, UserCheck, UserX, Users, Mail, Send, MoreHorizontal, Swords, MessageSquare, Gamepad2 } from 'lucide-react';
-import { User, FriendRequest } from '@/lib/types';
+import { User, FriendRequest, Sport } from '@/lib/types';
 import { 
     searchUsersAction, 
     addFriendAction,
@@ -28,11 +28,12 @@ import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { ChallengeFriendDialog } from '@/components/challenges/challenge-friend-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
+import { useSport } from '../providers/sport-provider';
 
 // --- Reusable Card Components ---
 
@@ -61,11 +62,13 @@ const ActionButton = ({ onClick, isProcessing, idleIcon, processingText, buttonT
 }
 
 // --- Main Page Component ---
-
-export default function FriendsPage() {
+function FriendsPageContent() {
     const { user: currentUser } = useAuth();
+    const { sport } = useSport();
     const router = useRouter();
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get('tab') || 'friends';
 
     // State for all data
     const [friends, setFriends] = useState<User[]>([]);
@@ -112,9 +115,9 @@ export default function FriendsPage() {
                 router.push(result.redirect);
             } else {
                 await fetchData(); // Refresh all data
-                if (searchQuery) { // Re-run search to update button states
-                    const searchResults = await searchUsersAction(searchQuery, currentUser!.uid);
-                    setSearchResults(searchResults);
+                if (searchQuery && currentUser) { // Re-run search to update button states
+                    const searchResultsData = await searchUsersAction(searchQuery, currentUser.uid);
+                    setSearchResults(searchResultsData);
                 }
             }
         } else {
@@ -124,7 +127,8 @@ export default function FriendsPage() {
     };
 
     const handleStartChat = async (friendId: string) => {
-        handleAction(() => getOrCreateChatAction(friendId, currentUser!.uid), friendId);
+        if (!currentUser) return;
+        handleAction(() => getOrCreateChatAction(friendId, currentUser.uid), friendId);
     };
     
     const handleSearch = async (e: React.FormEvent) => {
@@ -152,7 +156,7 @@ export default function FriendsPage() {
         description="Manage your connections and find new people."
       />
       
-      <Tabs defaultValue="friends" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="friends"><Users className="mr-2" /> Friends</TabsTrigger>
             <TabsTrigger value="requests">
@@ -196,18 +200,18 @@ export default function FriendsPage() {
                                     </DropdownMenuSubTrigger>
                                      <DropdownMenuPortal>
                                         <DropdownMenuSubContent>
-                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid, currentUser.uid, currentUser.preferredSports[0] || 'Tennis'), friend.uid + 'rally')}>
+                                             <DropdownMenuItem onSelect={() => handleAction(() => createRallyGameAction(friend.uid, currentUser.uid, sport), friend.uid + 'rally')}>
                                                 {processingIds.includes(friend.uid + 'rally') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Swords className="mr-2 h-4 w-4" />}
                                                 Rally Game
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => handleAction(() => createLegendGameAction(friend.uid, currentUser.preferredSports[0] || 'Tennis', currentUser.uid), friend.uid + 'legend')}>
+                                            <DropdownMenuItem onSelect={() => handleAction(() => createLegendGameAction(friend.uid, sport, currentUser.uid), friend.uid + 'legend')}>
                                                 {processingIds.includes(friend.uid + 'legend') ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Users className="mr-2 h-4 w-4" />}
                                                 Guess the Legend
                                             </DropdownMenuItem>
                                         </DropdownMenuSubContent>
                                     </DropdownMenuPortal>
                                 </DropdownMenuSub>
-                                <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid)}>
+                                <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid + 'remove')}>
                                      {processingIds.includes(friend.uid + 'remove') ? 
                                         <LoadingSpinner className="mr-2 h-4 w-4" /> : 
                                         <UserMinus className="mr-2 h-4 w-4" />}
@@ -329,4 +333,13 @@ export default function FriendsPage() {
       </Tabs>
     </div>
   );
+}
+
+
+export default function FriendsPage() {
+    return (
+        <Suspense fallback={<div className="container mx-auto flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner className="h-8 w-8" /></div>}>
+            <FriendsPageContent />
+        </Suspense>
+    );
 }

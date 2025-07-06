@@ -5,7 +5,6 @@ import { AuthProvider } from '@/components/providers/auth-provider';
 import { SportProvider } from '@/components/providers/sport-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { PWAInstaller } from '@/components/pwa-installer';
 
 const APP_NAME = "Rackt";
 const APP_DESCRIPTION = "The Social Sports Hub";
@@ -17,23 +16,13 @@ export const metadata: Metadata = {
     template: `%s | ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: APP_NAME,
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  icons: {
-    shortcut: "/favicon.ico",
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
-  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#F5F7FA",
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
 };
 
 
@@ -63,7 +52,6 @@ export default function RootLayout({
             <SportProvider>
               {children}
               <Toaster />
-              <PWAInstaller />
             </SportProvider>
           </AuthProvider>
         </ThemeProvider>
