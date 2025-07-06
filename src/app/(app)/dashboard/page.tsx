@@ -141,6 +141,23 @@ export default function DashboardPage() {
           />
       </div>
 
+      <Card className="bg-gradient-to-br from-primary to-violet-500 text-primary-foreground">
+          <CardHeader>
+              <div className="flex items-center gap-3">
+                  <Plus className="h-8 w-8" />
+                  <CardTitle>Report a Match</CardTitle>
+              </div>
+              <CardDescription className="text-primary-foreground/80">Log your latest result to update your RacktRank and stats.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+              <Button asChild variant="secondary" className="w-full">
+                <Link href="/report-match">
+                  Log Result <ChevronRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+          </CardFooter>
+      </Card>
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
               <Card>
@@ -171,23 +188,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="lg:col-span-1 space-y-6">
-              <Card className="bg-gradient-to-br from-primary to-violet-500 text-primary-foreground">
-                  <CardHeader>
-                      <div className="flex items-center gap-3">
-                          <Plus className="h-8 w-8" />
-                          <CardTitle>Report a Match</CardTitle>
-                      </div>
-                      <CardDescription className="text-primary-foreground/80">Log your latest result to update your RacktRank and stats.</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                      <Button asChild variant="secondary" className="w-full">
-                        <Link href="/report-match">
-                          Log Result <ChevronRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                  </CardFooter>
-              </Card>
-
               <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
           </div>
       </div>
