@@ -21,6 +21,7 @@ import { EloChart } from '@/components/dashboard/elo-chart';
 import { MatchHistoryCard } from '@/components/match-history/match-history-card';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 type ProfileData = Awaited<ReturnType<typeof getProfilePageDataAction>>;
 
@@ -199,21 +200,36 @@ export default function ProfilePage() {
           
           {headToHead && (
             <Card>
-                <CardHeader>
-                    <CardTitle>Head-to-Head</CardTitle>
-                    <CardDescription>Your record vs. {profileUser.name.split(' ')[0]} in {sport}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex justify-around items-center">
-                    <div className="text-center">
-                        <p className="text-3xl font-bold">{headToHead.currentUserWins}</p>
-                        <p className="text-sm text-muted-foreground">Your Wins</p>
-                    </div>
-                    <div className="text-2xl font-bold text-muted-foreground">-</div>
-                    <div className="text-center">
-                        <p className="text-3xl font-bold">{headToHead.profileUserWins}</p>
-                        <p className="text-sm text-muted-foreground">Their Wins</p>
-                    </div>
-                </CardContent>
+              <CardHeader>
+                  <CardTitle>Head-to-Head Rivalry</CardTitle>
+                  <CardDescription>Your record vs. {profileUser.name.split(' ')[0]} in {sport}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                          <p className="text-3xl font-bold">{headToHead.currentUserWins}</p>
+                          <p className="text-sm text-muted-foreground">Your Wins</p>
+                      </div>
+                      <div>
+                          <p className="text-3xl font-bold">{headToHead.profileUserWins}</p>
+                          <p className="text-sm text-muted-foreground">Their Wins</p>
+                      </div>
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                          <p className="text-3xl font-bold">{headToHead.currentUserLongestStreak}</p>
+                          <p className="text-sm text-muted-foreground">Your Longest Streak</p>
+                      </div>
+                      <div>
+                          <p className="text-3xl font-bold">{headToHead.profileUserLongestStreak}</p>
+                          <p className="text-sm text-muted-foreground">Their Longest Streak</p>
+                      </div>
+                  </div>
+                  <div className="text-center text-xs text-muted-foreground pt-2">
+                      Based on {headToHead.totalMatches} match(es).
+                  </div>
+              </CardContent>
             </Card>
           )}
 

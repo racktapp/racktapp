@@ -782,6 +782,23 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
 
 // --- Profile Page Action ---
+const calculateLongestStreak = (matches: Match[], targetPlayerId: string): number => {
+    let longestStreak = 0;
+    let currentStreak = 0;
+    // Matches are sorted by date in getHeadToHeadMatches
+    for (const match of matches) {
+        if (match.winner.includes(targetPlayerId)) {
+            currentStreak++;
+        } else {
+            longestStreak = Math.max(longestStreak, currentStreak);
+            currentStreak = 0;
+        }
+    }
+    longestStreak = Math.max(longestStreak, currentStreak); // Check streak at the end
+    return longestStreak;
+};
+
+
 export async function getProfilePageDataAction(profileUserId: string, currentUserId: string | null, sport: Sport) {
     const profileUserDoc = await getDoc(doc(db, 'users', profileUserId));
     if (!profileUserDoc.exists()) return null;
@@ -796,7 +813,17 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         
         const currentUserWins = headToHeadMatches.filter(m => m.winner.includes(currentUserId)).length;
         const profileUserWins = headToHeadMatches.filter(m => m.winner.includes(profileUserId)).length;
-        const headToHead = { currentUserWins, profileUserWins };
+
+        const currentUserLongestStreak = calculateLongestStreak(headToHeadMatches, currentUserId);
+        const profileUserLongestStreak = calculateLongestStreak(headToHeadMatches, profileUserId);
+        
+        const headToHead = { 
+            currentUserWins, 
+            profileUserWins,
+            totalMatches: headToHeadMatches.length,
+            currentUserLongestStreak,
+            profileUserLongestStreak
+        };
         
         const achievements = calculateRivalryAchievements(headToHeadMatches, currentUserId, profileUser.name.split(' ')[0]);
 
