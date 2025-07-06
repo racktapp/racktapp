@@ -4,6 +4,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -156,6 +157,7 @@ export const createUserDocument = async (user: {
 interface ReportMatchData {
     sport: Sport;
     matchType: MatchType;
+    isRanked: boolean;
     team1Ids: string[];
     team2Ids: string[];
     winnerIds: string[];
@@ -181,6 +183,7 @@ export const reportPendingMatch = async (data: ReportMatchData): Promise<string>
         id: matchRef.id,
         type: data.matchType,
         sport: data.sport,
+        isRanked: data.isRanked,
         participants: allPlayerIds,
         participantsData,
         teams: {
@@ -219,6 +222,12 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             return { finalized: false };
         }
         
+        // If the match is NOT ranked, just confirm it and we're done.
+        if (!match.isRanked) {
+            transaction.update(matchRef, { status: 'confirmed', participantsToConfirm: [] });
+            return { finalized: true };
+        }
+
         const allPlayerIds = match.participants;
         const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
         const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));

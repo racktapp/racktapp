@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
 import { Badge } from '@/components/ui/badge';
-import { Bot, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Bot, Sparkles, ThumbsUp, ThumbsDown, Star, StarOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
@@ -66,8 +66,14 @@ export function MatchHistoryCard({ match, currentUserId, className, style }: Mat
                  <div className="text-muted-foreground">{match.score}</div>
               </div>
             </div>
-            <div className="text-sm text-muted-foreground hidden sm:block">
-              {format(new Date(match.date), 'MMM d, yyyy')}
+             <div className="flex items-center gap-2 sm:gap-4">
+                <Badge variant={match.isRanked ? 'secondary' : 'outline'} className="hidden sm:flex items-center gap-1 font-medium">
+                    {match.isRanked ? <Star className="h-3 w-3" /> : <StarOff className="h-3 w-3" />}
+                    {match.isRanked ? 'Ranked' : 'Unranked'}
+                </Badge>
+                <div className="text-sm text-muted-foreground hidden sm:block">
+                {format(new Date(match.date), 'MMM d, yyyy')}
+                </div>
             </div>
           </div>
         </AccordionTrigger>
@@ -77,6 +83,7 @@ export function MatchHistoryCard({ match, currentUserId, className, style }: Mat
                     <div><span className="font-medium text-foreground">Date:</span> {format(new Date(match.date), 'PPP')}</div>
                     <div><span className="font-medium text-foreground">Sport:</span> <span className="inline-flex items-center gap-1.5">{match.sport} <Image src={SPORT_ICONS[match.sport]} alt={match.sport} width={16} height={16} unoptimized/></span></div>
                     <div><span className="font-medium text-foreground">Type:</span> {match.type}</div>
+                    <div><span className="font-medium text-foreground">Mode:</span> {match.isRanked ? "Ranked" : "Unranked"}</div>
                     {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> {match.participantsData[partner]?.name || 'Unknown'}</div>}
                 </div>
 

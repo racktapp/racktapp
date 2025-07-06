@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
+import { Badge } from '@/components/ui/badge';
 
 interface PendingMatchCardProps {
   match: Match;
@@ -61,7 +62,7 @@ export function PendingMatchCard({ match, currentUserId, onAction }: PendingMatc
   return (
     <Card className="bg-background">
       <CardContent className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
             <div className="flex items-center gap-4 text-left">
                 <div className={`font-semibold text-lg ${winnerIsOnMyTeam ? 'text-green-600' : 'text-red-600'}`}>
                     {winnerIsOnMyTeam ? 'Reported Win' : 'Reported Loss'}
@@ -71,8 +72,13 @@ export function PendingMatchCard({ match, currentUserId, onAction }: PendingMatc
                     <div className="text-muted-foreground">{match.score}</div>
                 </div>
             </div>
-            <div className="text-sm text-muted-foreground hidden sm:block">
-              {format(new Date(match.date), 'MMM d, yyyy')}
+            <div className="hidden sm:flex flex-col items-end gap-1 flex-shrink-0">
+                <div className="text-sm text-muted-foreground">
+                    {format(new Date(match.date), 'MMM d, yyyy')}
+                </div>
+                 <Badge variant={match.isRanked ? 'secondary' : 'outline'} className="font-medium">
+                    {match.isRanked ? 'Ranked' : 'Unranked'}
+                </Badge>
             </div>
         </div>
 

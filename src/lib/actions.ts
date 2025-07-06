@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -50,6 +50,7 @@ import { type Sport, type User, reportMatchSchema, challengeSchema, openChalleng
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
+import { updateProfile } from 'firebase/auth';
 
 
 // Action to report a match
@@ -73,6 +74,7 @@ export async function handleReportMatchAction(
     await reportPendingMatch({
         sport: values.sport,
         matchType: values.matchType,
+        isRanked: values.isRanked,
         team1Ids,
         team2Ids,
         winnerIds: winnerIds,

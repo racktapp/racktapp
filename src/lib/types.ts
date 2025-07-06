@@ -1,3 +1,4 @@
+
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -48,6 +49,7 @@ export interface User {
   username: string;
   email: string;
   emailVerified: boolean;
+  avatarUrl?: string | null;
   avatarConfig: AvatarConfig;
   friendIds: string[];
   location?: string;
@@ -74,6 +76,7 @@ export interface Match {
   type: MatchType;
   sport: Sport;
   status: MatchStatus;
+  isRanked: boolean;
   participants: string[]; // All user IDs in the match
   participantsData: {
     [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
@@ -102,10 +105,10 @@ export interface Challenge {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatarConfig: AvatarConfig;
+  fromAvatarUrl?: string | null;
   toId: string;
   toName: string;
-  toAvatarConfig: AvatarConfig;
+  toAvatarUrl?: string | null;
   status: ChallengeStatus;
   sport: Sport;
   wager?: string;
@@ -118,7 +121,7 @@ export interface OpenChallenge {
   id: string;
   posterId: string;
   posterName: string;
-  posterAvatarConfig: AvatarConfig;
+  posterAvatarUrl?: string | null;
   sport: Sport;
   location: string;
   note?: string;
@@ -185,6 +188,7 @@ export const ReturnChoiceSchema = z.object({
 export type ReturnChoice = z.infer<typeof ReturnChoiceSchema>;
 
 export const RallyGameInputSchema = z.object({
+  sport: SportEnum,
   servingPlayerRank: z.number().describe('The RacktRank of the player who is serving this turn.'),
   returningPlayerRank: z.number().describe('The RacktRank of the player who is receiving serve this turn.'),
   serveChoice: ServeChoiceSchema.optional().describe('The serve chosen by the serving player. If present, the AI should generate return options or evaluate the point.'),
@@ -215,7 +219,7 @@ export interface RallyGame {
   sport: Sport;
   participantIds: string[];
   participantsData: {
-    [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
+    [key: string]: { name: string; avatarUrl?: string | null; uid: string };
   };
   score: {
     [key: string]: number;
@@ -251,7 +255,7 @@ export interface LegendGame {
     mode: 'solo' | 'friend';
     sport: Sport;
     participantIds: string[];
-    participantsData: { [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string } };
+    participantsData: { [key: string]: { name: string; avatarUrl?: string | null; uid: string } };
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
@@ -306,6 +310,7 @@ export interface Achievement {
 export const reportMatchSchema = z.object({
   matchType: z.enum(['Singles', 'Doubles']),
   sport: SportEnum,
+  isRanked: z.boolean().default(true),
   opponent1: z.string({ required_error: 'Please select an opponent.' }),
   partner: z.string().optional(),
   opponent2: z.string().optional(),

@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from '@/components/ui/switch';
 
 import { useAuth } from '@/hooks/use-auth';
 import { getAllUsers } from '@/lib/firebase/firestore';
@@ -52,6 +53,7 @@ export default function ReportMatchPage() {
     defaultValues: {
       matchType: 'Singles',
       sport: sport,
+      isRanked: true,
       date: new Date(),
       score: '',
     },
@@ -219,6 +221,29 @@ export default function ReportMatchPage() {
                 <FormMessage />
               </FormItem>
             )} />
+
+             <FormField
+                control={form.control}
+                name="isRanked"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border bg-muted/10 p-4">
+                    <div className="space-y-0.5">
+                    <FormLabel>
+                        Ranked Match
+                    </FormLabel>
+                    <FormDescription>
+                        Will this match affect players' RacktRank?
+                    </FormDescription>
+                    </div>
+                    <FormControl>
+                    <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                    />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
 
             <FormField
               control={form.control}
