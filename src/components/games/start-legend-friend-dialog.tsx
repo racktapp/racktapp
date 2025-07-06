@@ -1,4 +1,5 @@
 
+
 'use client';
 import { ReactNode, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -96,7 +97,7 @@ export function StartLegendFriendDialog({ children, opponent }: StartLegendFrien
             <div className='space-y-2'>
                 <label className="text-sm font-medium">Friend</label>
                 <Select onValueChange={setSelectedFriendId} value={selectedFriendId}>
-                    <SelectTrigger disabled={isFetchingFriends}>
+                    <SelectTrigger disabled={isFetchingFriends || !!opponent}>
                         <SelectValue placeholder="Select a friend..." />
                     </SelectTrigger>
                     <SelectContent>

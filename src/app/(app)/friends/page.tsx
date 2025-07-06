@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, ReactNode } from 'react';
@@ -228,7 +229,7 @@ export default function FriendsPage() {
                 incomingRequests.map((req, i) => (
                     <UserCard 
                       key={req.id} 
-                      user={{ uid: req.fromId, name: req.fromName, avatar: req.fromAvatar }}
+                      user={{ uid: req.fromId, name: req.fromName, avatarUrl: req.fromAvatarUrl }}
                       className="opacity-0 animate-fade-in-slide-up"
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
@@ -261,7 +262,7 @@ export default function FriendsPage() {
                 sentRequests.map((req, i) => (
                      <UserCard 
                         key={req.id} 
-                        user={{ uid: req.toId, name: req.toName, avatar: req.toAvatar }}
+                        user={{ uid: req.toId, name: req.toName, avatarUrl: req.toAvatarUrl }}
                         className="opacity-0 animate-fade-in-slide-up"
                         style={{ animationDelay: `${i * 100}ms` }}
                      >

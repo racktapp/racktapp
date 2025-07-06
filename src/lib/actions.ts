@@ -46,7 +46,7 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput, RallyGameInput, RallyGameOutput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, defaultAvatarConfig } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -178,10 +178,10 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
         await createDirectChallenge({
             fromId: fromUser.uid,
             fromName: fromUser.name,
-            fromAvatarConfig: fromUser.avatarConfig || defaultAvatarConfig,
+            fromAvatarUrl: fromUser.avatarUrl,
             toId: toUser.uid,
             toName: toUser.name,
-            toAvatarConfig: toUser.avatarConfig || defaultAvatarConfig,
+            toAvatarUrl: toUser.avatarUrl,
             sport: values.sport,
             location: values.location,
             wager: values.wager,
@@ -199,7 +199,7 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
         await createOpenChallenge({
             posterId: poster.uid,
             posterName: poster.name,
-            posterAvatarConfig: poster.avatarConfig || defaultAvatarConfig,
+            posterAvatarUrl: poster.avatarUrl,
             sport: values.sport,
             location: values.location,
             note: values.note,
@@ -358,7 +358,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                 newGame = {
                     id: gameRef.id, mode: 'friend', sport,
                     participantIds: [currentUserId, friendId],
-                    participantsData: { [currentUserId]: { name: user.name, avatarConfig: user.avatarConfig, uid: user.uid }, [friendId]: { name: friend.name, avatarConfig: friend.avatarConfig, uid: friend.uid } },
+                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { name: friend.name, avatarUrl: friend.avatarUrl, uid: friend.uid } },
                     score: { [currentUserId]: 0, [friendId]: 0 },
                     currentPlayerId: currentUserId,
                     turnState: 'playing', status: 'ongoing',
@@ -369,7 +369,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                 newGame = {
                     id: gameRef.id, mode: 'solo', sport,
                     participantIds: [currentUserId],
-                    participantsData: { [currentUserId]: { name: user.name, avatarConfig: user.avatarConfig, uid: user.uid } },
+                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid } },
                     score: { [currentUserId]: 0 },
                     currentPlayerId: currentUserId,
                     turnState: 'playing', status: 'ongoing',
@@ -525,7 +525,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
                 id: gameRef.id,
                 sport: sport,
                 participantIds: [user.uid, friend.uid],
-                participantsData: { [user.uid]: { name: user.name, avatarConfig: user.avatarConfig, uid: user.uid }, [friend.uid]: { name: friend.name, avatarConfig: friend.avatarConfig, uid: friend.uid } },
+                participantsData: { [user.uid]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid }, [friend.uid]: { name: friend.name, avatarUrl: friend.avatarUrl, uid: friend.uid } },
                 score: { [user.uid]: 0, [friend.uid]: 0 },
                 turn: 'serving', currentPlayerId: user.uid,
                 currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialAiResponse.serveOptions },
@@ -758,10 +758,6 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
     }
 }
 
-/**
- * This server action takes a public URL to an image and updates the user's
- * Firestore document. It does NOT update Firebase Auth, as that must be done client-side.
- */
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
         if (!userId) throw new Error("User not authenticated.");

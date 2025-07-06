@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -70,7 +71,7 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
     <Card className="transition-colors group">
       <CardContent className="p-0 flex items-center justify-between">
         <Link href={link} className="flex-1 p-4 flex items-center gap-4 overflow-hidden rounded-l-md group-hover:bg-muted/50">
-          {opponent ? <UserAvatar user={opponent} className="h-10 w-10" /> : <div className="bg-primary/10 p-2 rounded-full"><Bot className="h-6 w-6 text-primary" /></div>}
+          {opponent ? <UserAvatar user={opponent as User} className="h-10 w-10" /> : <div className="bg-primary/10 p-2 rounded-full"><Bot className="h-6 w-6 text-primary" /></div>}
           <div className="flex-1 overflow-hidden">
             <div className="flex justify-between items-start">
               <p className="font-semibold truncate">{title}</p>

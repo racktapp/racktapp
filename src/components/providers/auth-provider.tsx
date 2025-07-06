@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { auth, db, storage } from '@/lib/firebase/config';
-import type { User as AppUser, AvatarConfig } from '@/lib/types';
+import type { User as AppUser } from '@/lib/types';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { createUserDocument } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             uid: firebaseUser.uid,
             email: firebaseUser.email!,
             name: firebaseUser.displayName || userProfile.name,
-            avatarConfig: userProfile.avatarConfig,
+            avatarUrl: firebaseUser.photoURL || userProfile.avatarUrl,
             emailVerified: firebaseUser.emailVerified,
           };
 

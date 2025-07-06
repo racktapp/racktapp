@@ -6,19 +6,6 @@ import { SPORTS, type Sport as SportType } from './constants';
 export type Sport = SportType;
 const SportEnum = z.enum(SPORTS);
 
-export const AvatarConfigSchema = z.object({
-  skinColor: z.string().default('#f2d5b1'),
-  hairColor: z.string().default('#4a312a'),
-  hairStyle: z.string().default('short'),
-});
-export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
-
-export const defaultAvatarConfig: AvatarConfig = {
-  skinColor: '#f2d5b1',
-  hairColor: '#4a312a',
-  hairStyle: 'short',
-};
-
 export interface Socials {
   twitter?: string;
   instagram?: string;
@@ -50,7 +37,6 @@ export interface User {
   email: string;
   emailVerified: boolean;
   avatarUrl?: string | null;
-  avatarConfig: AvatarConfig;
   friendIds: string[];
   location?: string;
   handPreference?: 'left' | 'right';
@@ -79,7 +65,7 @@ export interface Match {
   isRanked: boolean;
   participants: string[]; // All user IDs in the match
   participantsData: {
-    [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
+    [key: string]: { name: string; avatarUrl?: string | null; uid: string };
   };
   teams: {
     team1: {
@@ -105,10 +91,10 @@ export interface Challenge {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatarConfig: AvatarConfig;
+  fromAvatarUrl?: string | null;
   toId: string;
   toName: string;
-  toAvatarConfig: AvatarConfig;
+  toAvatarUrl?: string | null;
   status: ChallengeStatus;
   sport: Sport;
   wager?: string;
@@ -121,7 +107,7 @@ export interface OpenChallenge {
   id: string;
   posterId: string;
   posterName: string;
-  posterAvatarConfig: AvatarConfig;
+  posterAvatarUrl?: string | null;
   sport: Sport;
   location: string;
   note?: string;
@@ -135,10 +121,10 @@ export interface FriendRequest {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatarConfig: AvatarConfig;
+  fromAvatarUrl?: string | null;
   toId: string;
   toName: string;
-  toAvatarConfig: AvatarConfig;
+  toAvatarUrl?: string | null;
   status: FriendRequestStatus;
   createdAt: number; // timestamp
 }
@@ -157,7 +143,7 @@ export interface Chat {
   participantsData: {
     [key: string]: { // key is userId
         name: string;
-        avatarConfig: AvatarConfig;
+        avatarUrl?: string | null;
     }
   };
   lastMessage?: Message;
@@ -219,7 +205,7 @@ export interface RallyGame {
   sport: Sport;
   participantIds: string[];
   participantsData: {
-    [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
+    [key: string]: { name: string; avatarUrl?: string | null; uid: string };
   };
   score: {
     [key: string]: number;
@@ -255,7 +241,7 @@ export interface LegendGame {
     mode: 'solo' | 'friend';
     sport: Sport;
     participantIds: string[];
-    participantsData: { [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string } };
+    participantsData: { [key: string]: { name: string; avatarUrl?: string | null; uid: string } };
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
@@ -290,7 +276,7 @@ export interface Tournament {
   sport: Sport;
   organizerId: string;
   participantIds: string[];
-  participantsData: { uid: string; name: string; avatarConfig: AvatarConfig }[];
+  participantsData: { uid: string; name: string; avatarUrl?: string | null }[];
   status: 'pending' | 'ongoing' | 'complete';
   winnerId?: string;
   bracket: TournamentRound[];
