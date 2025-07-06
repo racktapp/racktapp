@@ -6,6 +6,13 @@ import { SPORTS, type Sport as SportType } from './constants';
 export type Sport = SportType;
 const SportEnum = z.enum(SPORTS);
 
+export const AvatarConfigSchema = z.object({
+  skinColor: z.string().default('#f2d5b1'),
+  hairColor: z.string().default('#4a312a'),
+  hairStyle: z.string().default('short'),
+}).default({});
+export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
+
 export interface Socials {
   twitter?: string;
   instagram?: string;
@@ -36,7 +43,7 @@ export interface User {
   username: string;
   email: string;
   emailVerified: boolean;
-  avatarUrl?: string;
+  avatarConfig: AvatarConfig;
   friendIds: string[];
   location?: string;
   handPreference?: 'left' | 'right';
@@ -64,7 +71,7 @@ export interface Match {
   status: MatchStatus;
   participants: string[]; // All user IDs in the match
   participantsData: {
-    [key: string]: { name: string; avatarUrl?: string; uid: string };
+    [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
   };
   teams: {
     team1: {
@@ -90,10 +97,10 @@ export interface Challenge {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatarUrl?: string;
+  fromAvatarConfig: AvatarConfig;
   toId: string;
   toName: string;
-  toAvatarUrl?: string;
+  toAvatarConfig: AvatarConfig;
   status: ChallengeStatus;
   sport: Sport;
   wager?: string;
@@ -106,7 +113,7 @@ export interface OpenChallenge {
   id: string;
   posterId: string;
   posterName: string;
-  posterAvatarUrl?: string;
+  posterAvatarConfig: AvatarConfig;
   sport: Sport;
   location: string;
   note?: string;
@@ -120,10 +127,10 @@ export interface FriendRequest {
   id: string;
   fromId: string;
   fromName: string;
-  fromAvatarUrl?: string;
+  fromAvatarConfig: AvatarConfig;
   toId: string;
   toName: string;
-  toAvatarUrl?: string;
+  toAvatarConfig: AvatarConfig;
   status: FriendRequestStatus;
   createdAt: number; // timestamp
 }
@@ -142,7 +149,7 @@ export interface Chat {
   participantsData: {
     [key: string]: { // key is userId
         name: string;
-        avatarUrl?: string;
+        avatarConfig: AvatarConfig;
     }
   };
   lastMessage?: Message;
@@ -203,7 +210,7 @@ export interface RallyGame {
   sport: Sport;
   participantIds: string[];
   participantsData: {
-    [key: string]: { name: string; avatarUrl?: string; uid: string };
+    [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string };
   };
   score: {
     [key: string]: number;
@@ -239,7 +246,7 @@ export interface LegendGame {
     mode: 'solo' | 'friend';
     sport: Sport;
     participantIds: string[];
-    participantsData: { [key: string]: { name: string; avatarUrl?: string; uid: string } };
+    participantsData: { [key: string]: { name: string; avatarConfig: AvatarConfig; uid: string } };
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
@@ -274,7 +281,7 @@ export interface Tournament {
   sport: Sport;
   organizerId: string;
   participantIds: string[];
-  participantsData: { uid: string; name: string; avatarUrl?: string }[];
+  participantsData: { uid: string; name: string; avatarConfig: AvatarConfig }[];
   status: 'pending' | 'ongoing' | 'complete';
   winnerId?: string;
   bracket: TournamentRound[];
@@ -362,4 +369,5 @@ export const profileSettingsSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
     preferredSports: z.array(SportEnum).min(1, 'Please select at least one preferred sport.'),
+    avatarConfig: AvatarConfigSchema,
 });

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -38,8 +39,8 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction, classN
   const [processingAction, setProcessingAction] = useState<string | null>(null);
 
   const opponent = type === 'incoming' 
-    ? { uid: challenge.fromId, name: challenge.fromName, avatarUrl: challenge.fromAvatarUrl }
-    : { uid: challenge.toId, name: challenge.toName, avatarUrl: challenge.toAvatarUrl };
+    ? { uid: challenge.fromId, name: challenge.fromName, avatarConfig: challenge.fromAvatarConfig }
+    : { uid: challenge.toId, name: challenge.toName, avatarConfig: challenge.toAvatarConfig };
 
   const handleAction = async (action: 'accept' | 'decline' | 'cancel') => {
     setProcessingAction(action);

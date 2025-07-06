@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,54 +17,53 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Image as ImageIcon, UploadCloud, Loader2, User as UserIcon } from "lucide-react";
+import { Save, Loader2, User as UserIcon, Palette, Sparkles, Paintbrush, PersonStanding } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import React, { useState, useRef, useEffect } from "react";
-import NextImage from "next/image";
+import React, { useState, useEffect } from "react";
+import { AvatarConfig, defaultAvatarConfig } from "@/lib/types";
+import { HAIR_COLORS, HAIR_STYLES, SKIN_COLORS } from "@/lib/constants";
+import { CustomAvatar } from "../custom-avatar";
+import { cn } from "@/lib/utils";
+import { Separator } from "../ui/separator";
 
 const profileFormSchema = z.object({
   name: z.string().min(1, { message: "Name cannot be empty." }).max(50),
 });
 
+const ColorSwatch = ({ color, isSelected, onClick }: { color: string; isSelected: boolean; onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "h-8 w-8 rounded-full border-2 transition-transform hover:scale-110",
+      isSelected ? "border-primary scale-110" : "border-transparent"
+    )}
+    style={{ backgroundColor: color }}
+    aria-label={`Select color ${color}`}
+  />
+);
+
 export function SettingsForm() {
   const { toast } = useToast();
-  const { user, updateUserName, updateUserProfileImage } = useAuth();
+  const { user, updateUserName, updateUserAvatarConfig } = useAuth();
   
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(user?.avatarConfig || defaultAvatarConfig);
   const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: user?.name || "",
-    },
+    defaultValues: { name: user?.name || "" },
   });
 
   useEffect(() => {
     if (user) {
       form.reset({ name: user.name || "" });
-      if (!selectedFile) {
-        setPreviewUrl(user.avatarUrl || null);
-      }
+      setAvatarConfig(user.avatarConfig || defaultAvatarConfig);
     }
-  }, [user, form, selectedFile]);
+  }, [user, form]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({ variant: 'destructive', title: 'File too large', description: 'Please upload an image smaller than 5MB.' });
-        return;
-      }
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleConfigChange = <K extends keyof AvatarConfig>(key: K, value: AvatarConfig[K]) => {
+    setAvatarConfig(prev => ({ ...prev, [key]: value }));
   };
 
   async function onSubmit(values: z.infer<typeof profileFormSchema>) {
@@ -74,18 +74,20 @@ export function SettingsForm() {
     setIsSaving(true);
     
     try {
+      const nameChanged = values.name !== user.name;
+      const avatarChanged = JSON.stringify(avatarConfig) !== JSON.stringify(user.avatarConfig);
+
       const promises = [];
-      if (values.name !== user.name) {
+      if (nameChanged) {
         promises.push(updateUserName(user.uid, values.name));
       }
-      if (selectedFile) {
-        promises.push(updateUserProfileImage(user.uid, selectedFile));
+      if (avatarChanged) {
+        promises.push(updateUserAvatarConfig(user.uid, avatarConfig));
       }
 
       if (promises.length > 0) {
         await Promise.all(promises);
         toast({ title: "Profile Updated", description: "Your changes have been saved." });
-        setSelectedFile(null);
       } else {
         toast({ title: "No Changes", description: "You haven't made any changes to save." });
       }
@@ -104,7 +106,7 @@ export function SettingsForm() {
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><UserIcon /> Profile Information</CardTitle>
-            <CardDescription>Update your public name and avatar.</CardDescription>
+            <CardDescription>Update your public name and customize your avatar.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <FormField
@@ -120,26 +122,33 @@ export function SettingsForm() {
                 </FormItem>
               )}
             />
+            
+            <Separator />
+            
             <div>
-              <FormLabel>Profile Picture</FormLabel>
-              <div className="mt-1 flex flex-col items-center gap-3">
-                {previewUrl ? (
-                  <NextImage src={previewUrl} alt="Avatar preview" width={128} height={128} className="h-32 w-32 rounded-full border object-cover" data-ai-hint="user avatar" />
-                ) : (
-                  <div className="flex h-32 w-32 items-center justify-center rounded-full border bg-muted">
-                    <ImageIcon className="h-16 w-16 text-muted-foreground" />
+              <FormLabel>Avatar Customization</FormLabel>
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 flex justify-center items-center">
+                    <div className="h-32 w-32 rounded-full border-4 border-muted p-1">
+                        <CustomAvatar config={avatarConfig} />
+                    </div>
+                </div>
+                <div className="md:col-span-2 space-y-4">
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2"><Palette className="h-4 w-4" /> Skin Tone</h4>
+                    <div className="flex gap-2 flex-wrap">{SKIN_COLORS.map(color => <ColorSwatch key={color} color={color} isSelected={avatarConfig.skinColor === color} onClick={() => handleConfigChange('skinColor', color)} />)}</div>
                   </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  ref={fileInputRef}
-                />
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                  <UploadCloud className="mr-2 h-4 w-4" /> Choose File
-                </Button>
+                   <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4" /> Hair Style</h4>
+                    <div className="flex gap-2 flex-wrap">{HAIR_STYLES.map(style => (
+                        <Button key={style} type="button" variant={avatarConfig.hairStyle === style ? 'default' : 'outline'} onClick={() => handleConfigChange('hairStyle', style)}>{style.charAt(0).toUpperCase() + style.slice(1)}</Button>
+                    ))}</div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2"><Paintbrush className="h-4 w-4" /> Hair Color</h4>
+                    <div className="flex gap-2 flex-wrap">{HAIR_COLORS.map(color => <ColorSwatch key={color} color={color} isSelected={avatarConfig.hairColor === color} onClick={() => handleConfigChange('hairColor', color)} />)}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>

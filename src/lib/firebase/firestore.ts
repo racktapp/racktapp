@@ -2,6 +2,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -24,7 +25,7 @@ import {
   Transaction,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, AvatarConfig } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -121,6 +122,12 @@ async function generateUniqueUsername(name: string): Promise<string> {
     return finalUsername;
 }
 
+const defaultAvatarConfig: AvatarConfig = {
+    skinColor: '#f2d5b1',
+    hairColor: '#4a312a',
+    hairStyle: 'short',
+};
+
 export const createUserDocument = async (user: {
   uid: string;
   email: string;
@@ -136,7 +143,7 @@ export const createUserDocument = async (user: {
     name: user.displayName,
     username: username,
     emailVerified: user.emailVerified,
-    avatarUrl: `https://placehold.co/100x100.png?text=${user.displayName.charAt(0)}`,
+    avatarConfig: defaultAvatarConfig,
     friendIds: [],
     preferredSports: ['Tennis'],
     sports: {
@@ -169,7 +176,7 @@ export const reportPendingMatch = async (data: ReportMatchData): Promise<string>
     const participantsData = userDocs.reduce((acc, doc) => {
         if (doc.exists()) {
             const player = doc.data() as User;
-            acc[player.uid] = { uid: player.uid, name: player.name, avatarUrl: player.avatarUrl };
+            acc[player.uid] = { uid: player.uid, name: player.name, avatarConfig: player.avatarConfig };
         }
         return acc;
     }, {} as Match['participantsData']);
@@ -308,8 +315,8 @@ export async function sendFriendRequest(fromUser: User, toUser: User) {
   const newRequestRef = doc(collection(db, 'friendRequests'));
   await setDoc(newRequestRef, {
     id: newRequestRef.id,
-    fromId: fromUser.uid, fromName: fromUser.name, fromAvatarUrl: fromUser.avatarUrl,
-    toId: toUser.uid, toName: toUser.name, toAvatarUrl: toUser.avatarUrl,
+    fromId: fromUser.uid, fromName: fromUser.name, fromAvatarConfig: fromUser.avatarConfig,
+    toId: toUser.uid, toName: toUser.name, toAvatarConfig: toUser.avatarConfig,
     status: 'pending', createdAt: Timestamp.now().toMillis(),
   } as FriendRequest);
 }
@@ -417,8 +424,8 @@ export async function updateChallengeStatus(id: string, status: ChallengeStatus)
 export async function challengeFromOpen(openChallenge: OpenChallenge, challenger: User) {
     if (openChallenge.posterId === challenger.uid) throw new Error("You cannot challenge your own post.");
     await createDirectChallenge({
-        fromId: challenger.uid, fromName: challenger.name, fromAvatarUrl: challenger.avatarUrl,
-        toId: openChallenge.posterId, toName: openChallenge.posterName, toAvatarUrl: openChallenge.posterAvatarUrl,
+        fromId: challenger.uid, fromName: challenger.name, fromAvatarConfig: challenger.avatarConfig,
+        toId: openChallenge.posterId, toName: openChallenge.posterName, toAvatarConfig: openChallenge.posterAvatarConfig,
         sport: openChallenge.sport, location: openChallenge.location,
         matchDateTime: Timestamp.now().toMillis(), wager: "A friendly match",
     });
@@ -436,7 +443,7 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
     await setDoc(newTournamentRef, {
         id: newTournamentRef.id, name: values.name, sport: values.sport,
         organizerId: organizer.uid, participantIds: participantIds,
-        participantsData: participantsData.map(p => ({ uid: p.uid, name: p.name, avatarUrl: p.avatarUrl })),
+        participantsData: participantsData.map(p => ({ uid: p.uid, name: p.name, avatarConfig: p.avatarConfig })),
         status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
     } as Omit<Tournament, 'winnerId'>);
 }
@@ -504,7 +511,7 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     await setDoc(newChatRef, {
         id: newChatRef.id, participantIds: [userId1, userId2],
-        participantsData: { [userId1]: { name: user1.name, avatarUrl: user1.avatarUrl }, [userId2]: { name: user2.name, avatarUrl: user2.avatarUrl } },
+        participantsData: { [userId1]: { name: user1.name, avatarConfig: user1.avatarConfig }, [userId2]: { name: user2.name, avatarConfig: user2.avatarConfig } },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
     } as Omit<Chat, 'lastMessage'>);
     return newChatRef.id;
@@ -549,7 +556,7 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
         newGame = {
             id: gameRef.id, mode: 'friend', sport,
             participantIds: [currentUserId, friendId],
-            participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { name: friend.name, avatarUrl: friend.avatarUrl, uid: friend.uid } },
+            participantsData: { [currentUserId]: { name: user.name, avatarConfig: user.avatarConfig, uid: user.uid }, [friendId]: { name: friend.name, avatarConfig: friend.avatarConfig, uid: friend.uid } },
             score: { [currentUserId]: 0, [friendId]: 0 },
             currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
             turnState: 'playing', status: 'ongoing',
@@ -560,7 +567,7 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
         newGame = {
             id: gameRef.id, mode: 'solo', sport,
             participantIds: [currentUserId],
-            participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid } },
+            participantsData: { [currentUserId]: { name: user.name, avatarConfig: user.avatarConfig, uid: user.uid } },
             score: { [currentUserId]: 0 },
             currentPlayerId: currentUserId,
             turnState: 'playing', status: 'ongoing',
@@ -578,7 +585,7 @@ export async function createRallyGameInDb(user: User, friend: User, initialServe
     const newGame: RallyGame = {
         id: gameRef.id, sport: 'Tennis',
         participantIds: [user.uid, friend.uid],
-        participantsData: { [user.uid]: { name: user.name, avatarUrl: user.avatarUrl, uid: user.uid }, [friend.uid]: { name: friend.name, avatarUrl: friend.avatarUrl, uid: friend.uid } },
+        participantsData: { [user.uid]: { name: user.name, avatarConfig: user.avatarConfig, uid: user.uid }, [friend.uid]: { name: friend.name, avatarConfig: friend.avatarConfig, uid: friend.uid } },
         score: { [user.uid]: 0, [friend.uid]: 0 },
         turn: 'serving', currentPlayerId: user.uid,
         currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialServeOptions },
@@ -639,11 +646,13 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
-    await updateDoc(doc(db, 'users', userId), {
+    const updateData: any = {
         name: data.name,
         username: data.username,
         preferredSports: data.preferredSports,
-    });
+        avatarConfig: data.avatarConfig
+    }
+    await updateDoc(doc(db, 'users', userId), updateData);
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {

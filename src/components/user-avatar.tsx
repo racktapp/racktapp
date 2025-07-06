@@ -1,8 +1,10 @@
 
+
 import { type User } from '@/lib/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CustomAvatar } from './custom-avatar';
 
 interface UserAvatarProps {
   user?: User | null;
@@ -29,9 +31,12 @@ export function UserAvatar({ user, className }: UserAvatarProps) {
 
   return (
     <div className={cn('relative', className)}>
-      <Avatar className="h-full w-full">
-        <AvatarImage src={user?.avatarUrl} alt={user?.name} />
-        <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
+      <Avatar className="h-full w-full bg-muted">
+        {user?.avatarConfig ? (
+            <CustomAvatar config={user.avatarConfig} className="h-full w-full" />
+        ) : (
+            <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
+        )}
       </Avatar>
       {FlexIcon && (
         <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-accent">

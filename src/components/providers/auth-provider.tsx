@@ -4,18 +4,17 @@
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, updateProfile as updateFirebaseProfile } from 'firebase/auth';
 import { auth, db, storage } from '@/lib/firebase/config';
-import type { User as AppUser } from '@/lib/types';
+import type { User as AppUser, AvatarConfig } from '@/lib/types';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { createUserDocument } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   reloadUser: () => Promise<void>;
   updateUserName: (userId: string, newName: string) => Promise<void>;
-  updateUserProfileImage: (userId: string, file: File) => Promise<void>;
+  updateUserAvatarConfig: (userId: string, config: AvatarConfig) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             uid: firebaseUser.uid,
             email: firebaseUser.email!,
             name: firebaseUser.displayName || userProfile.name,
-            avatarUrl: firebaseUser.photoURL || userProfile.avatarUrl,
+            avatarConfig: userProfile.avatarConfig,
             emailVerified: firebaseUser.emailVerified,
           };
 
@@ -101,32 +100,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateUserProfileImage = async (userId: string, file: File) => {
+  const updateUserAvatarConfig = async (userId: string, config: AvatarConfig) => {
     if (!auth.currentUser || auth.currentUser.uid !== userId) {
-      const errorMsg = "Unauthorized action.";
-      toast({ title: "Error", description: errorMsg, variant: "destructive"});
-      throw new Error(errorMsg);
+        const errorMsg = "Unauthorized or user not found.";
+        toast({ title: "Error", description: errorMsg, variant: "destructive"});
+        throw new Error(errorMsg);
     }
     
     const userDocRef = doc(db, "users", userId);
-    const fileRef = storageRef(storage, `avatars/${userId}/${Date.now()}_${file.name}`);
-
     try {
-        const snapshot = await uploadBytes(fileRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-
-        await updateFirebaseProfile(auth.currentUser, { photoURL: downloadURL });
-        await updateDoc(userDocRef, { avatarUrl: downloadURL });
-
-        setUser(prevUser => prevUser ? ({ ...prevUser, avatarUrl: downloadURL }) : null);
+        await updateDoc(userDocRef, { avatarConfig: config });
+        setUser(prevUser => prevUser ? ({ ...prevUser, avatarConfig: config }) : null);
     } catch (error: any) {
-        console.error("Error updating profile image:", error);
-        toast({ title: "Image Upload Failed", description: error.message || 'An unknown error occurred. Please check storage rules in Firebase.', variant: "destructive"});
+        console.error("Error updating avatar config:", error);
+        toast({ title: "Error Saving Avatar", description: "Could not update your avatar.", variant: "destructive"});
         throw error;
     }
   };
 
-  const value = { user, loading, reloadUser, updateUserName, updateUserProfileImage };
+  const value = { user, loading, reloadUser, updateUserName, updateUserAvatarConfig };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
