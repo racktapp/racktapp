@@ -1,66 +1,93 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can be read by anyone authenticated, but only written by themselves.
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == userId;
-    }
-
-    // Participants can read/write chats and messages.
-    match /chats/{chatId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
-      
-      match /messages/{messageId} {
-        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
-      }
-    }
-
-    // Friend requests can be read by sender/receiver, deleted by either.
-    match /friendRequests/{requestId} {
-      allow read, delete: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
-      allow create: if request.auth.uid == request.resource.data.fromId;
-    }
-
-    // Challenges can be read by sender/receiver.
-    match /challenges/{challengeId} {
-      allow read: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
-      allow create: if request.auth.uid == request.resource.data.fromId;
-      // Status can be updated by receiver (accept/decline) or sender (cancel)
-      allow update: if (request.auth.uid == resource.data.toId && request.resource.data.status in ['accepted', 'declined']) || 
-                       (request.auth.uid == resource.data.fromId && request.resource.data.status == 'cancelled');
-    }
-
-    // Open challenges can be read by anyone, created by anyone, deleted only by poster.
-    match /openChallenges/{challengeId} {
-      allow read, create: if request.auth != null;
-      allow delete: if request.auth.uid == resource.data.posterId;
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Matches can be created by a participant, and can be read by any participant.
-    // Confirming/declining a match is a write operation.
+    // Helper function to check if the user is a participant in a document
+    function isParticipant(docId, collectionName) {
+        return request.auth.uid in get(/databases/$(database)/documents/$(collectionName)/$(docId)).data.participantIds;
+    }
+
+    // Users can read anyone's profile, but only write to their own.
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Participants can read matches. Authenticated users can create.
+    // Participants can update (e.g., confirm).
     match /matches/{matchId} {
-      allow read: if request.auth.uid in resource.data.participants;
-      allow create: if request.auth.uid in request.resource.data.participants;
-      allow update: if request.auth.uid in resource.data.participants;
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.reportedById;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participantsToConfirm;
+      allow delete: if false;
+    }
+    
+    // Sender/receiver can read/delete friend requests. Sender can create.
+    match /friendRequests/{requestId} {
+        allow read, delete: if isAuthenticated() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.fromId;
+        allow update: if false;
     }
 
-    // Tournaments can be read by participants, and updated by the organizer.
+    // Sender/receiver can read/update direct challenges. Sender can create.
+    match /challenges/{challengeId} {
+        allow read: if isAuthenticated() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.fromId;
+        allow update: if isAuthenticated() && 
+                        ( (request.auth.uid == resource.data.toId && request.resource.data.status in ['accepted', 'declined']) || 
+                          (request.auth.uid == resource.data.fromId && request.resource.data.status == 'cancelled') );
+        allow delete: if false;
+    }
+    
+    // Authenticated users can read open challenges. Poster can create/delete.
+    match /openChallenges/{challengeId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.posterId;
+        allow delete: if isAuthenticated() && request.auth.uid == resource.data.posterId;
+        allow update: if false;
+    }
+
+    // Participants can read tournaments. Organizer can create/update.
     match /tournaments/{tournamentId} {
-      allow read: if request.auth.uid in resource.data.participantIds;
-      allow create: if request.auth.uid == request.resource.data.organizerId;
-      allow update: if request.auth.uid == resource.data.organizerId;
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.organizerId;
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.organizerId;
+      allow delete: if false;
     }
+    
+    // Participants can read/update chats.
+    match /chats/{chatId} {
+        allow read, update: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
+        allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
+        allow delete: if false; // Don't allow chat deletion for now
 
-    // Games (Rally & Legend) can be read/written by participants.
-    match /rallyGames/{gameId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
+        // Messages subcollection
+        match /messages/{messageId} {
+            allow read: if isAuthenticated() && isParticipant(chatId, 'chats');
+            allow create: if isAuthenticated() && isParticipant(chatId, 'chats') && request.auth.uid == request.resource.data.senderId;
+            allow update, delete: if false;
+        }
     }
+    
+    // Participants can read/update/delete games.
+    match /rallyGames/{gameId} {
+        allow read, update, delete: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
+        allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
+    }
+    
+    // Participants can read/update/delete games.
     match /legendGames/{gameId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
+        allow read, update, delete: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
+        allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
     }
   }
 }
-    
