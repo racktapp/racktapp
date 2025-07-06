@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 
 const introSlides = [
   {
-    imageSrc: '/intro1.png',
+    imageSrc: '/intro1.1.png',
     title: 'Welcome to Rackt',
     description: 'The social hub for racket sports enthusiasts. Challenge friends, track stats, and climb the ranks.',
   },
