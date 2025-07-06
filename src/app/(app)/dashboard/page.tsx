@@ -148,10 +148,22 @@ export default function DashboardPage() {
                     <CardTitle>Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <ActionCard href="/report-match" icon={Plus} title="Report" description="Log a match result" />
                     <ActionCard href="/challenges" icon={Swords} title="Challenges" description="Find an opponent" />
                     <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" description="Compete in brackets" />
                     <ActionCard href="/games" icon={Gamepad2} title="AI Games" description="Test your skills" />
+                    <div className="group h-full">
+                      <MatchPredictorDialog>
+                          <Card className="h-full transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:bg-card/80 group-hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                            <CardContent className="p-4 flex flex-col items-center text-center">
+                              <div className="bg-primary/10 p-3 rounded-full text-primary mb-3">
+                                <BrainCircuit className="h-8 w-8" />
+                              </div>
+                              <p className="text-sm font-bold">Predictor</p>
+                              <p className="text-xs text-muted-foreground mt-1">Get AI predictions</p>
+                            </CardContent>
+                          </Card>
+                      </MatchPredictorDialog>
+                    </div>
                 </CardContent>
               </Card>
 
@@ -162,17 +174,17 @@ export default function DashboardPage() {
               <Card className="bg-gradient-to-br from-primary to-violet-500 text-primary-foreground">
                   <CardHeader>
                       <div className="flex items-center gap-3">
-                          <BrainCircuit className="h-8 w-8" />
-                          <CardTitle>AI Match Predictor</CardTitle>
+                          <Plus className="h-8 w-8" />
+                          <CardTitle>Report a Match</CardTitle>
                       </div>
-                      <CardDescription className="text-primary-foreground/80">Get AI-powered predictions for upcoming matches.</CardDescription>
+                      <CardDescription className="text-primary-foreground/80">Log your latest result to update your RacktRank and stats.</CardDescription>
                   </CardHeader>
                   <CardFooter>
-                        <MatchPredictorDialog>
-                          <Button variant="secondary" className="w-full">
-                              Launch Predictor <ChevronRight className="ml-2 h-4 w-4" />
-                          </Button>
-                      </MatchPredictorDialog>
+                      <Button asChild variant="secondary" className="w-full">
+                        <Link href="/report-match">
+                          Log Result <ChevronRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
                   </CardFooter>
               </Card>
 
