@@ -32,10 +32,20 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
 
   useEffect(() => {
     async function checkStatus() {
+      if (!profileUser?.uid || !currentUser?.uid) {
+        setStatus('not_friends');
+        return;
+      }
+      
       try {
         const result = await getFriendshipStatusAction(profileUser.uid, currentUser.uid);
-        setStatus(result.status);
-        setRequestId(result.requestId);
+        if (result && result.status) {
+          setStatus(result.status);
+          setRequestId(result.requestId);
+        } else {
+          console.error("Invalid response from getFriendshipStatusAction", result);
+          setStatus('not_friends');
+        }
       } catch (error) {
         console.error("Failed to get friendship status:", error);
         setStatus('not_friends');
@@ -49,10 +59,15 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
     try {
         await action();
         const result = await getFriendshipStatusAction(profileUser.uid, currentUser.uid);
-        setStatus(result.status);
-        setRequestId(result.requestId);
+        if (result && result.status) {
+          setStatus(result.status);
+          setRequestId(result.requestId);
+        } else {
+            setStatus('not_friends');
+        }
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error', description: error.message });
+        setStatus('not_friends');
     } finally {
         setIsProcessing(false);
     }
