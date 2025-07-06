@@ -14,7 +14,6 @@ export interface AuthContextType {
   loading: boolean;
   reloadUser: () => Promise<void>;
   updateUserName: (userId: string, newName: string) => Promise<void>;
-  updateUserAvatarConfig: (userId: string, config: AvatarConfig) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -100,25 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateUserAvatarConfig = async (userId: string, config: AvatarConfig) => {
-    if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        const errorMsg = "Unauthorized or user not found.";
-        toast({ title: "Error", description: errorMsg, variant: "destructive"});
-        throw new Error(errorMsg);
-    }
-    
-    const userDocRef = doc(db, "users", userId);
-    try {
-        await updateDoc(userDocRef, { avatarConfig: config });
-        setUser(prevUser => prevUser ? ({ ...prevUser, avatarConfig: config }) : null);
-    } catch (error: any) {
-        console.error("Error updating avatar config:", error);
-        toast({ title: "Error Saving Avatar", description: "Could not update your avatar.", variant: "destructive"});
-        throw error;
-    }
-  };
-
-  const value = { user, loading, reloadUser, updateUserName, updateUserAvatarConfig };
+  const value = { user, loading, reloadUser, updateUserName };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
