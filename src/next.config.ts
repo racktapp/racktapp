@@ -1,37 +1,8 @@
 
+// This file is intentionally left mostly blank to resolve a configuration conflict.
+// The primary configuration is in the root next.config.ts file.
 import type {NextConfig} from 'next';
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  images: {
-    unoptimized: true,
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'lh3.googleusercontent.com',
-        port: '',
-        pathname: '/**',
-      }
-    ],
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

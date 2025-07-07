@@ -9,6 +9,10 @@ import { useAuth } from '@/hooks/use-auth';
 import { ChatView } from '@/components/chat/chat-view';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
+export async function generateStaticParams() {
+  return [];
+}
+
 export default function ChatPage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
