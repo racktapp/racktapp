@@ -10,10 +10,6 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { LegendGameView } from '@/components/games/legend-game-view';
 
-export async function generateStaticParams() {
-  return [];
-}
-
 export default function LegendGamePage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();

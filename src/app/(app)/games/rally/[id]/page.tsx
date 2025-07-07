@@ -10,10 +10,6 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { RallyGameView } from '@/components/games/rally-game-view';
 
-export async function generateStaticParams() {
-  return [];
-}
-
 export default function RallyGamePage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();

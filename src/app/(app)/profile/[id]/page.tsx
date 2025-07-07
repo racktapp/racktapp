@@ -25,10 +25,6 @@ import { Separator } from '@/components/ui/separator';
 
 type ProfileData = Awaited<ReturnType<typeof getProfilePageDataAction>>;
 
-export async function generateStaticParams() {
-  return [];
-}
-
 const achievementIconMap: Record<string, LucideIcon> = {
     Swords, Flame, Trophy, Users, Undo2
 };

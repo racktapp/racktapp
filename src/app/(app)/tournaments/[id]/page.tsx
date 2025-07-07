@@ -15,10 +15,6 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
 
-export async function generateStaticParams() {
-  return [];
-}
-
 export default function TournamentPage() {
   const params = useParams();
   const router = useRouter();
