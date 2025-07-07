@@ -3,7 +3,6 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'export',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -26,11 +25,17 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
-        hostname: 'lh3.googleusercontent.com',
+        protocol: 'https' as const,
+        hostname: 'lh3.googleusercontent.com' as const,
         port: '',
         pathname: '/**',
-      }
+      },
+      {
+        protocol: 'https' as const,
+        hostname: 'firebasestorage.googleapis.com' as const,
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
