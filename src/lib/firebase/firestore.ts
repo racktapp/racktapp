@@ -381,22 +381,24 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 }
 
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('toId', '==', userId), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'challenges'), where('toId', '==', userId), where('status', '==', 'pending'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as Challenge);
+    const challenges = snapshot.docs.map(d => d.data() as Challenge);
+    return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('fromId', '==', userId), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'challenges'), where('fromId', '==', userId), where('status', '==', 'pending'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as Challenge);
+    const challenges = snapshot.docs.map(d => d.data() as Challenge);
+    return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
     const snapshot = await getDocs(q);
     const challenges = snapshot.docs.map(d => d.data() as OpenChallenge);
-    return challenges;
+    return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
 }
 
 
