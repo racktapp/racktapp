@@ -5,29 +5,29 @@
 
 @layer base {
   :root {
-    --background: 220 14% 96%; /* Lighter Steel Gray */
-    --foreground: 224 13% 15%; /* Dark Gunmetal */
+    --background: 220 20% 98%; /* Clean Off-white */
+    --foreground: 224 13% 15%;
     --card: 0 0% 100%;
     --card-foreground: 224 13% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 13% 15%;
-    --primary: 217 60% 17%; /* Dark Navy Blue */
+    --primary: 217 91% 60%; /* Vibrant Blue */
     --primary-foreground: 0 0% 98%;
     --secondary: 220 13% 93%;
     --secondary-foreground: 224 13% 15%;
-    --muted: 220 14% 98%;
-    --muted-foreground: 220 9% 50%;
-    --accent: 142 60% 50%; /* Sporty Green */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84% 60%; /* Action Red */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 45%;
+    --accent: 44 94% 59%; /* Golden Yellow */
+    --accent-foreground: 224 13% 15%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 93%;
-    --ring: 217 60% 17%;
+    --ring: 217 91% 60%;
     --chart-1: 217 91% 60%;
-    --chart-2: 142 60% 50%;
+    --chart-2: 44 94% 59%;
     --chart-3: 358 79% 66%;
-    --chart-4: 44 94% 59%;
+    --chart-4: 142 60% 50%;
     --chart-5: 262 82% 69%;
     --radius: 0.75rem;
     --sidebar-background: hsl(var(--card));
@@ -41,11 +41,11 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 224 13% 10%; /* Softer Dark */
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 224 13% 12%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 224 13% 12%;
     --popover-foreground: 210 40% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
@@ -53,17 +53,17 @@
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --accent: 44 94% 59%; /* Golden Yellow */
+    --accent-foreground: 224 13% 15%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217.2 32.6% 22%;
+    --input: 217.2 32.6% 22%;
     --ring: 217.2 91.2% 59.8%;
     --chart-1: 217 91% 60%;
-    --chart-2: 142 60% 50%;
+    --chart-2: 44 94% 59%;
     --chart-3: 358 79% 66%;
-    --chart-4: 44 94% 59%;
+    --chart-4: 142 60% 50%;
     --chart-5: 262 82% 69%;
     --sidebar-background: hsl(var(--card));
     --sidebar-foreground: hsl(var(--foreground));
