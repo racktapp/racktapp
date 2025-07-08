@@ -107,8 +107,8 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
       <PageHeader
-        title="Dashboard"
-        description={`Welcome back, ${user.name.split(' ')[0]}!`}
+        title={`Welcome back, ${user.name.split(' ')[0]}`}
+        description="Here's your dashboard overview."
         actions={
             <Button asChild variant="outline">
                 <Link href="/profile">
@@ -119,8 +119,8 @@ export default function DashboardPage() {
         }
       />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <StatsHighlightCard 
             title={`${sport} RacktRank`}
             value={currentElo}
@@ -141,56 +141,52 @@ export default function DashboardPage() {
           />
       </div>
 
+      {/* Report a Match Section */}
       <Card id="tour-step-report-match">
-          <CardHeader>
-              <div className="flex items-center gap-3">
-                  <Plus className="h-8 w-8 text-primary" />
-                  <CardTitle>Report a Match</CardTitle>
-              </div>
-              <CardDescription>Log your latest result to update your RacktRank and stats.</CardDescription>
-          </CardHeader>
-          <CardFooter>
-              <Button asChild className="w-full">
+        <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                <h3 className="font-semibold">Report a Match</h3>
+                <p className="text-sm text-muted-foreground">Log your latest result to update your RacktRank.</p>
+            </div>
+            <Button asChild className="w-full sm:w-auto">
                 <Link href="/report-match">
-                  Log Result <ChevronRight className="ml-2 h-4 w-4" />
+                Log Result
                 </Link>
-              </Button>
-          </CardFooter>
+            </Button>
+        </CardContent>
       </Card>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <ActionCard href="/challenges" icon={Swords} title="Challenges" description="Find an opponent" />
-                    <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" description="Compete in brackets" />
-                    <ActionCard href="/games" icon={Gamepad2} title="AI Games" description="Test your skills" />
-                    <div className="group h-full">
-                      <MatchPredictorDialog>
-                          <Card className="h-full transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:bg-card/80 group-hover:shadow-lg hover:-translate-y-1 cursor-pointer">
-                            <CardContent className="p-4 flex flex-col items-center text-center">
-                              <div className="bg-primary/10 p-3 rounded-full text-primary mb-3">
-                                <BrainCircuit className="h-8 w-8" />
-                              </div>
-                              <p className="text-sm font-bold">Predictor</p>
-                              <p className="text-xs text-muted-foreground mt-1">Get AI predictions</p>
-                            </CardContent>
-                          </Card>
-                      </MatchPredictorDialog>
-                    </div>
-                </CardContent>
-              </Card>
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <ActionCard href="/challenges" icon={Swords} title="Challenges" description="Find an opponent" />
+            <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" description="Compete in brackets" />
+            <ActionCard href="/games" icon={Gamepad2} title="AI Games" description="Test your skills" />
+            <div className="group h-full">
+                <MatchPredictorDialog>
+                    <Card className="h-full transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:bg-card/80 group-hover:shadow-lg hover:-translate-y-1 cursor-pointer">
+                    <CardContent className="p-4 flex flex-col items-center text-center">
+                        <div className="bg-primary/10 p-3 rounded-full text-primary mb-3">
+                        <BrainCircuit className="h-8 w-8" />
+                        </div>
+                        <p className="text-sm font-bold">Predictor</p>
+                        <p className="text-xs text-muted-foreground mt-1">Get AI predictions</p>
+                    </CardContent>
+                    </Card>
+                </MatchPredictorDialog>
+            </div>
+        </CardContent>
+      </Card>
+      
+      {/* Recent Matches Section */}
+      <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
 
-              <EloChart data={eloHistoryData} />
-          </div>
+      {/* RacktRank Progression Graph */}
+      <EloChart data={eloHistoryData} />
 
-          <div className="lg:col-span-1 space-y-6">
-              <RecentMatches matches={recentMatches} currentUserId={user.uid} isLoading={isLoadingMatches} />
-          </div>
-      </div>
     </div>
   );
 }
