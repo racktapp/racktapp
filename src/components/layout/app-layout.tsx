@@ -65,7 +65,7 @@ const MobileHeader = () => {
     const { sport, setSport } = useSport();
 
     return (
-        <div className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 md:hidden">
+        <div className="flex h-16 items-center gap-4 border-b bg-background px-4 md:hidden">
             <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
                 <Logo />
             </Link>
