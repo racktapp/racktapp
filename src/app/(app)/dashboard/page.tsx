@@ -120,7 +120,7 @@ export default function DashboardPage() {
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
           <StatsHighlightCard 
             title={`${sport} RacktRank`}
             value={currentElo}
@@ -142,13 +142,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Report a Match Section */}
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-blue-500 to-cyan-500 text-primary-foreground">
+      <Card id="tour-step-report-match" className="bg-card">
         <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
                 <h3 className="font-semibold">Report a Match</h3>
-                <p className="text-sm text-primary-foreground/80">Log your latest result to update your RacktRank.</p>
+                <p className="text-sm text-muted-foreground">Log your latest result to update your RacktRank.</p>
             </div>
-            <Button asChild variant="secondary" className="w-full sm:w-auto">
+            <Button asChild variant="default" className="w-full sm:w-auto">
                 <Link href="/report-match">
                 Log Result
                 </Link>
