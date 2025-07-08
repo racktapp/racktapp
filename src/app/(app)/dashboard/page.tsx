@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
@@ -136,11 +137,11 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-gradient-to-br from-indigo-500 to-violet-500"
+            colorClass="bg-gradient-to-br from-green-500 to-emerald-500"
           />
       </div>
 
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-yellow-500 to-orange-500 text-primary-foreground">
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-slate-700 to-gray-900 text-primary-foreground">
           <CardHeader>
               <div className="flex items-center gap-3">
                   <Plus className="h-8 w-8" />
