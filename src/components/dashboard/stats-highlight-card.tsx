@@ -44,7 +44,7 @@ export function StatsHighlightCard({
           <Icon className="h-8 w-8 opacity-80" />
         </div>
       </div>
-      <CardFooter className="bg-card p-3">
+      <CardFooter className="bg-muted p-3">
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <FooterTrendIcon value={footerValue} />
           <span>{footerText}</span>

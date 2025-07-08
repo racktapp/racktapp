@@ -6,25 +6,25 @@
 @layer base {
   :root {
     /* Light Mode from user's image style */
-    --background: 210 40% 98%; /* #F8FAFC - Ice White */
+    --background: 40 50% 98%; /* #FDFBF9 - Soft White/Cream */
     --foreground: 222 47% 11%; /* #111827 - Slate Grey */
     --card: 0 0% 100%; /* White */
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 145 63% 47%; /* #28C76F - Victory Green */
+    --primary: 25 85% 55%; /* #E8721F - Brownish-Orange */
     --primary-foreground: 0 0% 98%; /* White */
     --secondary: 210 40% 96%; /* #F1F5F9 - Fog Grey */
     --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
+    --muted: 40 50% 98%; /* Match background for card footers */
     --muted-foreground: 215 16% 47%; /* Muted Slate */
-    --accent: 251 53% 62%; /* #7C3AED - Competitive Violet */
+    --accent: 148 65% 30%; /* #1E6C3A - Dark Green */
     --accent-foreground: 0 0% 98%;
-    --destructive: 356 100% 65%; /* #FF4F5A - Sport Red */
+    --destructive: 0 84% 60%; /* #FF4F5A - Sport Red */
     --destructive-foreground: 0 0% 98%;
-    --border: 210 40% 91%; /* #E2E8F0 - Light Grey */
-    --input: 210 40% 91%;
-    --ring: 145 63% 47%; /* Victory Green */
+    --border: 210 40% 94%; /* #E9EEF4 - Light Grey Border */
+    --input: 210 40% 94%;
+    --ring: 25 85% 55%;
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
     --chart-3: 262 82% 62%;
@@ -52,11 +52,11 @@
     --primary-foreground: 215 28% 17%;
     --secondary: 215 28% 28%; /* #38424D - Lighter Navy */
     --secondary-foreground: 210 40% 98%;
-    --muted: 215 28% 28%;
+    --muted: 215 28% 23%; /* Match card for dark footers */
     --muted-foreground: 215 21% 51%; /* #6E7A8A - Cool Grey */
     --accent: 251 53% 62%; /* #7C3AED - Competitive Violet */
     --accent-foreground: 0 0% 98%;
-    --destructive: 356 100% 65%; /* #FF4F5A - Sport Red */
+    --destructive: 0 84% 60%; /* #FF4F5A - Sport Red */
     --destructive-foreground: 0 0% 98%;
     --border: 215 28% 28%;
     --input: 215 28% 28%;

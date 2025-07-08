@@ -20,7 +20,7 @@ const ActionCard = ({ icon: Icon, title, description, href }: { icon: React.Elem
   <Link href={href} className="block group">
     <Card className="h-full transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:bg-card/80 group-hover:shadow-lg group-hover:-translate-y-1">
       <CardContent className="p-4 flex flex-col items-center text-center">
-        <div className="bg-primary/10 p-3 rounded-full text-primary mb-3">
+        <div className="bg-secondary p-3 rounded-full text-secondary-foreground mb-3">
           <Icon className="h-8 w-8" />
         </div>
         <p className="text-sm font-bold">{title}</p>
@@ -128,8 +128,8 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-card"
-            textColorClass="text-card-foreground"
+            colorClass="bg-gray-900"
+            textColorClass="text-gray-50"
           />
           <StatsHighlightCard 
             title="Win Rate"
@@ -138,25 +138,15 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-emerald-950"
+            colorClass="bg-emerald-800"
+            textColorClass="text-emerald-50"
           />
       </div>
 
       {/* Report a Match Section */}
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
-        <CardContent className="p-6 flex flex-col items-center text-center gap-4">
-            <div className='space-y-1'>
-                <h3 className="text-xl font-bold">Report a Match</h3>
-                <p className="text-sm text-white/80">Log your latest result to update your RacktRank.</p>
-            </div>
-            <Button asChild className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white font-semibold">
-                <Link href="/report-match">
-                    <span>Log Result</span>
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-            </Button>
-        </CardContent>
-      </Card>
+       <Button asChild size="lg" className="w-full font-semibold">
+          <Link href="/report-match">Report a Match</Link>
+       </Button>
       
       {/* Quick Actions */}
       <Card>
@@ -171,7 +161,7 @@ export default function DashboardPage() {
                 <MatchPredictorDialog>
                     <Card className="h-full transition-all duration-300 ease-in-out group-hover:border-primary/50 group-hover:bg-card/80 group-hover:shadow-lg hover:-translate-y-1 cursor-pointer">
                     <CardContent className="p-4 flex flex-col items-center text-center">
-                        <div className="bg-primary/10 p-3 rounded-full text-primary mb-3">
+                        <div className="bg-secondary p-3 rounded-full text-secondary-foreground mb-3">
                         <BrainCircuit className="h-8 w-8" />
                         </div>
                         <p className="text-sm font-bold">Predictor</p>
