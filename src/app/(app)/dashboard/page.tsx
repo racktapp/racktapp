@@ -142,11 +142,11 @@ export default function DashboardPage() {
       </div>
 
       {/* Report a Match Section */}
-      <Card id="tour-step-report-match" className="bg-accent text-accent-foreground">
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-blue-500 to-cyan-500 text-primary-foreground">
         <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
                 <h3 className="font-semibold">Report a Match</h3>
-                <p className="text-sm text-accent-foreground/80">Log your latest result to update your RacktRank.</p>
+                <p className="text-sm text-primary-foreground/80">Log your latest result to update your RacktRank.</p>
             </div>
             <Button asChild variant="secondary" className="w-full sm:w-auto">
                 <Link href="/report-match">
