@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
@@ -128,7 +127,7 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-gradient-to-br from-green-500 to-emerald-600"
+            colorClass="bg-gradient-to-br from-blue-500 to-cyan-500"
           />
           <StatsHighlightCard 
             title="Win Rate"
@@ -137,11 +136,11 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-gradient-to-br from-sky-500 to-blue-600"
+            colorClass="bg-gradient-to-br from-indigo-500 to-violet-500"
           />
       </div>
 
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-amber-500 to-orange-600 text-primary-foreground">
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-yellow-500 to-orange-500 text-primary-foreground">
           <CardHeader>
               <div className="flex items-center gap-3">
                   <Plus className="h-8 w-8" />
