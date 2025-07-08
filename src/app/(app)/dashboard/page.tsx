@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
@@ -128,7 +127,7 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-gradient-to-br from-indigo-600 to-blue-800"
+            colorClass="bg-gradient-to-br from-green-500 to-emerald-600"
           />
           <StatsHighlightCard 
             title="Win Rate"
@@ -137,20 +136,20 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-gradient-to-br from-teal-500 to-emerald-700"
+            colorClass="bg-gradient-to-br from-sky-500 to-blue-600"
           />
       </div>
 
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-primary to-violet-500 text-primary-foreground">
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-amber-500 to-orange-600 text-primary-foreground">
           <CardHeader>
               <div className="flex items-center gap-3">
                   <Plus className="h-8 w-8" />
                   <CardTitle>Report a Match</CardTitle>
               </div>
-              <CardDescription className="text-primary-foreground/80">Log your latest result to update your RacktRank and stats.</CardDescription>
+              <CardDescription className="text-white/90">Log your latest result to update your RacktRank and stats.</CardDescription>
           </CardHeader>
           <CardFooter>
-              <Button asChild variant="secondary" className="w-full">
+              <Button asChild variant="secondary" className="w-full bg-white/20 text-white hover:bg-white/30">
                 <Link href="/report-match">
                   Log Result <ChevronRight className="ml-2 h-4 w-4" />
                 </Link>
