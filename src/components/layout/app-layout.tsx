@@ -226,7 +226,7 @@ const AppSidebar = ({ user }: { user: User }) => {
   );
 };
 
-const BottomNav = ({ isVisible }: { isVisible: boolean }) => {
+const BottomNav = () => {
     const pathname = usePathname();
     const router = useRouter();
     const hasUnreadChats = useUnreadChats();
@@ -259,8 +259,7 @@ const BottomNav = ({ isVisible }: { isVisible: boolean }) => {
 
     return (
         <div className={cn(
-            "fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm transition-transform duration-300 md:hidden",
-            isVisible ? "translate-y-0" : "translate-y-full"
+            "fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden"
         )}>
             <div className="grid h-16 grid-cols-5">
                 {NAV_ITEMS_MOBILE_MAIN.map((item) => (
@@ -351,7 +350,7 @@ export function AppLayout({ children, user }: AppLayoutProps) {
           {children}
         </main>
       </SidebarInset>
-      <BottomNav isVisible={isNavbarVisible} />
+      <BottomNav />
       <OnboardingTour />
     </SidebarProvider>
   );
