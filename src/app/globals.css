@@ -25,6 +25,7 @@
     --border: 210 40% 94%; /* #E9EEF4 - Light Grey Border */
     --input: 210 40% 94%;
     --ring: 25 85% 55%;
+    --radius: 1rem;
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
     --chart-3: 262 82% 62%;
@@ -61,6 +62,7 @@
     --border: 215 28% 28%;
     --input: 215 28% 28%;
     --ring: 145 63% 47%;
+    --radius: 1rem;
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
     --chart-3: 262 82% 62%;
