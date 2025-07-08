@@ -12,6 +12,7 @@ interface StatsHighlightCardProps {
   footerValue?: number;
   icon: LucideIcon;
   colorClass: string;
+  textColorClass?: string;
 }
 
 const FooterTrendIcon = ({ value }: { value?: number }) => {
@@ -29,17 +30,18 @@ export function StatsHighlightCard({
   footerValue,
   icon: Icon,
   colorClass,
+  textColorClass = 'text-white',
 }: StatsHighlightCardProps) {
   return (
     <Card className="overflow-hidden shadow-sm transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1">
-      <div className={cn('p-6 text-white', colorClass)}>
+      <div className={cn('p-6', colorClass, textColorClass)}>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-medium text-white/90">{title}</p>
+            <p className="text-sm font-medium opacity-90">{title}</p>
             <p className="text-3xl md:text-4xl font-bold">{value}</p>
-            <p className="text-sm text-white/90 mt-1">{description}</p>
+            <p className="text-sm opacity-90 mt-1">{description}</p>
           </div>
-          <Icon className="h-8 w-8 text-white/80" />
+          <Icon className="h-8 w-8 opacity-80" />
         </div>
       </div>
       <CardFooter className="bg-card p-3">

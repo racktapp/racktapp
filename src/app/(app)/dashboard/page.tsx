@@ -128,7 +128,8 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-gradient-to-br from-blue-500 to-sky-500"
+            colorClass="bg-card"
+            textColorClass="text-card-foreground"
           />
           <StatsHighlightCard 
             title="Win Rate"
@@ -137,20 +138,21 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-gradient-to-br from-green-500 to-emerald-500"
+            colorClass="bg-emerald-950"
           />
       </div>
 
       {/* Report a Match Section */}
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-purple-600 to-indigo-600 text-primary-foreground">
-        <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-                <h3 className="font-semibold">Report a Match</h3>
-                <p className="text-sm text-primary-foreground/80">Log your latest result to update your RacktRank.</p>
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
+        <CardContent className="p-6 flex flex-col items-center text-center gap-4">
+            <div className='space-y-1'>
+                <h3 className="text-xl font-bold">Report a Match</h3>
+                <p className="text-sm text-white/80">Log your latest result to update your RacktRank.</p>
             </div>
-            <Button asChild variant="secondary" className="w-full sm:w-auto">
+            <Button asChild className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white font-semibold">
                 <Link href="/report-match">
-                Log Result
+                    <span>Log Result</span>
+                    <ChevronRight className="ml-1 h-4 w-4" />
                 </Link>
             </Button>
         </CardContent>

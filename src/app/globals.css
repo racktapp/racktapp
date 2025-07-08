@@ -5,24 +5,25 @@
 
 @layer base {
   :root {
-    --background: 210 17% 98%; /* Ice White: #F9FAFB */
-    --foreground: 215 28% 17%; /* Dark Slate: #212936 */
+    /* Light Mode from user's image style */
+    --background: 210 40% 98%; /* #F8FAFC - Ice White */
+    --foreground: 222 47% 11%; /* #111827 - Slate Grey */
     --card: 0 0% 100%; /* White */
-    --card-foreground: 215 28% 17%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 17%;
-    --primary: 145 63% 47%; /* Victory Green: #28C76F */
+    --popover-foreground: 222 47% 11%;
+    --primary: 145 63% 47%; /* #28C76F - Victory Green */
     --primary-foreground: 0 0% 98%; /* White */
-    --secondary: 220 13% 91%; /* Fog Grey: #E5E7EB */
-    --secondary-foreground: 215 28% 17%;
-    --muted: 220 14% 96%; /* Lighter Fog Grey */
+    --secondary: 210 40% 96%; /* #F1F5F9 - Fog Grey */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%; /* Muted Slate */
-    --accent: 203 71% 52%; /* Court Blue: #2D9CDB */
+    --accent: 251 53% 62%; /* #7C3AED - Competitive Violet */
     --accent-foreground: 0 0% 98%;
-    --destructive: 356 100% 65%; /* Sport Red: #FF4F5A */
+    --destructive: 356 100% 65%; /* #FF4F5A - Sport Red */
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 91%; /* Fog Grey: #E5E7EB */
-    --input: 220 13% 91%;
+    --border: 210 40% 91%; /* #E2E8F0 - Light Grey */
+    --input: 210 40% 91%;
     --ring: 145 63% 47%; /* Victory Green */
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
@@ -40,24 +41,25 @@
   }
 
   .dark {
-    --background: 215 41% 12%; /* Deep Navy: #121C2B */
-    --foreground: 216 67% 97%; /* Off White: #F4F7FA */
-    --card: 215 33% 17%; /* Soft Navy: #1C2A3A */
-    --card-foreground: 216 67% 97%;
-    --popover: 215 33% 17%;
-    --popover-foreground: 216 67% 97%;
-    --primary: 145 63% 47%; /* Victory Green: #28C76F */
-    --primary-foreground: 145 60% 15%; /* Dark Green */
-    --secondary: 215 33% 22%; /* Slightly Lighter Navy */
-    --secondary-foreground: 216 67% 97%;
-    --muted: 215 33% 22%;
-    --muted-foreground: 214 13% 68%; /* Cool Grey: #AEB4C0 */
-    --accent: 203 71% 52%; /* Court Blue: #2D9CDB */
-    --accent-foreground: 203 70% 15%; /* Dark Blue */
-    --destructive: 356 100% 65%; /* Sport Red: #FF4F5A */
+    /* Dark Mode from user's image style */
+    --background: 215 28% 17%; /* #1D232A - Dark Navy/Charcoal */
+    --foreground: 210 40% 98%; /* #F8FAFC - Off White */
+    --card: 215 28% 23%; /* #2A323C - Soft Navy/Charcoal */
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 23%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 145 63% 47%; /* #28C76F - Victory Green */
+    --primary-foreground: 215 28% 17%;
+    --secondary: 215 28% 28%; /* #38424D - Lighter Navy */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 28% 28%;
+    --muted-foreground: 215 21% 51%; /* #6E7A8A - Cool Grey */
+    --accent: 251 53% 62%; /* #7C3AED - Competitive Violet */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 356 100% 65%; /* #FF4F5A - Sport Red */
     --destructive-foreground: 0 0% 98%;
-    --border: 215 33% 22%; /* Translucent Navy effect */
-    --input: 215 33% 22%;
+    --border: 215 28% 28%;
+    --input: 215 28% 28%;
     --ring: 145 63% 47%;
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
