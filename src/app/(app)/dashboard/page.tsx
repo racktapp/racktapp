@@ -141,16 +141,16 @@ export default function DashboardPage() {
           />
       </div>
 
-      <Card id="tour-step-report-match" className="bg-gradient-to-br from-slate-700 to-gray-900 text-primary-foreground">
+      <Card id="tour-step-report-match">
           <CardHeader>
               <div className="flex items-center gap-3">
-                  <Plus className="h-8 w-8" />
+                  <Plus className="h-8 w-8 text-primary" />
                   <CardTitle>Report a Match</CardTitle>
               </div>
-              <CardDescription className="text-white/90">Log your latest result to update your RacktRank and stats.</CardDescription>
+              <CardDescription>Log your latest result to update your RacktRank and stats.</CardDescription>
           </CardHeader>
           <CardFooter>
-              <Button asChild variant="secondary" className="w-full bg-white/20 text-white hover:bg-white/30">
+              <Button asChild className="w-full">
                 <Link href="/report-match">
                   Log Result <ChevronRight className="ml-2 h-4 w-4" />
                 </Link>
