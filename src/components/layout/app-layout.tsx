@@ -303,6 +303,11 @@ const BottomNav = () => {
     );
 };
 
+interface AppLayoutProps {
+  children: ReactNode;
+  user: User;
+}
+
 export function AppLayout({ children, user }: AppLayoutProps) {
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
