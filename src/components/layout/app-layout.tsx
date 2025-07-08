@@ -2,7 +2,7 @@
 
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useRef, useCallback, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Check, LogOut, Settings, User as UserIcon, Menu, Sun, Moon, Home, Swords, Trophy } from 'lucide-react';
@@ -55,17 +55,16 @@ import { Logo } from '../ui/logo';
 import { NotificationBell } from './notification-bell';
 import { OnboardingTour } from '../onboarding-tour';
 import { Separator } from '../ui/separator';
+import { cn } from '@/lib/utils';
 
-interface AppLayoutProps {
-  children: ReactNode;
-  user: User;
-}
-
-const MobileHeader = () => {
+const MobileHeader = ({ isVisible }: { isVisible: boolean }) => {
     const { sport, setSport } = useSport();
 
     return (
-        <div className="flex h-16 items-center gap-4 border-b bg-background px-4 md:hidden">
+        <div className={cn(
+            "sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-background px-4 transition-transform duration-300 md:hidden",
+            isVisible ? "translate-y-0" : "-translate-y-full"
+        )}>
             <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-primary">
                 <Logo />
             </Link>
@@ -227,7 +226,7 @@ const AppSidebar = ({ user }: { user: User }) => {
   );
 };
 
-const BottomNav = () => {
+const BottomNav = ({ isVisible }: { isVisible: boolean }) => {
     const pathname = usePathname();
     const router = useRouter();
     const hasUnreadChats = useUnreadChats();
@@ -259,7 +258,10 @@ const BottomNav = () => {
     );
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
+        <div className={cn(
+            "fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm transition-transform duration-300 md:hidden",
+            isVisible ? "translate-y-0" : "translate-y-full"
+        )}>
             <div className="grid h-16 grid-cols-5">
                 {NAV_ITEMS_MOBILE_MAIN.map((item) => (
                     <Link
@@ -303,16 +305,53 @@ const BottomNav = () => {
 };
 
 export function AppLayout({ children, user }: AppLayoutProps) {
+  const mainScrollRef = useRef<HTMLDivElement>(null);
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  const handleScroll = useCallback(() => {
+    const scrollContainer = mainScrollRef.current;
+    if (!scrollContainer) return;
+
+    const currentScrollY = scrollContainer.scrollTop;
+
+    // Show navs if scrolling at the very top
+    if (currentScrollY <= 0) {
+      setIsNavbarVisible(true);
+      lastScrollY.current = currentScrollY;
+      return;
+    }
+    
+    // Determine scroll direction and hide/show
+    if (currentScrollY > lastScrollY.current && isNavbarVisible) {
+      // Scrolling down
+      setIsNavbarVisible(false);
+    } else if (currentScrollY < lastScrollY.current && !isNavbarVisible) {
+      // Scrolling up
+      setIsNavbarVisible(true);
+    }
+
+    lastScrollY.current = currentScrollY;
+  }, [isNavbarVisible]);
+
+  useEffect(() => {
+    const element = mainScrollRef.current;
+    if (element) {
+      element.addEventListener('scroll', handleScroll, { passive: true });
+      return () => element.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
+
   return (
     <SidebarProvider>
       <AppSidebar user={user} />
       <SidebarInset>
-        <MobileHeader />
-        <main className="flex-1 pb-16 md:pb-0">
+        <MobileHeader isVisible={isNavbarVisible} />
+        <main ref={mainScrollRef} className="flex-1 overflow-y-auto pb-16 md:pb-0">
           {children}
         </main>
       </SidebarInset>
-      <BottomNav />
+      <BottomNav isVisible={isNavbarVisible} />
       <OnboardingTour />
     </SidebarProvider>
   );
