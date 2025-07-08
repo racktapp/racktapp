@@ -128,7 +128,7 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-gradient-to-br from-blue-500 to-cyan-500"
+            colorClass="bg-gradient-to-br from-blue-500 to-sky-500"
           />
           <StatsHighlightCard 
             title="Win Rate"
@@ -142,13 +142,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Report a Match Section */}
-      <Card id="tour-step-report-match" className="bg-card">
+      <Card id="tour-step-report-match" className="bg-gradient-to-br from-purple-600 to-indigo-600 text-primary-foreground">
         <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
                 <h3 className="font-semibold">Report a Match</h3>
-                <p className="text-sm text-muted-foreground">Log your latest result to update your RacktRank.</p>
+                <p className="text-sm text-primary-foreground/80">Log your latest result to update your RacktRank.</p>
             </div>
-            <Button asChild variant="default" className="w-full sm:w-auto">
+            <Button asChild variant="secondary" className="w-full sm:w-auto">
                 <Link href="/report-match">
                 Log Result
                 </Link>
