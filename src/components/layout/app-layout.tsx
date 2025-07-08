@@ -5,7 +5,7 @@
 import { ReactNode, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, LogOut, Settings, User as UserIcon, Menu, Sun, Moon, Laptop } from 'lucide-react';
+import { Check, LogOut, Settings, User as UserIcon, Menu, Sun, Moon, Home, Swords, Trophy } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
@@ -54,6 +54,7 @@ import { useSport } from '../providers/sport-provider';
 import { Logo } from '../ui/logo';
 import { NotificationBell } from './notification-bell';
 import { OnboardingTour } from '../onboarding-tour';
+import { Separator } from '../ui/separator';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -237,6 +238,25 @@ const BottomNav = () => {
         setIsMoreMenuOpen(false);
         router.push(href);
     };
+    
+    const MoreMenuSection = ({ title, items }: { title: string, items: typeof NAV_ITEMS_MOBILE_MORE }) => (
+        <div>
+            <h4 className="px-3 py-2 text-sm font-semibold text-muted-foreground">{title}</h4>
+            {items.map((item) => (
+                <button
+                    key={item.href}
+                    onClick={() => handleMoreMenuLinkClick(item.href)}
+                    className="w-full relative flex items-center gap-4 rounded-md p-3 text-left text-foreground transition-colors hover:bg-muted"
+                >
+                    <item.icon className="h-6 w-6 text-muted-foreground" />
+                    <span className="text-base font-medium">{item.label}</span>
+                    {item.href === '/chat' && hasUnreadChats && (
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full bg-primary" />
+                    )}
+                </button>
+            ))}
+        </div>
+    );
 
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
@@ -262,26 +282,18 @@ const BottomNav = () => {
                             )}
                         </button>
                     </SheetTrigger>
-                    <SheetContent side="bottom" className="h-[75vh] flex flex-col p-0">
-                        <SheetHeader className="p-4 border-b">
-                            <SheetTitle>More</SheetTitle>
+                    <SheetContent side="bottom" className="h-auto max-h-[80vh] flex flex-col p-0 rounded-t-lg">
+                        <SheetHeader className="p-4 border-b text-left">
+                            <SheetTitle>More Options</SheetTitle>
                         </SheetHeader>
                         <div className="flex-1 overflow-y-auto">
-                            <div className="grid grid-cols-1 p-2">
-                                {NAV_ITEMS_MOBILE_MORE.map((item) => (
-                                    <button
-                                        key={item.href}
-                                        onClick={() => handleMoreMenuLinkClick(item.href)}
-                                        className="relative flex items-center gap-4 rounded-md p-4 text-left text-foreground transition-colors hover:bg-muted"
-                                    >
-                                        <item.icon className="h-6 w-6 text-muted-foreground" />
-                                        <span className="text-base font-medium">{item.label}</span>
-                                        {item.href === '/chat' && hasUnreadChats && (
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full bg-primary" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+                           <MoreMenuSection title="Social" items={NAV_ITEMS_MOBILE_MORE.slice(0, 2)} />
+                           <Separator />
+                           <MoreMenuSection title="Performance" items={NAV_ITEMS_MOBILE_MORE.slice(2, 5)} />
+                           <Separator />
+                           <MoreMenuSection title="AI Tools" items={NAV_ITEMS_MOBILE_MORE.slice(5, 7)} />
+                           <Separator />
+                           <MoreMenuSection title="Account" items={NAV_ITEMS_MOBILE_MORE.slice(7)} />
                         </div>
                     </SheetContent>
                 </Sheet>
