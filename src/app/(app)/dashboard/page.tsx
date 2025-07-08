@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
@@ -128,7 +127,7 @@ export default function DashboardPage() {
             footerValue={monthlyEloChange}
             footerText={`${monthlyEloChange >= 0 ? `+${monthlyEloChange}` : monthlyEloChange} this month`}
             icon={Trophy}
-            colorClass="bg-[#0B1B2A]"
+            colorClass="bg-[#1C2A3A]"
             textColorClass="text-white"
           />
           <StatsHighlightCard 
@@ -138,7 +137,7 @@ export default function DashboardPage() {
             footerValue={streak}
             footerText={`${Math.abs(streak)} ${streak >= 0 ? 'win' : 'loss'} streak`}
             icon={BarChart}
-            colorClass="bg-[#17633D]"
+            colorClass="bg-[#1F7A53]"
             textColorClass="text-white"
           />
       </div>
