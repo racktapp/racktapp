@@ -18,7 +18,7 @@ interface StatsHighlightCardProps {
 const FooterTrendIcon = ({ value }: { value?: number }) => {
   if (value === undefined) return null;
   if (value === 0) return <Minus className="h-4 w-4 text-gray-500" />;
-  if (value > 0) return <ArrowUp className="h-4 w-4 text-green-600" />;
+  if (value > 0) return <ArrowUp className="h-4 w-4 text-[#29C771]" />;
   return <ArrowDown className="h-4 w-4 text-red-600" />;
 };
 
