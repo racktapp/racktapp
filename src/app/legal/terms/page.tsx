@@ -1,53 +1,73 @@
+
 import { PageHeader } from '@/components/page-header';
 
 export default function TermsOfServicePage() {
   return (
     <div className="prose prose-sm md:prose-base dark:prose-invert max-w-4xl mx-auto">
-      <PageHeader title="Terms of Service" description="Last updated: July 5, 2025" />
+      <PageHeader title="Terms of Service" description="Effective Date: July 9, 2025 | Last Updated: July 9, 2025" />
 
       <h2>Welcome to Rackt!</h2>
       <p>
-        These terms and conditions outline the rules and regulations for the use of Rackt's Application. By accessing this app we assume you accept these terms and conditions. Do not continue to use Rackt if you do not agree to take all of the terms and conditions stated on this page.
+        These Terms of Service ("Terms") govern your use of the Rackt mobile application (the "App", "Service", or "Rackt") provided by us. By using Rackt, you agree to comply with these Terms. If you do not agree with any part of these Terms, please do not use the app.
       </p>
 
       <h3>1. Your Account</h3>
-      <p>
-        You are responsible for maintaining the security of your account, and you are fully responsible for all activities that occur under the account. You must be a human. Accounts registered by "bots" or other automated methods are not permitted. You must provide a valid email address and any other information requested in order to complete the signup process.
-      </p>
+      <p>You are responsible for maintaining the security of your account and all activity that occurs under it.</p>
+      <ul>
+        <li>You must provide accurate, complete information during registration, including a valid email address.</li>
+        <li>You may not use someone else’s identity or create accounts using automated methods ("bots").</li>
+        <li>You must be at least 13 years old to use the Service.</li>
+      </ul>
 
       <h3>2. User Conduct</h3>
-      <p>
-        We are building a friendly, competitive community. Please be respectful of other users. Harassment, abuse, or any form of hate speech will not be tolerated and will result in account termination. When reporting match results, please do so honestly. Falsifying match results may lead to penalties or account suspension.
-      </p>
-
+      <p>We are building a positive and competitive sports community. You agree to:</p>
+      <ul>
+        <li>Treat other users with respect and fairness.</li>
+        <li>Avoid any form of harassment, hate speech, or abusive behavior.</li>
+        <li>Report match results honestly. Falsifying match outcomes may result in warnings, suspensions, or permanent bans.</li>
+      </ul>
+      
       <h3>3. AI Features</h3>
-      <p>
-        Rackt provides AI-powered features like the AI Coach and Match Predictor. These tools are for entertainment and informational purposes only. They do not constitute professional coaching or guaranteed predictions. The analysis provided is based on the data you provide and may not be perfect.
-      </p>
+      <p>Rackt offers AI-powered tools, such as the AI Coach and Match Predictor. These features are:</p>
+      <ul>
+        <li>Intended for informational and entertainment purposes only.</li>
+        <li>Based on the data you provide (e.g., swing videos).</li>
+        <li>Not guaranteed to be accurate or error-free, nor a substitute for professional coaching or advice.</li>
+      </ul>
 
       <h3>4. Content</h3>
-      <p>
-        When you upload content, such as videos for the AI Coach, you grant us a worldwide, non-exclusive, royalty-free license to use, process, and display that content solely for the purpose of providing the app's services to you. We do not claim ownership of your content.
-      </p>
+      <p>When you upload content (like swing videos), you retain ownership of it. However, by uploading, you grant us a non-exclusive, royalty-free, worldwide license to use, display, and process your content solely to deliver app features (like the AI Coach). We will never sell or repurpose your content outside the app’s core functionality.</p>
 
       <h3>5. Termination</h3>
-      <p>
-        We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.
-      </p>
+      <p>We may suspend or terminate your access to the app immediately and without prior notice if:</p>
+      <ul>
+        <li>You violate these Terms,</li>
+        <li>Engage in fraudulent or harmful behavior,</li>
+        <li>Or act in a way that disrupts the community or service.</li>
+      </ul>
 
       <h3>6. Disclaimer</h3>
-      <p>
-        The Service is provided on an "AS IS" and "AS AVAILABLE" basis. The Service is provided without warranties of any kind, whether express or implied, including, but not limited to, implied warranties of merchantability, fitness for a particular purpose, non-infringement or course of performance.
-      </p>
+      <p>The Rackt service is provided “as is” and “as available.” We make no warranties, expressed or implied, including but not limited to:</p>
+      <ul>
+        <li>Fitness for a particular purpose</li>
+        <li>Reliability or availability of features</li>
+        <li>Non-infringement or uninterrupted service</li>
+      </ul>
+      <p>Use the app at your own risk.</p>
 
-      <h3>7. Changes to Terms</h3>
-      <p>
-        We reserve the right, at our sole discretion, to modify or replace these Terms at any time. We will try to provide at least 30 days' notice prior to any new terms taking effect.
-      </p>
+      <h3>7. Changes to These Terms</h3>
+      <p>We may update these Terms at any time. If we do:</p>
+      <ul>
+        <li>We'll notify users within the app or by email where possible.</li>
+        <li>Continued use of the app after updates means you accept the new Terms.</li>
+      </ul>
 
-      <h3>Contact Us</h3>
+      <h3>8. Contact Us</h3>
       <p>
-        If you have any questions about these Terms, please contact us at <a href="mailto:racktapp@gmail.com">racktapp@gmail.com</a>.
+        If you have any questions or concerns about these Terms, you can contact us at:
+      </p>
+      <p>
+        📧 <a href="mailto:racktapp@gmail.com">racktapp@gmail.com</a>
       </p>
     </div>
   );
