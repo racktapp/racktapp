@@ -12,7 +12,7 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 25 85% 55%; /* #E8721F - Brownish-Orange */
+    --primary: 26 47% 47%; /* #B06A42 - Grip Brown/Orange */
     --primary-foreground: 0 0% 98%; /* White */
     --secondary: 210 40% 96%; /* #F1F5F9 - Fog Grey */
     --secondary-foreground: 222 47% 11%;
@@ -24,7 +24,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 210 40% 94%; /* #E9EEF4 - Light Grey Border */
     --input: 210 40% 94%;
-    --ring: 25 85% 55%;
+    --ring: 26 47% 47%;
     --radius: 1rem;
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
@@ -49,7 +49,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 215 28% 23%;
     --popover-foreground: 210 40% 98%;
-    --primary: 145 63% 47%; /* #28C76F - Victory Green */
+    --primary: 26 47% 55%; /* #C98259 - Grip Brown/Orange (Lighter) */
     --primary-foreground: 215 28% 17%;
     --secondary: 215 28% 28%; /* #38424D - Lighter Navy */
     --secondary-foreground: 210 40% 98%;
@@ -61,7 +61,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 215 28% 28%;
     --input: 215 28% 28%;
-    --ring: 145 63% 47%;
+    --ring: 26 47% 55%;
     --radius: 1rem;
     --chart-1: 145 63% 47%;
     --chart-2: 203 71% 52%;
