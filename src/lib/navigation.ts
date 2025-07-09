@@ -15,6 +15,7 @@ import {
   ListOrdered,
   Menu,
   Dumbbell,
+  LifeBuoy,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -57,6 +58,7 @@ export const NAV_ITEMS_MOBILE_MORE: NavItem[] = [
   { href: '/games', label: 'AI Games', icon: Gamepad2 },
   // Account
   { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/legal/support', label: 'Support', icon: LifeBuoy },
 ];
 
 
