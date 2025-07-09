@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
-import { Settings, BarChart, Activity, Flame, MessageSquare, Swords, Trophy, Users, Undo2, type LucideIcon } from 'lucide-react';
+import { Settings, BarChart, Activity, Flame, MessageSquare, Swords, Trophy, Users, Undo2, type LucideIcon, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { User, Match, Sport, Achievement } from '@/lib/types';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -22,6 +22,8 @@ import { MatchHistoryCard } from '@/components/match-history/match-history-card'
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase/config';
 
 type ProfileData = Awaited<ReturnType<typeof getProfilePageDataAction>>;
 
@@ -141,6 +143,11 @@ export default function ProfilePage() {
       setIsProcessingChat(false);
     }
   };
+  
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   if (loading || authLoading) {
     return (
@@ -173,11 +180,16 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {isOwnProfile ? (
-                  <Button asChild>
-                    <Link href="/settings">
-                      <Settings className="mr-2 h-4 w-4" /> Edit Profile
-                    </Link>
-                  </Button>
+                  <>
+                    <Button asChild>
+                      <Link href="/settings">
+                        <Settings className="mr-2 h-4 w-4" /> Edit Profile
+                      </Link>
+                    </Button>
+                    <Button variant="outline" onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" /> Log Out
+                    </Button>
+                  </>
                 ) : authUser ? (
                   <>
                     <FriendshipButton profileUser={profileUser} currentUser={authUser} />
