@@ -1,3 +1,3 @@
-// This file is intentionally blank.
-// It is required by the Capacitor build process in some configurations,
-// but is not needed for projects that do not use Cordova plugins.
+// This file is intentionally left empty.
+// It is required by some Capacitor configurations to prevent build errors,
+// even if no Cordova plugins are being used.
