@@ -1,3 +1,6 @@
+// This file tells Gradle where to find the source code for your app's modules.
 include ':app'
 include ':capacitor-android'
-project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
+
+// This line is the most important part: it points to the Capacitor code inside your node_modules folder.
+project(':capacitor-android').projectDir = new File(rootProject.projectDir, '../node_modules/@capacitor/android/capacitor')
