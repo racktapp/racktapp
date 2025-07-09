@@ -1,6 +1,14 @@
-// This file tells Gradle where to find the source code for your app's modules.
 include ':app'
 include ':capacitor-android'
+project(':capacitor-android').projectDir = new File('capacitor-android')
+include ':capacitor-cordova-android-plugins'
+project(':capacitor-cordova-android-plugins').projectDir = new File('capacitor-cordova-android-plugins')
 
-// This line is the most important part: it points to the Capacitor code inside your node_modules folder.
-project(':capacitor-android').projectDir = new File(rootProject.projectDir, '../node_modules/@capacitor/android/capacitor')
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "RacktAndroid"
