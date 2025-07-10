@@ -7,7 +7,6 @@ apply plugin: 'com.getcapacitor.android'
 
 android {
     namespace "com.example.rackt"
-    compileSdkVersion rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.example.rackt"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -22,6 +21,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    compileSdkVersion 34
 }
 
 dependencies {
@@ -37,3 +37,4 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$rootProject.androidxEspressoCoreVersion"
     implementation project(':capacitor-android')
 }
+implementation 'com.capacitorjs:capacitor-android:latest.integration'
