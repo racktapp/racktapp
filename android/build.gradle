@@ -1,48 +1,24 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
+    apply from: 'variables.gradle'
     repositories {
         google()
-        maven { url 'https://capacitorjs.com/android/maven' }
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.1'
-        classpath 'com.google.gms:google-services:4.4.1'
-        classpath 'com.capacitorjs:capacitor-gradle:6.0.0' // Ensure this matches your Capacitor version
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
-    } // Make sure all necessary repositories are here
+        classpath "com.android.tools.build:gradle:$AGP_VERSION"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$KOTLIN_VERSION"
+    }
 }
 
 allprojects {
     repositories {
         google()
-        maven { url 'https://capacitorjs.com/android/maven' }
         mavenCentral()
-    } // Make sure all necessary repositories are here
+    }
 }
 
 task clean(type: Delete) {
     delete rootProject.buildDir
-}
-
-ext {
-    minSdkVersion = 22
-    compileSdkVersion = 34
-    targetSdkVersion = 34
-    androidxActivityVersion = '1.8.2'
-    androidxAppCompatVersion = '8.1.1'
-    androidxCoordinatorLayoutVersion = '1.2.0'
-    androidxCoreVersion = '1.16.0'
-    androidxFragmentVersion = '1.6.2'
-    coreSplashScreenVersion = '1.0.1'
-    androidxWebkitVersion = '1.14.0'
-    junitVersion = '4.13.2'
-    androidxJunitVersion = '1.2.1'
-    androidxEspressoCoreVersion = '3.6.1'
-    cordovaAndroidVersion = '10.1.1'
-    constraintLayoutVersion = "2.2.1"
-    materialVersion = "1.12.0"
 }
