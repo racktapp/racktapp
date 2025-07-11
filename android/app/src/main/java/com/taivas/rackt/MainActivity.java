@@ -1,4 +1,4 @@
-package com.taivas.rackt;
+package com.google.android.apps.playconsole;
 
 import com.getcapacitor.BridgeActivity;
 
