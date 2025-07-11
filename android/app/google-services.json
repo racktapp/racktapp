@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1080946592753:android:2e830cf79a00fd95dad250",
+        "mobilesdk_app_id": "1:1080946592753:android:43f8b9c98497ccb7dad250",
         "android_client_info": {
-          "package_name": "com.example.rackt"
+          "package_name": "com.taivas.rackt"
         }
       },
       "oauth_client": [
