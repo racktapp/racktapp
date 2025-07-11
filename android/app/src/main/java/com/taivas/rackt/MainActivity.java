@@ -1,4 +1,4 @@
-package com.example.rackt;
+package com.taivas.rackt;
 
 import com.getcapacitor.BridgeActivity;
 
