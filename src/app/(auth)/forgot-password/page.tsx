@@ -15,6 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { auth } from '@/lib/firebase/config';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { getAuthErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -41,7 +42,7 @@ export default function ForgotPasswordPage() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'An unexpected error occurred. Please try again.',
+        description: getAuthErrorMessage(error.code),
       });
     } finally {
       setIsLoading(false);

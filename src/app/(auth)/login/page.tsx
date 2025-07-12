@@ -17,6 +17,7 @@ import { auth, db } from '@/lib/firebase/config';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { createUserDocument } from '@/lib/firebase/firestore';
+import { getAuthErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -84,7 +85,7 @@ export default function LoginPage() {
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
-        description: error.code === 'auth/popup-closed-by-user' ? 'Sign in process was cancelled.' : (error.message || 'An unexpected error occurred.'),
+        description: getAuthErrorMessage(error.code),
       });
     } finally {
       setIsGoogleLoading(false);
@@ -100,7 +101,7 @@ export default function LoginPage() {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message || 'An unexpected error occurred. Please try again.',
+        description: getAuthErrorMessage(error.code),
       });
     } finally {
       setIsLoading(false);
