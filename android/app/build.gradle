@@ -161,49 +161,6 @@ dependencies {
     implementation project(':capacitor-android')
 }
 
-// This is an example of a custom transform that can be used to instrument classes.
-// You can use it to add logging, for example.
-//
-// You can find more information about custom transforms in the Android Gradle Plugin documentation.
-//
-// https://developer.android.com/studio/build/extend-agp#instrument-classes
-abstract class ExampleInstrumentingArtifactTransform: AsmClassVisitorFactory<ExampleInstrumentationParameters> {
-    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor): ClassVisitor {
-        return object : ClassVisitor(Opcodes.ASM9, nextClassVisitor) {
-            override fun visitMethod(
-                access: Int,
-                name: String?,
-                descriptor: String?,
-                signature: String?,
-                exceptions: Array<out String>?
-            ): MethodVisitor {
-                val methodVisitor = super.visitMethod(access, name, descriptor, signature, exceptions)
-                return if (name == "onCreate") {
-                    object : MethodVisitor(Opcodes.ASM9, methodVisitor) {
-                        override fun visitCode() {
-                            super.visitCode()
-                            // This is where you can add your code.
-                            // For example, you can add a log statement.
-                            //
-                            // mv.visitLdcInsn("Example")
-                            // mv.visitLdcInsn("onCreate")
-                            // mv.visitMethodInsn(Opcodes.INVOKESTATIC, "android/util/Log", "d", "(Ljava/lang/String;Ljava/lang/String;)I", false)
-                        }
-                    }
-                } else {
-                    methodVisitor
-                }
-            }
-        }
-    }
-    override fun isInstrumentable(classData: ClassData): Boolean {
-        return classData.className.endsWith("MainActivity")
-    }
-}
-interface ExampleInstrumentationParameters: InstrumentationParameters {
-    @get:Input
-    val invalidate: Property<Long>
-}
 val androidComponents = project.extensions.getByType(AndroidComponentsExtension::class.java)
 androidComponents.onVariants { variant ->
     variant.instrumentation.transformClassesWith(
@@ -218,3 +175,6 @@ androidComponents.onVariants { variant ->
 if (project.hasProperty('postBuildExtras')) {
     postBuildExtras()
 }
+
+
+
