@@ -176,8 +176,8 @@ export default function ProfilePage() {
             <CardContent className="pt-6 flex flex-col items-center text-center gap-4">
               <UserAvatar user={profileUser} className="h-28 w-28" />
               <div>
-                <h1 className="text-2xl font-bold">{isOwnProfile ? profileUser.name : `@${profileUser.username}`}</h1>
-                {isOwnProfile && <p className="text-muted-foreground">@{profileUser.username}</p>}
+                <h1 className="text-2xl font-bold">@{profileUser.username}</h1>
+                {isOwnProfile && <p className="text-muted-foreground">{profileUser.email}</p>}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {isOwnProfile ? (
@@ -215,7 +215,7 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                   <CardTitle>Head-to-Head Rivalry</CardTitle>
-                  <CardDescription>Your record vs. {profileUser.name.split(' ')[0]} in {sport}</CardDescription>
+                  <CardDescription>Your record vs. @{profileUser.username} in {sport}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-center">
@@ -250,7 +250,7 @@ export default function ProfilePage() {
 
         <div className="lg:col-span-2 space-y-6">
           <PageHeader
-            title={`${profileUser.name.split(' ')[0]}'s ${sport} Stats`}
+            title={`@${profileUser.username}'s ${sport} Stats`}
             description="An overview of their performance."
           />
           {sportStats ? (
@@ -262,7 +262,7 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed">
-                <p className="text-muted-foreground">{profileUser.name} hasn't played any {sport} matches yet.</p>
+                <p className="text-muted-foreground">@{profileUser.username} hasn't played any {sport} matches yet.</p>
             </div>
           )}
            <EloChart data={eloHistoryData} />

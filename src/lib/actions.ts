@@ -45,7 +45,6 @@ import {
     getPracticeSessionsForUser,
     createReport,
     deleteUserDocument,
-    updateFirebaseProfileName
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -93,8 +92,8 @@ export async function handleReportMatchAction(
 
 // Action to get match recap
 export async function handleRecapAction(match: Match, currentUserId: string) {
-    const player1Name = match.participantsData[match.teams.team1.playerIds[0]].name;
-    const player2Name = match.participantsData[match.teams.team2.playerIds[0]].name;
+    const player1Name = match.participantsData[match.teams.team1.playerIds[0]].username;
+    const player2Name = match.participantsData[match.teams.team2.playerIds[0]].username;
     
     return await getMatchRecap({
         player1Name,
@@ -182,10 +181,10 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
 
         await createDirectChallenge({
             fromId: fromUser.uid,
-            fromName: fromUser.name,
+            fromName: fromUser.username,
             fromAvatarUrl: fromUser.avatarUrl || null,
             toId: toUser.uid,
-            toName: toUser.name,
+            toName: toUser.username,
             toAvatarUrl: toUser.avatarUrl || null,
             sport: values.sport,
             location: values.location,
@@ -375,7 +374,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                 newGame = {
                     id: gameRef.id, mode: 'friend', sport,
                     participantIds: [currentUserId, friendId],
-                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { name: friend.name, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
+                    participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
                     score: { [currentUserId]: 0, [friendId]: 0 },
                     currentPlayerId: currentUserId,
                     turnState: 'playing', status: 'ongoing',
@@ -386,7 +385,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
                 newGame = {
                     id: gameRef.id, mode: 'solo', sport,
                     participantIds: [currentUserId],
-                    participantsData: { [currentUserId]: { name: user.name, avatarUrl: user.avatarUrl || null, uid: user.uid } },
+                    participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } },
                     score: { [currentUserId]: 0 },
                     currentPlayerId: currentUserId,
                     turnState: 'playing', status: 'ongoing',
@@ -542,7 +541,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
                 id: gameRef.id,
                 sport: sport,
                 participantIds: [user.uid, friend.uid],
-                participantsData: { [user.uid]: { name: user.name, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friend.uid]: { name: friend.name, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
+                participantsData: { [user.uid]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friend.uid]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
                 score: { [user.uid]: 0, [friend.uid]: 0 },
                 turn: 'serving', currentPlayerId: user.uid,
                 currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialAiResponse.serveOptions },
@@ -742,8 +741,8 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
     const friendTotalGames = friendStats.wins + friendStats.losses;
     
     const predictionInput = {
-        player1Name: currentUserData.name,
-        player2Name: friendData.name,
+        player1Name: currentUserData.username,
+        player2Name: friendData.username,
         player1RacktRank: currentUserStats.racktRank,
         player2RacktRank: friendStats.racktRank,
         player1WinRate: currentUserTotalGames > 0 ? currentUserStats.wins / currentUserTotalGames : 0,
@@ -768,7 +767,6 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-        await updateFirebaseProfileName(userId, values.name);
         await updateUserProfile(userId, values);
         
         revalidatePath('/settings');
@@ -858,7 +856,7 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
             profileUserLongestStreak
         };
         
-        const achievements = calculateRivalryAchievements(headToHeadMatches, currentUserId, profileUser.name.split(' ')[0]);
+        const achievements = calculateRivalryAchievements(headToHeadMatches, currentUserId, profileUser.username);
 
         return {
             profileUser,
@@ -900,4 +898,3 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
 }
-

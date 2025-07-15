@@ -113,7 +113,7 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
             </Button>
             <UserAvatar user={{...otherParticipant, uid: otherParticipantId}} className="h-10 w-10" />
             <div className="flex-1">
-                <p className="font-semibold">@{otherParticipant.name}</p>
+                <p className="font-semibold">@{otherParticipant.username}</p>
             </div>
             <AlertDialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
                 <DropdownMenu>
@@ -134,7 +134,7 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
                 </DropdownMenu>
                  <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Report @{otherParticipant.name}?</AlertDialogTitle>
+                        <AlertDialogTitle>Report @{otherParticipant.username}?</AlertDialogTitle>
                         <AlertDialogDescription>
                             Reporting will flag this conversation for review. Are you sure you want to proceed?
                         </AlertDialogDescription>

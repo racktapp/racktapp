@@ -1,3 +1,4 @@
+
 'use client';
 import { ReactNode, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -138,7 +139,7 @@ export function CreateTournamentDialog({ user, children, onTournamentCreated }: 
                                                 variant="secondary"
                                                 className="rounded-sm"
                                             >
-                                                {friend.name}
+                                                @{friend.username}
                                             </Badge>
                                         ))
                                     ) : (
@@ -176,7 +177,7 @@ export function CreateTournamentDialog({ user, children, onTournamentCreated }: 
                                             >
                                                 <Check className={cn("h-4 w-4")} />
                                             </div>
-                                            <span>{friend.name}</span>
+                                            <span>@{friend.username}</span>
                                         </CommandItem>
                                         );
                                     })}

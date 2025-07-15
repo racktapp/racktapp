@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ReactNode, useState } from 'react';
@@ -54,7 +55,7 @@ export function ChallengeFriendDialog({ fromUser, toUser, children }: ChallengeF
     setIsLoading(true);
     const result = await createDirectChallengeAction(values, fromUser, toUser);
     if (result.success) {
-      toast({ title: 'Challenge Sent!', description: `Your challenge has been sent to ${toUser.name}.` });
+      toast({ title: 'Challenge Sent!', description: `Your challenge has been sent to @${toUser.username}.` });
       setOpen(false);
       form.reset();
     } else {
@@ -68,7 +69,7 @@ export function ChallengeFriendDialog({ fromUser, toUser, children }: ChallengeF
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Challenge {toUser.name}</DialogTitle>
+          <DialogTitle>Challenge @{toUser.username}</DialogTitle>
           <DialogDescription>Set the terms for your match and send the challenge.</DialogDescription>
         </DialogHeader>
         <Form {...form}>

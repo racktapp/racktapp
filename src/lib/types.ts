@@ -32,7 +32,6 @@ export interface SportStats {
 
 export interface User {
   uid: string;
-  name: string;
   username: string;
   email: string;
   emailVerified: boolean;
@@ -65,7 +64,7 @@ export interface Match {
   isRanked: boolean;
   participants: string[]; // All user IDs in the match
   participantsData: {
-    [key: string]: { name: string; avatarUrl?: string | null; uid: string };
+    [key: string]: { username: string; avatarUrl?: string | null; uid: string };
   };
   teams: {
     team1: {
@@ -142,7 +141,7 @@ export interface Chat {
   participantIds: string[];
   participantsData: {
     [key: string]: { // key is userId
-        name: string;
+        username: string;
         avatarUrl?: string | null;
     }
   };
@@ -216,7 +215,7 @@ export interface RallyGame {
   sport: Sport;
   participantIds: string[];
   participantsData: {
-    [key: string]: { name: string; avatarUrl?: string | null; uid: string };
+    [key: string]: { username: string; avatarUrl?: string | null; uid: string };
   };
   score: {
     [key: string]: number;
@@ -252,7 +251,7 @@ export interface LegendGame {
     mode: 'solo' | 'friend';
     sport: Sport;
     participantIds: string[];
-    participantsData: { [key: string]: { name: string; avatarUrl?: string | null; uid: string } };
+    participantsData: { [key: string]: { username: string; avatarUrl?: string | null; uid: string } };
     score: { [key: string]: number };
     currentPlayerId: string;
     turnState: LegendGameTurnState;
@@ -287,7 +286,7 @@ export interface Tournament {
   sport: Sport;
   organizerId: string;
   participantIds: string[];
-  participantsData: { uid: string; name: string; avatarUrl?: string | null }[];
+  participantsData: { uid: string; username: string; avatarUrl?: string | null }[];
   status: 'pending' | 'ongoing' | 'complete';
   winnerId?: string;
   bracket: TournamentRound[];
@@ -393,7 +392,6 @@ export const PredictMatchOutputSchema = z.object({
 export type PredictMatchOutput = z.infer<typeof PredictMatchOutputSchema>;
 
 export const profileSettingsSchema = z.object({
-    name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
     preferredSports: z.array(SportEnum).min(1, 'Please select at least one preferred sport.'),
 });

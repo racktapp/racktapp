@@ -20,7 +20,7 @@ import { createUserDocument } from '@/lib/firebase/firestore';
 import { getAuthErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
@@ -56,7 +56,7 @@ export default function SignupPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
+      username: '',
       email: '',
       password: '',
     },
@@ -98,14 +98,14 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      await updateProfile(userCredential.user, { displayName: values.name });
+      await updateProfile(userCredential.user, { displayName: values.username });
       
       await sendEmailVerification(userCredential.user);
       
       await createUserDocument({
         uid: userCredential.user.uid,
         email: values.email,
-        displayName: values.name,
+        displayName: values.username,
         emailVerified: userCredential.user.emailVerified,
       });
 
@@ -153,12 +153,12 @@ export default function SignupPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Doe" {...field} />
+                      <Input placeholder="your_username" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

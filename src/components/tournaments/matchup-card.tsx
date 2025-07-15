@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/user-avatar';
@@ -10,12 +11,12 @@ import { ReportWinnerDialog } from './report-winner-dialog';
 interface MatchupCardProps {
   match: TournamentMatch;
   tournamentId: string;
-  participants: User[];
+  participants: { uid: string, username: string, avatarUrl?: string | null }[];
   isOrganizer: boolean;
   onUpdate: () => void;
 }
 
-const PlayerDisplay = ({ playerId, participants, isWinner }: { playerId: string | null | undefined, participants: User[], isWinner: boolean }) => {
+const PlayerDisplay = ({ playerId, participants, isWinner }: { playerId: string | null | undefined, participants: { uid: string, username: string, avatarUrl?: string | null }[], isWinner: boolean }) => {
   if (!playerId) {
     return <div className="text-sm text-muted-foreground italic">TBD</div>;
   }
@@ -25,8 +26,8 @@ const PlayerDisplay = ({ playerId, participants, isWinner }: { playerId: string 
   }
   return (
     <div className={`flex items-center gap-2 rounded p-2 transition-colors ${isWinner ? 'font-bold text-primary' : ''}`}>
-      <UserAvatar user={player} className="h-8 w-8" />
-      <span>{player.name}</span>
+      <UserAvatar user={player as User} className="h-8 w-8" />
+      <span>@{player.username}</span>
     </div>
   );
 };
@@ -72,8 +73,8 @@ export function MatchupCard({ match, tournamentId, participants, isOrganizer, on
                     <ReportWinnerDialog 
                         tournamentId={tournamentId} 
                         match={match} 
-                        player1={participants.find(p => p.uid === match.player1Id)!} 
-                        player2={participants.find(p => p.uid === match.player2Id)!}
+                        player1={participants.find(p => p.uid === match.player1Id)! as User} 
+                        player2={participants.find(p => p.uid === match.player2Id)! as User}
                         onReported={onUpdate}
                     >
                         <Button size="sm" className="w-full">

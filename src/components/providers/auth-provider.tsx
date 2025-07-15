@@ -3,18 +3,16 @@
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { onAuthStateChanged, User as FirebaseUser, updateProfile as updateFirebaseProfile } from 'firebase/auth';
-import { auth, db, storage } from '@/lib/firebase/config';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase/config';
 import type { User as AppUser } from '@/lib/types';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { createUserDocument } from '@/lib/firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 
 export interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   reloadUser: () => Promise<void>;
-  updateUserName: (userId: string, newName: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,7 +20,6 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   const fetchAndSetUser = useCallback(async (firebaseUser: FirebaseUser | null) => {
     try {
@@ -36,19 +33,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (userDoc.exists()) {
             userProfile = userDoc.data() as AppUser;
           } else {
+            // This case handles user creation via providers like Google
             userProfile = await createUserDocument({
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
               displayName: firebaseUser.displayName || 'New User',
               emailVerified: firebaseUser.emailVerified,
+              photoURL: firebaseUser.photoURL,
             });
           }
           
+          // Ensure the local state is always consistent with Firebase Auth
           const appUser: AppUser = {
             ...userProfile,
             uid: firebaseUser.uid,
             email: firebaseUser.email!,
-            name: firebaseUser.displayName || userProfile.name,
+            username: firebaseUser.displayName || userProfile.username,
             avatarUrl: firebaseUser.photoURL || userProfile.avatarUrl,
             emailVerified: firebaseUser.emailVerified,
           };
@@ -80,27 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [fetchAndSetUser]);
 
-  const updateUserName = async (userId: string, newName: string) => {
-    if (!auth.currentUser || auth.currentUser.uid !== userId) {
-        const errorMsg = "Unauthorized or user not found.";
-        toast({ title: "Error", description: errorMsg, variant: "destructive"});
-        throw new Error(errorMsg);
-    }
-    
-    const userDocRef = doc(db, "users", userId);
-    try {
-        await updateFirebaseProfile(auth.currentUser, { displayName: newName });
-        await updateDoc(userDocRef, { name: newName });
-        
-        setUser(prevUser => prevUser ? ({ ...prevUser, name: newName }) : null);
-    } catch (error: any) {
-        console.error("Error updating user name:", error);
-        toast({ title: "Error Saving Name", description: "Could not update your name.", variant: "destructive"});
-        throw error;
-    }
-  };
-
-  const value = { user, loading, reloadUser, updateUserName };
+  const value = { user, loading, reloadUser };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

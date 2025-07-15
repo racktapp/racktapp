@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
@@ -106,7 +107,7 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
       <PageHeader
-        title={`Welcome back, ${user.name.split(' ')[0]}`}
+        title={`Welcome back, ${user.username}`}
         description="Here's your dashboard overview."
         actions={
             <Button asChild variant="outline">

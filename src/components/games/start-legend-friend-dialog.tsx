@@ -90,7 +90,7 @@ export function StartLegendFriendDialog({ children, opponent }: StartLegendFrien
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
-          <DialogTitle>{opponent ? `Rematch ${opponent.name}` : 'Challenge a Friend'}</DialogTitle>
+          <DialogTitle>{opponent ? `Rematch @${opponent.username}` : 'Challenge a Friend'}</DialogTitle>
           <DialogDescription>{opponent ? 'Choose a sport for the rematch.' : 'Start a "Guess the Legend" game with a friend.'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
@@ -108,7 +108,7 @@ export function StartLegendFriendDialog({ children, opponent }: StartLegendFrien
                         ) : friends.length > 0 ? (
                             friends.map((friend) => (
                                 <SelectItem key={friend.uid} value={friend.uid}>
-                                    {friend.name}
+                                    @{friend.username}
                                 </SelectItem>
                             ))
                         ) : (

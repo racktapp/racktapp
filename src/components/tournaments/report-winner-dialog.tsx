@@ -1,3 +1,4 @@
+
 'use client';
 import { ReactNode, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -73,7 +74,7 @@ export function ReportWinnerDialog({ children, tournamentId, match, player1, pla
                                     <div className='flex items-center justify-between'>
                                         <div className='flex items-center gap-2'>
                                             <UserAvatar user={player} className='h-8 w-8' />
-                                            <FormLabel className='font-normal'>{player.name}</FormLabel>
+                                            <FormLabel className='font-normal'>@{player.username}</FormLabel>
                                         </div>
                                         <RadioGroupItem value={player.uid} />
                                     </div>

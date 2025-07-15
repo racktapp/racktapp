@@ -138,7 +138,7 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
     return 'none';
   }
   
-  const opponentName = opponent ? (opponent.name || 'Opponent') : 'Opponent';
+  const opponentName = opponent ? (opponent.username || 'Opponent') : 'Opponent';
   const isProcessing = isAnswering || isStartingNextRound;
 
   const renderFinalScreen = () => {

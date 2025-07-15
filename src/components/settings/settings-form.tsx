@@ -51,7 +51,6 @@ export function SettingsForm({ user }: SettingsFormProps) {
   const form = useForm<z.infer<typeof profileSettingsSchema>>({
     resolver: zodResolver(profileSettingsSchema),
     defaultValues: {
-      name: user?.name || "",
       username: user?.username || "",
       preferredSports: user?.preferredSports || [],
     },
@@ -59,7 +58,6 @@ export function SettingsForm({ user }: SettingsFormProps) {
 
   useEffect(() => {
     form.reset({
-      name: user.name || "",
       username: user.username || "",
       preferredSports: user.preferredSports || [],
     });
@@ -94,19 +92,6 @@ export function SettingsForm({ user }: SettingsFormProps) {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid sm:grid-cols-2 gap-4">
-                 <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your full name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                  <FormField
                   control={form.control}
                   name="username"
