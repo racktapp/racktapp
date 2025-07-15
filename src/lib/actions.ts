@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, storage, auth } from '@/lib/firebase/config';
+import { db, storage } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { 
@@ -44,7 +44,8 @@ import {
     logPracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    deleteUserDocument
+    deleteUserDocument,
+    updateFirebaseProfileName
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -54,7 +55,6 @@ import { type Sport, type User, reportMatchSchema, challengeSchema, openChalleng
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
-import { updateProfile } from 'firebase/auth';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 
 
@@ -768,13 +768,7 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-        // The client-side form submission implicitly authenticates the user for this action.
-        // We trust the userId passed from the client in this specific, user-owned context.
-        
-        // Note: For critical actions, you would implement more robust server-side authentication,
-        // often involving passing an ID token from the client to be verified by the Admin SDK.
-        // For this profile update, we are keeping it simple.
-
+        await updateFirebaseProfileName(userId, values.name);
         await updateUserProfile(userId, values);
         
         revalidatePath('/settings');
@@ -810,7 +804,7 @@ export async function deleteUserAccountAction(userId: string) {
     try {
         if (!userId) throw new Error("User not authenticated.");
         await deleteUserDocument(userId);
-        // Note: This does not delete the Firebase Auth user, which requires Admin SDK.
+        // Note: This does not delete the Firebase Auth user, which requires the Admin SDK.
         // The user will be effectively logged out and their data gone.
         return { success: true, message: 'Your account data has been deleted.' };
     } catch (error: any) {
@@ -906,3 +900,4 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
 }
+

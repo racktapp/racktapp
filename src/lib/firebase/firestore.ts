@@ -2,6 +2,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -23,11 +24,12 @@ import {
   addDoc,
   Transaction,
 } from 'firebase/firestore';
-import { db } from './config';
+import { db, auth } from './config';
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
+import { updateProfile } from 'firebase/auth';
 
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
@@ -661,6 +663,18 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
     await updateDoc(doc(db, 'users', userId), updateData);
 }
 
+export async function updateFirebaseProfileName(userId: string, newName: string) {
+    if (auth.currentUser && auth.currentUser.uid === userId) {
+        await updateProfile(auth.currentUser, { displayName: newName });
+    } else {
+        // This case should ideally not be hit from the client-side settings page,
+        // but it's a safeguard. A more robust solution for admin-like functionality
+        // would use the Admin SDK in a secure backend environment.
+        console.warn("Attempted to update profile name for a different or non-logged-in user.");
+    }
+}
+
+
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
     const gameRef = doc(db, collectionName, gameId);
     const gameDoc = await getDoc(gameRef);
@@ -723,3 +737,4 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   };
   await setDoc(reportRef, newReport);
 }
+
