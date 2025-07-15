@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -32,7 +25,6 @@ import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, Op
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
-import { updateProfile } from 'firebase/auth';
 
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
@@ -129,19 +121,19 @@ async function generateUniqueUsername(name: string): Promise<string> {
 export const createUserDocument = async (user: {
   uid: string;
   email: string;
-  displayName: string;
+  username: string;
   emailVerified: boolean;
-  photoURL?: string | null;
+  avatarUrl?: string | null;
 }) => {
   const userRef = doc(db, 'users', user.uid);
-  const username = await generateUniqueUsername(user.displayName);
+  const finalUsername = await generateUniqueUsername(user.username);
 
   const newUser: User = {
     uid: user.uid,
     email: user.email,
-    username: username,
+    username: finalUsername,
     emailVerified: user.emailVerified,
-    avatarUrl: user.photoURL || null,
+    avatarUrl: user.avatarUrl || null,
     friendIds: [],
     preferredSports: ['Tennis'],
     sports: {
@@ -154,14 +146,6 @@ export const createUserDocument = async (user: {
   };
   
   await setDoc(userRef, newUser, { merge: true });
-
-  // Also update the Auth user's profile
-  if (auth.currentUser && auth.currentUser.uid === user.uid) {
-    await updateProfile(auth.currentUser, {
-      displayName: username,
-      photoURL: user.photoURL || null,
-    });
-  }
 
   return newUser;
 };
@@ -738,5 +722,3 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   };
   await setDoc(reportRef, newReport);
 }
-
-

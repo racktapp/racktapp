@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { updateUserProfileAction } from "@/lib/actions";
 import { cn } from "@/lib/utils";
+import { updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase/config";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -67,6 +69,12 @@ export function SettingsForm({ user }: SettingsFormProps) {
     setIsSaving(true);
     
     try {
+      // First, update the user's profile in Firebase Authentication
+      if (auth.currentUser && values.username !== auth.currentUser.displayName) {
+          await updateProfile(auth.currentUser, { displayName: values.username });
+      }
+
+      // Then, update the profile in your Firestore database via the Server Action
       const result = await updateUserProfileAction(values, user.uid);
       
       if (result.success) {

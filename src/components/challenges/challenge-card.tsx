@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -39,8 +38,8 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction, classN
   const [processingAction, setProcessingAction] = useState<string | null>(null);
 
   const opponent = type === 'incoming' 
-    ? { uid: challenge.fromId, name: challenge.fromName, avatarUrl: challenge.fromAvatarUrl }
-    : { uid: challenge.toId, name: challenge.toName, avatarUrl: challenge.toAvatarUrl };
+    ? { uid: challenge.fromId, username: challenge.fromName, avatarUrl: challenge.fromAvatarUrl }
+    : { uid: challenge.toId, username: challenge.toName, avatarUrl: challenge.toAvatarUrl };
 
   const handleAction = async (action: 'accept' | 'decline' | 'cancel') => {
     setProcessingAction(action);
@@ -72,7 +71,7 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction, classN
         <div className="flex items-center gap-4 flex-1">
           <UserAvatar user={opponent as User} className="h-12 w-12" />
           <div className="space-y-1">
-            <p className="font-semibold text-lg">{type === 'incoming' ? 'From:' : 'To:'} @{opponent.name}</p>
+            <p className="font-semibold text-lg">{type === 'incoming' ? 'From:' : 'To:'} @{opponent.username}</p>
             <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="flex items-center gap-1.5">
                 <Image src={SPORT_ICONS[challenge.sport]} alt={challenge.sport} width={16} height={16} unoptimized/>

@@ -75,8 +75,9 @@ export default function LoginPage() {
         await createUserDocument({
           uid: user.uid,
           email: user.email!,
-          displayName: user.displayName || 'New User',
+          username: user.displayName || 'New User',
           emailVerified: user.emailVerified,
+          avatarUrl: user.photoURL,
         });
       }
 

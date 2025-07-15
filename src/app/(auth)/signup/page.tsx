@@ -76,7 +76,7 @@ export default function SignupPage() {
         await createUserDocument({
           uid: user.uid,
           email: user.email!,
-          displayName: user.displayName || 'New User',
+          username: user.displayName || 'New User',
           emailVerified: user.emailVerified,
         });
       }
@@ -98,16 +98,18 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      await updateProfile(userCredential.user, { displayName: values.username });
-      
-      await sendEmailVerification(userCredential.user);
       
       await createUserDocument({
         uid: userCredential.user.uid,
         email: values.email,
-        displayName: values.username,
+        username: values.username,
         emailVerified: userCredential.user.emailVerified,
       });
+
+      // Update the auth profile *after* creating the doc, to match the (potentially unique) username
+      await updateProfile(userCredential.user, { displayName: values.username });
+      
+      await sendEmailVerification(userCredential.user);
 
       toast({
         title: 'Account Created',

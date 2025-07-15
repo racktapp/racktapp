@@ -412,4 +412,3 @@ export const AvatarConfigSchema = z.object({
   eyeColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
   shirtColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
 });
-

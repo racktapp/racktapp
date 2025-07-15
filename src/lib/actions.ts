@@ -56,7 +56,6 @@ import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { auth } from './firebase/config';
-import { updateProfile } from 'firebase/auth';
 
 
 // Action to report a match
@@ -769,26 +768,13 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-        if (!auth.currentUser || auth.currentUser.uid !== userId) {
-            throw new Error("Not authorized.");
-        }
-        
-        await updateUserProfileInDb(userId, values);
-        
-        await updateProfile(auth.currentUser, {
-            displayName: values.username,
-        });
-        
-        revalidatePath('/settings');
-        revalidatePath(`/profile/${userId}`);
-        revalidatePath('/(app)', 'layout'); // Revalidate layout to update sidebar
-        
-        return { success: true, message: "Profile updated successfully." };
+      await updateUserProfileInDb(userId, values);
+      revalidatePath('/settings');
+      revalidatePath(`/profile/${userId}`);
+      revalidatePath('/(app)', 'layout');
+      return { success: true, message: 'Profile updated successfully.' };
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
-             return { success: false, message: 'User not found in Firebase Authentication.' };
-        }
-        return { success: false, message: error.message || 'Failed to update profile.' };
+      return { success: false, message: error.message || 'Failed to update profile.' };
     }
 }
 
@@ -929,4 +915,16 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
     } catch (error: any) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
+}
+
+// User Reporting
+export async function createReport(data: z.infer<typeof reportUserSchema>) {
+  const reportRef = doc(collection(db, 'reports'));
+  const newReport: UserReport = {
+    id: reportRef.id,
+    ...data,
+    createdAt: Timestamp.now().toMillis(),
+    status: 'pending',
+  };
+  await setDoc(reportRef, newReport);
 }

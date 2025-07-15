@@ -5,7 +5,7 @@ import { type User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSport } from './providers/sport-provider';
+import { useSport } from '../providers/sport-provider';
 
 interface UserAvatarProps {
   user?: User | null;

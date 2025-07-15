@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -37,9 +36,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             userProfile = await createUserDocument({
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
-              displayName: firebaseUser.displayName || 'New User',
+              username: firebaseUser.displayName || 'New User',
               emailVerified: firebaseUser.emailVerified,
-              photoURL: firebaseUser.photoURL,
+              avatarUrl: firebaseUser.photoURL,
             });
           }
           

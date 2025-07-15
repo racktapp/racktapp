@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { User, UserCheck, UserPlus, UserX, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { UserCheck, UserPlus, UserX, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
   addFriendAction, 
