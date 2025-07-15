@@ -203,7 +203,7 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
     try {
         await createOpenChallenge({
             posterId: poster.uid,
-            posterName: poster.name,
+            posterName: poster.username,
             posterAvatarUrl: poster.avatarUrl || null,
             sport: values.sport,
             location: values.location,
@@ -773,10 +773,10 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
             throw new Error("Not authorized.");
         }
         
-        if (user.displayName !== values.name) {
-            await updateProfile(user, { displayName: values.name });
-        }
-
+        // Update Firebase Auth profile
+        await updateProfile(user, { displayName: values.name });
+        
+        // Update Firestore document
         await updateUserProfile(userId, values);
         
         revalidatePath('/settings');
@@ -914,3 +914,4 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
 }
+
