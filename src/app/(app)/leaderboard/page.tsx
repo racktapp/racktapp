@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -110,8 +111,7 @@ export default function LeaderboardPage() {
                     <Link href={`/profile/${player.uid}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                       <UserAvatar user={player} className="h-10 w-10" />
                       <div>
-                        <p className="font-semibold">{player.name}</p>
-                        <p className="text-sm text-muted-foreground">@{player.username}</p>
+                        <p className="font-semibold">@{player.username}</p>
                       </div>
                     </Link>
                   </TableCell>

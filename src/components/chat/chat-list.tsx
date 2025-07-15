@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -35,7 +36,7 @@ function ChatListItem({ chat, currentUserId }: ChatListItemProps) {
                     </div>
                     <div className="flex-1 overflow-hidden">
                         <div className="flex justify-between items-start">
-                            <p className="font-semibold truncate">{otherParticipant.name}</p>
+                            <p className="font-semibold truncate">@{otherParticipant.name}</p>
                             <p className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                                 {formatDistanceToNow(new Date(chat.updatedAt), { addSuffix: true })}
                             </p>

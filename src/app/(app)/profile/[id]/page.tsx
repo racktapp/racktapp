@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -175,8 +176,8 @@ export default function ProfilePage() {
             <CardContent className="pt-6 flex flex-col items-center text-center gap-4">
               <UserAvatar user={profileUser} className="h-28 w-28" />
               <div>
-                <h1 className="text-2xl font-bold">{profileUser.name}</h1>
-                <p className="text-muted-foreground">@{profileUser.username}</p>
+                <h1 className="text-2xl font-bold">{isOwnProfile ? profileUser.name : `@${profileUser.username}`}</h1>
+                {isOwnProfile && <p className="text-muted-foreground">@{profileUser.username}</p>}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {isOwnProfile ? (

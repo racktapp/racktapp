@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -31,7 +32,7 @@ export function PendingMatchCard({ match, currentUserId, onAction }: PendingMatc
   
   const winnerIsOnMyTeam = match.winner.some(winnerId => myTeamIds.includes(winnerId));
 
-  const opponentDisplay = opponentTeamIds.map(id => match.participantsData[id]?.name || 'Unknown').join(' & ');
+  const opponentDisplay = opponentTeamIds.map(id => `@${match.participantsData[id]?.name}` || 'Unknown').join(' & ');
 
   const handleConfirm = async () => {
     setProcessingAction('confirm');
@@ -83,9 +84,9 @@ export function PendingMatchCard({ match, currentUserId, onAction }: PendingMatc
         </div>
 
         <div className="text-sm text-muted-foreground border-t pt-3 flex flex-col sm:flex-row justify-between gap-2">
-            <p>Reported by <span className="font-medium text-foreground">{reporter?.name || 'Unknown'}</span></p>
+            <p>Reported by <span className="font-medium text-foreground">@{reporter?.name || 'Unknown'}</span></p>
             {match.participantsToConfirm.length > 0 ? (
-                 <p>Waiting for: <span className="font-medium text-foreground">{match.participantsToConfirm.map(id => match.participantsData[id].name).join(', ')}</span></p>
+                 <p>Waiting for: <span className="font-medium text-foreground">{match.participantsToConfirm.map(id => `@${match.participantsData[id].name}`).join(', ')}</span></p>
             ) : (
                 <p>All players have confirmed.</p>
             )}

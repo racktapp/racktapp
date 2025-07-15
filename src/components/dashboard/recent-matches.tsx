@@ -1,8 +1,9 @@
 
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Match } from '@/lib/types';
+import { Match, User } from '@/lib/types';
 import { UserAvatar } from '../user-avatar';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
@@ -26,12 +27,12 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
     
     const opponentData = opponentTeamIds.map(id => match.participantsData[id]).filter(Boolean);
 
-    const opponentDisplay = opponentData.length > 0 ? opponentData.map(p => p.name).join(' & ') : 'Unknown Opponent';
+    const opponentDisplay = opponentData.length > 0 ? opponentData.map(p => `@${p.name}`).join(' & ') : 'Unknown Opponent';
     const firstOpponent = opponentData.length > 0 ? opponentData[0] : null;
 
     return (
         <div className={cn("flex items-center gap-4", className)} {...props}>
-            <UserAvatar user={firstOpponent} className="h-10 w-10" />
+            <UserAvatar user={firstOpponent as User} className="h-10 w-10" />
             <div className="flex-1">
                 <p className="font-medium">vs {opponentDisplay}</p>
                 <div className='flex items-center gap-2'>
