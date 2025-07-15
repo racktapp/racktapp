@@ -4,6 +4,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -129,6 +130,7 @@ export const createUserDocument = async (user: {
   email: string;
   displayName: string;
   emailVerified: boolean;
+  photoURL?: string | null;
 }) => {
   const userRef = doc(db, 'users', user.uid);
   const username = await generateUniqueUsername(user.displayName);
@@ -666,10 +668,6 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
         throw new Error("Username is already taken.");
     }
 
-    if (auth.currentUser && auth.currentUser.uid === userId) {
-      await updateProfile(auth.currentUser, { displayName: data.username });
-    }
-
     const updateData: any = {
         username: data.username,
         preferredSports: data.preferredSports,
@@ -739,3 +737,4 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   };
   await setDoc(reportRef, newReport);
 }
+

@@ -36,7 +36,7 @@ import {
     getPendingMatchesForUser,
     getHeadToHeadMatches,
     getLeaderboard,
-    updateUserProfile,
+    updateUserProfile as updateUserProfileInDb,
     getFriendshipStatus,
     deleteGame,
     getGame,
@@ -55,6 +55,9 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
+import { auth } from 'firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
+import { adminApp } from './firebase/admin-config';
 
 
 // Action to report a match
@@ -767,7 +770,12 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-        await updateUserProfile(userId, values);
+        await updateUserProfileInDb(userId, values);
+        
+        // Use Admin SDK to update Auth user's displayName
+        await getAuth(adminApp).updateUser(userId, {
+            displayName: values.username
+        });
         
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
@@ -775,6 +783,9 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
         
         return { success: true, message: "Profile updated successfully." };
     } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+             return { success: false, message: 'User not found in Firebase Authentication.' };
+        }
         return { success: false, message: error.message || 'Failed to update profile.' };
     }
 }
@@ -786,6 +797,11 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
         const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
+
+        // Use Admin SDK to update Auth user's photoURL
+        await getAuth(adminApp).updateUser(userId, {
+            photoURL: newAvatarUrl
+        });
 
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
@@ -898,3 +914,4 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
 }
+
