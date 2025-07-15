@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
+import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -55,9 +55,8 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
-import { auth } from 'firebase-admin';
-import { getAuth } from 'firebase-admin/auth';
-import { adminApp } from './firebase/admin-config';
+import { auth } from './firebase/config';
+import { updateProfile } from 'firebase/auth';
 
 
 // Action to report a match
@@ -770,11 +769,14 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
+        if (!auth.currentUser || auth.currentUser.uid !== userId) {
+            throw new Error("Not authorized.");
+        }
+        
         await updateUserProfileInDb(userId, values);
         
-        // Use Admin SDK to update Auth user's displayName
-        await getAuth(adminApp).updateUser(userId, {
-            displayName: values.username
+        await updateProfile(auth.currentUser, {
+            displayName: values.username,
         });
         
         revalidatePath('/settings');
@@ -792,14 +794,14 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        if (!userId) throw new Error("User ID is missing.");
-        if (!newAvatarUrl) throw new Error("Avatar URL is missing.");
+        if (!auth.currentUser || auth.currentUser.uid !== userId) {
+            throw new Error("Not authorized.");
+        }
 
         const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
 
-        // Use Admin SDK to update Auth user's photoURL
-        await getAuth(adminApp).updateUser(userId, {
+        await updateProfile(auth.currentUser, {
             photoURL: newAvatarUrl
         });
 
@@ -816,14 +818,28 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
 export async function deleteUserAccountAction(userId: string) {
     try {
-        if (!userId) throw new Error("User not authenticated.");
+        if (!auth.currentUser || auth.currentUser.uid !== userId) {
+            throw new Error("Not authorized.");
+        }
+        
+        const storageRef = ref(storage, `avatars/${userId}`);
+        // This won't work perfectly for all files, but it's a start.
+        // A cloud function would be better for full cleanup.
+        try {
+            const listResult = await listAll(storageRef);
+            await Promise.all(listResult.items.map(itemRef => deleteObject(itemRef)));
+        } catch (e) {
+            console.error("Could not clean up all storage files, this is okay.", e);
+        }
+        
         await deleteUserDocument(userId);
-        // Note: This does not delete the Firebase Auth user, which requires the Admin SDK.
-        // The user will be effectively logged out and their data gone.
+        
+        await auth.currentUser.delete();
+
         return { success: true, message: 'Your account data has been deleted.' };
     } catch (error: any) {
         console.error("Error deleting user account action:", error);
-        return { success: false, message: error.message || 'Failed to delete account.' };
+        return { success: false, message: error.message || 'Failed to delete account. Please re-authenticate and try again.' };
     }
 }
 
@@ -914,4 +930,3 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
 }
-

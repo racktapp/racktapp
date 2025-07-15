@@ -37,15 +37,12 @@ export function DeleteAccountDialog({ userId }: DeleteAccountDialogProps) {
       const result = await deleteUserAccountAction(userId);
       if (result.success) {
         toast({ title: 'Account Deleted', description: 'Your account has been successfully deleted.' });
-        // The user's auth session is still active, so we manually sign them out.
-        await signOut(auth);
         router.push('/login');
       } else {
         throw new Error(result.message);
       }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete account.' });
-    } finally {
       setIsDeleting(false);
     }
   };
@@ -63,7 +60,7 @@ export function DeleteAccountDialog({ userId }: DeleteAccountDialogProps) {
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete your account
-            and remove your data from our servers.
+            and remove your data from our servers. You may need to sign in again to complete this action.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -5,6 +5,7 @@
 
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -663,7 +664,7 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+export async function updateUserProfileInDb(userId: string, data: z.infer<typeof profileSettingsSchema>) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
@@ -737,4 +738,5 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   };
   await setDoc(reportRef, newReport);
 }
+
 
