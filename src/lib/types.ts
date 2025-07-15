@@ -153,6 +153,17 @@ export interface Chat {
   };
 }
 
+export interface UserReport {
+  id: string;
+  reporterId: string;
+  reportedId: string;
+  chatId?: string;
+  reason?: string; // Optional reason for more detailed reports
+  createdAt: number;
+  status: 'pending' | 'reviewed';
+}
+
+
 // --- Game Type Definitions ---
 
 export type GameStatus = 'ongoing' | 'complete' | 'initializing' | 'error';
@@ -385,4 +396,21 @@ export const profileSettingsSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters.'),
     username: z.string().min(3, 'Username must be at least 3 characters.').regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
     preferredSports: z.array(SportEnum).min(1, 'Please select at least one preferred sport.'),
+});
+
+export const reportUserSchema = z.object({
+    reporterId: z.string(),
+    reportedId: z.string(),
+    chatId: z.string().optional(),
+    reason: z.string().optional(),
+});
+export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
+
+export const AvatarConfigSchema = z.object({
+  hairStyle: z.enum(['short', 'long', 'bun', 'bald']),
+  hairColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
+  skinColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
+  hasGlasses: z.boolean(),
+  eyeColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
+  shirtColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
 });

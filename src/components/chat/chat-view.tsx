@@ -7,14 +7,28 @@ import { db } from '@/lib/firebase/config';
 import { type Chat, type Message, type User as AppUser } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, MoreVertical, ShieldAlert } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { sendMessageAction, markChatAsReadAction } from '@/lib/actions';
+import { sendMessageAction, markChatAsReadAction, reportUserAction } from '@/lib/actions';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '../ui/loading-spinner';
+
 
 const messageSchema = z.object({
   text: z.string().min(1, 'Message cannot be empty.').max(500, 'Message is too long.'),
@@ -31,6 +45,9 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
   const otherParticipantId = chat.participantIds.find(id => id !== currentUser.uid)!;
   const otherParticipant = chat.participantsData[otherParticipantId];
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof messageSchema>>({
     resolver: zodResolver(messageSchema),
@@ -60,6 +77,30 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
     await sendMessageAction(chat.id, currentUser.uid, values.text);
     form.reset();
   };
+
+  const handleReportUser = async () => {
+    setIsReporting(true);
+    try {
+        await reportUserAction({
+            reporterId: currentUser.uid,
+            reportedId: otherParticipantId,
+            chatId: chat.id,
+        });
+        toast({
+            title: 'User Reported',
+            description: 'Thank you for your feedback. We will review the report.',
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to submit report. Please try again later.',
+        });
+    } finally {
+        setIsReporting(false);
+        setIsReportDialogOpen(false);
+    }
+  }
   
   return (
     <div className="flex h-full flex-col bg-muted/30">
@@ -72,6 +113,39 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
             <div className="flex-1">
                 <p className="font-semibold">{otherParticipant.name}</p>
             </div>
+            <AlertDialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <MoreVertical />
+                            <span className="sr-only">More options</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                         <AlertDialogTrigger asChild>
+                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                <ShieldAlert className="mr-2 h-4 w-4" />
+                                Report User
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                 <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Report {otherParticipant.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Reporting will flag this conversation for review. Are you sure you want to proceed?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleReportUser} disabled={isReporting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                            {isReporting ? <LoadingSpinner className="mr-2" /> : <ShieldAlert className="mr-2 h-4 w-4" />}
+                            Yes, Report User
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </header>
 
         {/* Messages */}

@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -21,7 +22,7 @@ import {
   Transaction,
 } from 'firebase/firestore';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -699,4 +700,16 @@ export async function getPracticeSessionsForUser(
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+}
+
+// User Reporting
+export async function createReport(data: z.infer<typeof reportUserSchema>) {
+  const reportRef = doc(collection(db, 'reports'));
+  const newReport: UserReport = {
+    id: reportRef.id,
+    ...data,
+    createdAt: Timestamp.now().toMillis(),
+    status: 'pending',
+  };
+  await setDoc(reportRef, newReport);
 }

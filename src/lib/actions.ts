@@ -42,13 +42,14 @@ import {
     getGame,
     deleteOpenChallenge,
     logPracticeSession,
-    getPracticeSessionsForUser
+    getPracticeSessionsForUser,
+    createReport
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput, RallyGameInput, RallyGameOutput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -333,6 +334,18 @@ export async function markChatAsReadAction(chatId: string, userId: string) {
         return { success: true };
     } catch (error: any) {
         return { success: false, message: 'Failed to mark chat as read.' };
+    }
+}
+
+export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
+    try {
+        // Validate input data
+        reportUserSchema.parse(data);
+        await createReport(data);
+        return { success: true, message: 'User has been reported.' };
+    } catch (error: any) {
+        console.error("Error reporting user:", error);
+        return { success: false, message: error.message || 'Failed to report user.' };
     }
 }
 
