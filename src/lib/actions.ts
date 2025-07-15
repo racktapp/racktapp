@@ -43,7 +43,8 @@ import {
     deleteOpenChallenge,
     logPracticeSession,
     getPracticeSessionsForUser,
-    createReport
+    createReport,
+    deleteUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -792,6 +793,19 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
     } catch (error: any) {
         console.error("Error updating avatar in action:", error);
         return { success: false, message: error.message || 'An unexpected error occurred.' };
+    }
+}
+
+export async function deleteUserAccountAction(userId: string) {
+    try {
+        if (!userId) throw new Error("User not authenticated.");
+        await deleteUserDocument(userId);
+        // Note: This does not delete the Firebase Auth user, which requires Admin SDK.
+        // The user will be effectively logged out and their data gone.
+        return { success: true, message: 'Your account data has been deleted.' };
+    } catch (error: any) {
+        console.error("Error deleting user account action:", error);
+        return { success: false, message: error.message || 'Failed to delete account.' };
     }
 }
 

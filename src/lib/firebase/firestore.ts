@@ -1,5 +1,6 @@
 
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -665,6 +666,14 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
     if (!gameDoc.exists()) throw new Error("Game not found.");
     if (!gameDoc.data().participantIds.includes(userId)) throw new Error("You are not authorized to delete this game.");
     await deleteDoc(gameRef);
+}
+
+export async function deleteUserDocument(userId: string) {
+    if (!userId) throw new Error("User ID is required.");
+    // This function only deletes the Firestore document.
+    // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
 }
 
 // Practice Log Functions
