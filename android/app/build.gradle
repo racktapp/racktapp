@@ -81,7 +81,6 @@ if (variables_gradle.exists()) {
 
 android {
     namespace "com.google.android.apps.playconsole"
-    compileSdkVersion 34
     defaultConfig {
         applicationId "com.google.android.apps.playconsole"
         minSdkVersion 22
@@ -208,7 +207,7 @@ interface ExampleInstrumentationParameters: InstrumentationParameters {
 val androidComponents = project.extensions.getByType(AndroidComponentsExtension::class.java)
 androidComponents.onVariants { variant ->
     variant.instrumentation.transformClassesWith(
-        ExampleInstrumentingArtifactTransform::class.java,
+        ExampleInstrumentingArtifactTransform,
         InstrumentationScope.ALL
     ) {
         it.invalidate.set(System.currentTimeMillis())
