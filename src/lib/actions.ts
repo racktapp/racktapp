@@ -4,8 +4,8 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, list, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -49,13 +49,14 @@ import {
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
-import type { SwingAnalysisInput, RallyGameInput, RallyGameOutput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema } from '@/lib/types';
+import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { auth } from './firebase/config';
+import { updateProfile } from 'firebase/auth';
 
 
 // Action to report a match
@@ -182,10 +183,10 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
 
         await createDirectChallenge({
             fromId: fromUser.uid,
-            fromName: fromUser.username,
+            fromUsername: fromUser.username,
             fromAvatarUrl: fromUser.avatarUrl || null,
             toId: toUser.uid,
-            toName: toUser.username,
+            toUsername: toUser.username,
             toAvatarUrl: toUser.avatarUrl || null,
             sport: values.sport,
             location: values.location,
@@ -203,7 +204,7 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
     try {
         await createOpenChallenge({
             posterId: poster.uid,
-            posterName: poster.username,
+            posterUsername: poster.username,
             posterAvatarUrl: poster.avatarUrl || null,
             sport: values.sport,
             location: values.location,
@@ -261,7 +262,7 @@ export async function challengeFromOpenAction(openChallenge: OpenChallenge, chal
     try {
         await challengeFromOpen(openChallenge, challenger);
         revalidatePath('/challenges');
-        return { success: true, message: `Challenge sent to ${openChallenge.posterName}!` };
+        return { success: true, message: `Challenge sent to @${openChallenge.posterUsername}!` };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to challenge from open post." };
     }
@@ -571,7 +572,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         throw new Error("It's not your turn.");
       }
   
-      let aiInput: RallyGameInput;
+      let aiInput: z.infer<typeof RallyGameInputSchema>;
       let updatePayload: Partial<RallyGame> = {};
   
       const serverId = game.turn === 'serving' ? currentUserId : game.currentPoint.servingPlayer;
@@ -768,7 +769,12 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
+      if (auth.currentUser && values.username !== auth.currentUser.displayName) {
+          await updateProfile(auth.currentUser, { displayName: values.username });
+      }
+
       await updateUserProfileInDb(userId, values);
+      
       revalidatePath('/settings');
       revalidatePath(`/profile/${userId}`);
       revalidatePath('/(app)', 'layout');
@@ -809,8 +815,6 @@ export async function deleteUserAccountAction(userId: string) {
         }
         
         const storageRef = ref(storage, `avatars/${userId}`);
-        // This won't work perfectly for all files, but it's a start.
-        // A cloud function would be better for full cleanup.
         try {
             const listResult = await listAll(storageRef);
             await Promise.all(listResult.items.map(itemRef => deleteObject(itemRef)));
