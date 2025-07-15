@@ -148,8 +148,8 @@ const AppSidebar = ({ user }: { user: User }) => {
               <div className="flex w-full items-center justify-start gap-3">
                 <UserAvatar user={user} className="h-10 w-10" />
                 <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
-                  <span className="text-sm font-semibold">{user.name}</span>
-                  <span className="text-xs text-muted-foreground">{user.email}</span>
+                  <span className="text-sm font-semibold truncate">{user.name}</span>
+                  <span className="text-xs text-muted-foreground">@{user.username}</span>
                 </div>
               </div>
             </Button>

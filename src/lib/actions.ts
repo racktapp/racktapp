@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, storage } from '@/lib/firebase/config';
+import { db, storage, auth } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { 
@@ -768,9 +768,21 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
+        const user = auth.currentUser;
+        if (!user || user.uid !== userId) {
+            throw new Error("Not authorized.");
+        }
+        
+        if (user.displayName !== values.name) {
+            await updateProfile(user, { displayName: values.name });
+        }
+
         await updateUserProfile(userId, values);
+        
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
+        revalidatePath('/(app)', 'layout'); // Revalidate layout to update sidebar
+        
         return { success: true, message: "Profile updated successfully." };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to update profile.' };
@@ -779,9 +791,15 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        if (!userId) throw new Error("User not authenticated.");
-        if (!newAvatarUrl) throw new Error("Avatar URL is missing.");
+        const user = auth.currentUser;
+        if (!user || user.uid !== userId) {
+            throw new Error("Not authorized.");
+        }
+        if (!newAvatarUrl) {
+            throw new Error("Avatar URL is missing.");
+        }
 
+        await updateProfile(user, { photoURL: newAvatarUrl });
         const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
 
