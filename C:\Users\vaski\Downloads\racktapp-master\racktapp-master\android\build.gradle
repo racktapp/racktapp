@@ -1,0 +1,28 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.3.1'
+        classpath 'com.google.gms:google-services:4.4.2'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+// This is the crucial addition to help Gradle find your node_modules
+ext {
+    // This path is relative to the `android` directory
+    nodeModulesDir = new File(projectDir, "../node_modules")
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
