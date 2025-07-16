@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -315,8 +316,8 @@ export async function sendFriendRequest(fromUser: User, toUser: User) {
   const newRequestRef = doc(collection(db, 'friendRequests'));
   await setDoc(newRequestRef, {
     id: newRequestRef.id,
-    fromId: fromUser.uid, fromName: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
-    toId: toUser.uid, toName: toUser.username, toAvatarUrl: toUser.avatarUrl,
+    fromId: fromUser.uid, fromUsername: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
+    toId: toUser.uid, toUsername: toUser.username, toAvatarUrl: toUser.avatarUrl,
     status: 'pending', createdAt: Timestamp.now().toMillis(),
   } as FriendRequest);
 }
@@ -426,8 +427,8 @@ export async function updateChallengeStatus(id: string, status: ChallengeStatus)
 export async function challengeFromOpen(openChallenge: OpenChallenge, challenger: User) {
     if (openChallenge.posterId === challenger.uid) throw new Error("You cannot challenge your own post.");
     await createDirectChallenge({
-        fromId: challenger.uid, fromName: challenger.username, fromAvatarUrl: challenger.avatarUrl,
-        toId: openChallenge.posterId, toName: openChallenge.posterName, toAvatarUrl: openChallenge.posterAvatarUrl,
+        fromId: challenger.uid, fromUsername: challenger.username, fromAvatarUrl: challenger.avatarUrl,
+        toId: openChallenge.posterId, toUsername: openChallenge.posterName, toAvatarUrl: openChallenge.posterAvatarUrl,
         sport: openChallenge.sport, location: openChallenge.location,
         matchDateTime: Timestamp.now().toMillis(), wager: "A friendly match",
     });
