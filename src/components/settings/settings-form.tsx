@@ -69,17 +69,17 @@ export function SettingsForm({ user }: SettingsFormProps) {
     setIsSaving(true);
     
     try {
-      // First, update the user's profile in Firebase Authentication
+      // Update the client-side auth object first for immediate UI feedback.
       if (auth.currentUser && values.username !== auth.currentUser.displayName) {
-          await updateProfile(auth.currentUser, { displayName: values.username });
+        await updateProfile(auth.currentUser, { displayName: values.username });
       }
 
-      // Then, update the profile in your Firestore database via the Server Action
+      // Then, call the server action to persist the change in Firestore.
       const result = await updateUserProfileAction(values, user.uid);
       
       if (result.success) {
         toast({ title: "Profile Updated", description: "Your changes have been saved." });
-        await reloadUser();
+        await reloadUser(); // This will re-fetch the user data and update the context.
       } else {
         throw new Error(result.message);
       }

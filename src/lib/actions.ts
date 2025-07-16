@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, list, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
 import { 
     reportPendingMatch,
@@ -50,13 +50,11 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema } from '@/lib/types';
+import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
-import { auth } from './firebase/config';
-import { updateProfile } from 'firebase/auth';
 
 
 // Action to report a match
@@ -262,7 +260,7 @@ export async function challengeFromOpenAction(openChallenge: OpenChallenge, chal
     try {
         await challengeFromOpen(openChallenge, challenger);
         revalidatePath('/challenges');
-        return { success: true, message: `Challenge sent to @${openChallenge.posterUsername}!` };
+        return { success: true, message: `Challenge sent to @${openChallenge.posterName}!` };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to challenge from open post." };
     }
@@ -769,10 +767,6 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-      if (auth.currentUser && values.username !== auth.currentUser.displayName) {
-          await updateProfile(auth.currentUser, { displayName: values.username });
-      }
-
       await updateUserProfileInDb(userId, values);
       
       revalidatePath('/settings');
@@ -786,16 +780,8 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        if (!auth.currentUser || auth.currentUser.uid !== userId) {
-            throw new Error("Not authorized.");
-        }
-
         const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
-
-        await updateProfile(auth.currentUser, {
-            photoURL: newAvatarUrl
-        });
 
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
@@ -810,10 +796,6 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
 export async function deleteUserAccountAction(userId: string) {
     try {
-        if (!auth.currentUser || auth.currentUser.uid !== userId) {
-            throw new Error("Not authorized.");
-        }
-        
         const storageRef = ref(storage, `avatars/${userId}`);
         try {
             const listResult = await listAll(storageRef);
@@ -824,7 +806,8 @@ export async function deleteUserAccountAction(userId: string) {
         
         await deleteUserDocument(userId);
         
-        await auth.currentUser.delete();
+        // This must be done on the client. We assume the client will handle it.
+        // await auth.currentUser.delete();
 
         return { success: true, message: 'Your account data has been deleted.' };
     } catch (error: any) {
@@ -922,13 +905,11 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
 }
 
 // User Reporting
-export async function createReport(data: z.infer<typeof reportUserSchema>) {
-  const reportRef = doc(collection(db, 'reports'));
-  const newReport: UserReport = {
-    id: reportRef.id,
-    ...data,
-    createdAt: Timestamp.now().toMillis(),
-    status: 'pending',
-  };
-  await setDoc(reportRef, newReport);
+export async function createReportAction(data: z.infer<typeof reportUserSchema>) {
+    try {
+        await createReport(data);
+        return { success: true, message: 'User reported successfully.' };
+    } catch (error: any) {
+        return { success: false, message: 'Failed to report user.' };
+    }
 }

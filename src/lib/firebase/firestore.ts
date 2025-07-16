@@ -21,7 +21,7 @@ import {
   addDoc,
   Transaction,
 } from 'firebase/firestore';
-import { db, auth } from './config';
+import { db } from './config';
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
@@ -649,7 +649,7 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfileInDb(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
