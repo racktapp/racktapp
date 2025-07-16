@@ -96,8 +96,27 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
     }
 }
 
-async function generateUniqueUsername(name: string): Promise<string> {
-    let username = name.toLowerCase().replace(/\s/g, '').replace(/[^a-z0-9_]/g, '');
+async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
+  const q = query(collection(db, 'users'), where('username', '==', username.toLowerCase()));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return true;
+  return snapshot.docs[0].data().uid === userId;
+}
+
+export async function updateUserProfileInDb(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+    if (data.username && !(await isUsernameUnique(data.username, userId))) {
+        throw new Error("Username is already taken.");
+    }
+
+    const updateData: any = {
+        username: data.username,
+        preferredSports: data.preferredSports,
+    }
+    await updateDoc(doc(db, 'users', userId), updateData);
+}
+
+async function generateUniqueUsername(baseUsername: string): Promise<string> {
+    let username = baseUsername.toLowerCase().replace(/\s/g, '').replace(/[^a-z0-9_]/g, '');
     if (username.length < 3) username = `${username}user`;
     
     let isUnique = false;
@@ -316,8 +335,8 @@ export async function sendFriendRequest(fromUser: User, toUser: User) {
   const newRequestRef = doc(collection(db, 'friendRequests'));
   await setDoc(newRequestRef, {
     id: newRequestRef.id,
-    fromId: fromUser.uid, fromUsername: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
-    toId: toUser.uid, toUsername: toUser.username, toAvatarUrl: toUser.avatarUrl,
+    fromId: fromUser.uid, fromName: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
+    toId: toUser.uid, toName: toUser.username, toAvatarUrl: toUser.avatarUrl,
     status: 'pending', createdAt: Timestamp.now().toMillis(),
   } as FriendRequest);
 }
@@ -370,12 +389,26 @@ export async function getFriendshipStatus(currentUserId: string, profileUserId: 
 
 export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' | 'createdAt' | 'status'>) {
     const ref = doc(collection(db, 'challenges'));
-    await setDoc(ref, { ...challengeData, id: ref.id, status: 'pending', createdAt: Timestamp.now().toMillis() } as Challenge);
+    await setDoc(ref, { 
+        ...challengeData, 
+        id: ref.id, 
+        status: 'pending', 
+        createdAt: Timestamp.now().toMillis(),
+        // Make sure `fromName` and `toName` are correctly populated
+        fromName: challengeData.fromUsername,
+        toName: challengeData.toUsername,
+    });
 }
 
 export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id' | 'createdAt'>) {
     const ref = doc(collection(db, 'openChallenges'));
-    await setDoc(ref, { ...challengeData, id: ref.id, createdAt: Timestamp.now().toMillis() } as OpenChallenge);
+    await setDoc(ref, { 
+        ...challengeData, 
+        id: ref.id, 
+        createdAt: Timestamp.now().toMillis(),
+        // Make sure `posterName` is correctly populated
+        posterName: challengeData.posterUsername,
+     });
 }
 
 export async function getChallengeById(id: string): Promise<Challenge | null> {
@@ -640,25 +673,6 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
     const q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as User).filter(user => user.sports?.[sport]);
-}
-
-async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
-  const q = query(collection(db, 'users'), where('username', '==', username.toLowerCase()));
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return true;
-  return snapshot.docs[0].data().uid === userId;
-}
-
-export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
-    if (data.username && !(await isUsernameUnique(data.username, userId))) {
-        throw new Error("Username is already taken.");
-    }
-
-    const updateData: any = {
-        username: data.username,
-        preferredSports: data.preferredSports,
-    }
-    await updateDoc(doc(db, 'users', userId), updateData);
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {

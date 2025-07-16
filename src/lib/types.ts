@@ -1,4 +1,5 @@
 
+
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -90,9 +91,11 @@ export interface Challenge {
   id: string;
   fromId: string;
   fromName: string;
+  fromUsername: string;
   fromAvatarUrl?: string | null;
   toId: string;
   toName: string;
+  toUsername: string;
   toAvatarUrl?: string | null;
   status: ChallengeStatus;
   sport: Sport;
@@ -106,6 +109,7 @@ export interface OpenChallenge {
   id: string;
   posterId: string;
   posterName: string;
+  posterUsername: string;
   posterAvatarUrl?: string | null;
   sport: Sport;
   location: string;
