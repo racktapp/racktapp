@@ -904,13 +904,3 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
 }
-
-// User Reporting
-export async function createReportAction(data: z.infer<typeof reportUserSchema>) {
-    try {
-        await createReport(data);
-        return { success: true, message: 'User reported successfully.' };
-    } catch (error: any) {
-        return { success: false, message: 'Failed to report user.' };
-    }
-}

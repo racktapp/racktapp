@@ -120,10 +120,10 @@ export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
 export interface FriendRequest {
   id: string;
   fromId: string;
-  fromName: string;
+  fromUsername: string;
   fromAvatarUrl?: string | null;
   toId: string;
-  toName: string;
+  toUsername: string;
   toAvatarUrl?: string | null;
   status: FriendRequestStatus;
   createdAt: number; // timestamp
