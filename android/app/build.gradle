@@ -1,11 +1,15 @@
+
 apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
+apply plugin: "com.google.firebase.appdistribution"
 
 android {
-    compileSdkVersion 33
+    namespace "com.taivas.rackt"
+    compileSdk 34
     defaultConfig {
         applicationId "com.taivas.rackt"
-        minSdkVersion 22
-        targetSdkVersion 33
+        minSdk 22
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -14,28 +18,22 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            firebaseAppDistribution {
+              appId = "1:1080946592753:android:43f8b9c98497ccb7dad250"
+              artifactType = "AAB"
+              testers = "your-email@example.com"
+            }
         }
     }
-}
-
-repositories {
-    google()
-    mavenCentral()
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.coordinatorlayout:coordinatorlayout:1.2.0'
-    implementation 'androidx.core:core-splashscreen:1.0.1'
-    implementation project(':capacitor-android')
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    implementation 'com.google.firebase:firebase-analytics:21.5.0'
-    implementation 'com.google.firebase:firebase-auth:22.3.0'
-    implementation 'com.google.firebase:firebase-firestore:24.10.0'
+    implementation 'com.getcapacitor:capacitor-android:6.0.0'
 }
-
-apply plugin: 'com.google.gms.google-services'
-apply plugin: 'com.google.firebase.appdistribution'
