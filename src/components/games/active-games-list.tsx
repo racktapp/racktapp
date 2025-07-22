@@ -43,7 +43,7 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const title = opponent ? `vs ${opponent.name}` : 'Solo Game';
+  const title = opponent ? `vs @${opponent.username}` : 'Solo Game';
   
   const myScore = game.score[currentUserId] ?? 0;
   const opponentScore = opponentId ? (game.score[opponentId] ?? 0) : null;

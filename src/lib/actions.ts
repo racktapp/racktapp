@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -260,7 +261,7 @@ export async function challengeFromOpenAction(openChallenge: OpenChallenge, chal
     try {
         await challengeFromOpen(openChallenge, challenger);
         revalidatePath('/challenges');
-        return { success: true, message: `Challenge sent to @${openChallenge.posterName}!` };
+        return { success: true, message: `Challenge sent to @${openChallenge.posterUsername}!` };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to challenge from open post." };
     }

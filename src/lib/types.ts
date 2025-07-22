@@ -90,11 +90,9 @@ export type ChallengeStatus = 'pending' | 'accepted' | 'declined' | 'cancelled';
 export interface Challenge {
   id: string;
   fromId: string;
-  fromName: string;
   fromUsername: string;
   fromAvatarUrl?: string | null;
   toId: string;
-  toName: string;
   toUsername: string;
   toAvatarUrl?: string | null;
   status: ChallengeStatus;
@@ -108,7 +106,6 @@ export interface Challenge {
 export interface OpenChallenge {
   id: string;
   posterId: string;
-  posterName: string;
   posterUsername: string;
   posterAvatarUrl?: string | null;
   sport: Sport;
