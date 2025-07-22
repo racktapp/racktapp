@@ -211,7 +211,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
           
-          {headToHead && (
+          {headToHead && !isOwnProfile && (
             <Card>
               <CardHeader>
                   <CardTitle>Head-to-Head Rivalry</CardTitle>
@@ -250,7 +250,7 @@ export default function ProfilePage() {
 
         <div className="lg:col-span-2 space-y-6">
           <PageHeader
-            title={`@${profileUser.username}'s ${sport} Stats`}
+            title={`${isOwnProfile ? 'Your' : `@${profileUser.username}'s`} ${sport} Stats`}
             description="An overview of their performance."
           />
           {sportStats ? (
@@ -269,11 +269,11 @@ export default function ProfilePage() {
         </div>
       </div>
       
-      {achievements && achievements.length > 0 && (
+      {achievements && achievements.length > 0 && !isOwnProfile && (
         <div className="mt-6">
             <h2 className="text-2xl font-bold tracking-tight mb-4">Rivalry Trophies</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {achievements.map(ach => (
+                {achievements.map((ach, i) => (
                     <AchievementCard key={ach.id} achievement={ach} />
                 ))}
             </div>
@@ -284,8 +284,14 @@ export default function ProfilePage() {
         <h2 className="text-2xl font-bold tracking-tight mb-4">Recent Match History</h2>
         {recentMatches && recentMatches.length > 0 && authUser ? (
             <div className="space-y-4">
-                {recentMatches.map(match => (
-                    <MatchHistoryCard key={match.id} match={match} currentUserId={profileUser.uid} />
+                {recentMatches.map((match, i) => (
+                    <MatchHistoryCard 
+                      key={match.id} 
+                      match={match} 
+                      currentUserId={profileUser.uid} 
+                      className="opacity-0 animate-fade-in-slide-up"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    />
                 ))}
             </div>
         ) : (

@@ -103,7 +103,7 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfileInDb(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
@@ -255,7 +255,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
         const getKFactor = (playerStats: SportStats) => ((playerStats.wins || 0) + (playerStats.losses || 0) < 30 ? 40 : 20);
         const getMatchKFactor = (pIds: string[]) => pIds.reduce((sum, pId) => {
             const player = players.find(pl => pl.uid === pId);
-            return sum + getKFactor(player?.sports?.[match.sport] ?? { wins: 0, losses: 0 });
+            return sum + getKFactor(player?.sports?.[match.sport] ?? { wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
         }, 0) / pIds.length;
         const matchKFactor = getMatchKFactor(allPlayerIds);
 
@@ -335,8 +335,8 @@ export async function sendFriendRequest(fromUser: User, toUser: User) {
   const newRequestRef = doc(collection(db, 'friendRequests'));
   await setDoc(newRequestRef, {
     id: newRequestRef.id,
-    fromId: fromUser.uid, fromName: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
-    toId: toUser.uid, toName: toUser.username, toAvatarUrl: toUser.avatarUrl,
+    fromId: fromUser.uid, fromUsername: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
+    toId: toUser.uid, toUsername: toUser.username, toAvatarUrl: toUser.avatarUrl,
     status: 'pending', createdAt: Timestamp.now().toMillis(),
   } as FriendRequest);
 }
@@ -394,9 +394,6 @@ export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' 
         id: ref.id, 
         status: 'pending', 
         createdAt: Timestamp.now().toMillis(),
-        // Make sure `fromName` and `toName` are correctly populated
-        fromName: challengeData.fromUsername,
-        toName: challengeData.toUsername,
     });
 }
 
@@ -406,8 +403,6 @@ export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id
         ...challengeData, 
         id: ref.id, 
         createdAt: Timestamp.now().toMillis(),
-        // Make sure `posterName` is correctly populated
-        posterName: challengeData.posterUsername,
      });
 }
 
@@ -461,7 +456,7 @@ export async function challengeFromOpen(openChallenge: OpenChallenge, challenger
     if (openChallenge.posterId === challenger.uid) throw new Error("You cannot challenge your own post.");
     await createDirectChallenge({
         fromId: challenger.uid, fromUsername: challenger.username, fromAvatarUrl: challenger.avatarUrl,
-        toId: openChallenge.posterId, toUsername: openChallenge.posterName, toAvatarUrl: openChallenge.posterAvatarUrl,
+        toId: openChallenge.posterId, toUsername: openChallenge.posterUsername, toAvatarUrl: openChallenge.posterAvatarUrl,
         sport: openChallenge.sport, location: openChallenge.location,
         matchDateTime: Timestamp.now().toMillis(), wager: "A friendly match",
     });

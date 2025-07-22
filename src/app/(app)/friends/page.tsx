@@ -42,8 +42,7 @@ const UserCard = ({ user, children, className, ...props }: { user: Partial<User>
             <Link href={`/profile/${user.uid}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                 <UserAvatar user={user as User} className="h-12 w-12" />
                 <div>
-                    <p className="font-semibold">{user.name}</p>
-                    {user.username && <p className="text-sm text-muted-foreground">@{user.username}</p>}
+                    <p className="font-semibold">@{user.username}</p>
                 </div>
             </Link>
             <div className="flex gap-2">{children}</div>
@@ -208,7 +207,7 @@ function FriendsPageContent() {
                                         </DropdownMenuSubContent>
                                     </DropdownMenuPortal>
                                 </DropdownMenuSub>
-                                <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid)}>
+                                <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser!.uid, friend.uid), friend.uid + 'remove')}>
                                      {processingIds.includes(friend.uid + 'remove') ? 
                                         <LoadingSpinner className="mr-2 h-4 w-4" /> : 
                                         <UserMinus className="mr-2 h-4 w-4" />}
@@ -230,7 +229,7 @@ function FriendsPageContent() {
                 incomingRequests.map((req, i) => (
                     <UserCard 
                       key={req.id} 
-                      user={{ uid: req.fromId, name: req.fromName, avatarUrl: req.fromAvatarUrl }}
+                      user={{ uid: req.fromId, username: req.fromUsername, avatarUrl: req.fromAvatarUrl }}
                       className="opacity-0 animate-fade-in-slide-up"
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
@@ -263,7 +262,7 @@ function FriendsPageContent() {
                 sentRequests.map((req, i) => (
                      <UserCard 
                         key={req.id} 
-                        user={{ uid: req.toId, name: req.toName, avatarUrl: req.toAvatarUrl }}
+                        user={{ uid: req.toId, username: req.toUsername, avatarUrl: req.toAvatarUrl }}
                         className="opacity-0 animate-fade-in-slide-up"
                         style={{ animationDelay: `${i * 100}ms` }}
                      >

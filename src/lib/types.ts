@@ -403,8 +403,6 @@ export const reportUserSchema = z.object({
     chatId: z.string().optional(),
     reason: z.string().optional(),
 });
-export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
-
 export const AvatarConfigSchema = z.object({
   hairStyle: z.enum(['short', 'long', 'bun', 'bald']),
   hairColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
@@ -413,3 +411,4 @@ export const AvatarConfigSchema = z.object({
   eyeColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
   shirtColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
 });
+export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;

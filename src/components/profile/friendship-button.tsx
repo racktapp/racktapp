@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -88,8 +89,8 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleAction(() => removeFriendAction(currentUser.uid, profileUser.uid))}>
-                    <UserX className="mr-2 h-4 w-4" />
+                <DropdownMenuItem onSelect={() => handleAction(() => removeFriendAction(currentUser.uid, profileUser.uid))}>
+                    {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <UserX className="mr-2 h-4 w-4" />}
                     Remove Friend
                 </DropdownMenuItem>
             </DropdownMenuContent>
@@ -107,7 +108,8 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
     return (
       <div className="flex gap-2">
         <Button onClick={() => handleAction(() => acceptFriendRequestAction(requestId!, profileUser.uid, currentUser.uid))}>
-          <UserCheck className="mr-2 h-4 w-4" /> Accept
+          {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
+          Accept
         </Button>
         <Button variant="destructive" onClick={() => handleAction(() => declineOrCancelFriendRequestAction(requestId!))}>
             <UserX className="mr-2 h-4 w-4" /> Decline
@@ -117,7 +119,7 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
   }
 
   return (
-    <Button onClick={() => handleAction(() => addFriendAction(currentUser, profileUser))}>
+    <Button onClick={() => handleAction(() => addFriendAction(currentUser, profileUser))} disabled={isProcessing}>
       {isProcessing ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <UserPlus className="mr-2 h-4 w-4" />}
       Add Friend
     </Button>
