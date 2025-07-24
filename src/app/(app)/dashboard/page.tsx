@@ -15,6 +15,11 @@ import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
 import { EloChart } from '@/components/dashboard/elo-chart';
 import { format } from 'date-fns';
+import { Timestamp } from 'firebase/firestore';
+
+function isTimestamp(obj: any): obj is { toDate: () => Date } {
+  return obj && typeof obj.toDate === 'function';
+}
 
 const ActionCard = ({ icon: Icon, title, description, href }: { icon: React.ElementType, title: string, description: string, href: string }) => (
   <Link href={href} className="block group">
@@ -80,10 +85,16 @@ export default function DashboardPage() {
     const rec = `${sportStats.wins}W - ${sportStats.losses}L`;
     const str = sportStats.streak;
     
-    const sortedEloHistory = [...(sportStats.eloHistory || [])]
-      .sort((a, b) => a.date - b.date);
+    const sortedEloHistory = [...(sportStats.eloHistory || [])].sort((a, b) => {
+      const dateA = isTimestamp(a.date) ? a.date.toDate().getTime() : a.date;
+      const dateB = isTimestamp(b.date) ? b.date.toDate().getTime() : b.date;
+      return dateA - dateB;
+    });
 
-    const ehd = sortedEloHistory.map(item => ({ date: format(new Date(item.date), 'MMM d'), elo: item.elo }));
+    const ehd = sortedEloHistory.map((item) => ({
+      date: isTimestamp(item.date) ? item.date.toDate().getTime() : item.date,
+      elo: item.elo,
+    }));
 
     // Calculate monthly ELO change
     const now = new Date();
@@ -91,7 +102,12 @@ export default function DashboardPage() {
     
     // Find the last ELO entry from *before* the start of this month.
     const lastMonthEntry = sortedEloHistory
-      .filter(entry => entry.date < startOfMonth)
+      .filter((entry) => {
+        const entryDate = isTimestamp(entry.date)
+          ? entry.date.toDate().getTime()
+          : entry.date;
+        return entryDate < startOfMonth;
+      })
       .pop();
       
     // Default to 1200 if no history exists at all before this month.

@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@capacitor/android": "^6.0.0",
+    "@capacitor/android": "^6.2.1",
     "@capacitor/core": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
     "@genkit-ai/googleai": "^1.13.0",

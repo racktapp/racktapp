@@ -73,6 +73,7 @@ export default function IntroPage() {
                 src={slide.imageSrc}
                 alt={slide.title}
                 fill
+                unoptimized
                 className="object-cover"
                 priority={index === 0}
               />
