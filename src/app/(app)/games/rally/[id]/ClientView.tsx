@@ -48,7 +48,7 @@ export default function ClientView() {
   return (
     <div>
       <PageHeader title={'Rally Game'} description={'Play a game of Rally.'} />
-      <RallyGameView game={game} userId={user!.uid} />
+      <RallyGameView game={game} />
     </div>
   );
 }
