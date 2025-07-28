@@ -112,6 +112,20 @@ const CourtInfoWindow = ({ court, onClose }: { court: Court, onClose: () => void
     );
 };
 
+const CourtMarkers = ({ courts, onMarkerClick }: { courts: Court[], onMarkerClick: (court: Court) => void }) => {
+    return useMemo(() => (
+        <>
+            {courts.map((court) => (
+                <AdvancedMarker 
+                    key={court.id} 
+                    position={{ lat: court.location.latitude, lng: court.location.longitude }}
+                    onClick={() => onMarkerClick(court)}
+                />
+            ))}
+        </>
+    ), [courts, onMarkerClick]);
+};
+
 
 export default function CourtsMapPage() {
   const { latitude, longitude, error: locationError, loading: locationLoading } = useUserLocation();
@@ -184,13 +198,7 @@ export default function CourtsMapPage() {
                     disableDefaultUI={true}
                     mapId={'rackt_map'}
                 >
-                    {courts.map(court => (
-                        <AdvancedMarker 
-                            key={court.id} 
-                            position={{ lat: court.location.latitude, lng: court.location.longitude }}
-                            onClick={() => setSelectedCourt(court)}
-                        />
-                    ))}
+                    <CourtMarkers courts={courts} onMarkerClick={setSelectedCourt} />
                     {selectedCourt && <CourtInfoWindow court={selectedCourt} onClose={() => setSelectedCourt(null)} />}
                 </Map>
             </APIProvider>
