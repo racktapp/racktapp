@@ -129,6 +129,8 @@ export default function CourtsMapPage() {
 
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
 
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
   useEffect(() => {
     if (latitude && longitude) {
       setCenter({ lat: latitude, lng: longitude });
@@ -152,19 +154,11 @@ export default function CourtsMapPage() {
   }, [center, radius, selectedSports]);
   
   useEffect(() => {
-    if (latitude && longitude) {
+    if (latitude && longitude && apiKey) {
         handleSearch();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latitude, longitude])
-
-  const markers = useMemo(() => courts.map((court) => (
-    <AdvancedMarker
-        key={court.id}
-        position={{ lat: court.location.latitude, lng: court.location.longitude }}
-        onClick={() => setSelectedCourt(court)}
-    />
-  )), [courts]);
+  }, [latitude, longitude, apiKey])
 
   if (locationLoading) {
     return (
@@ -181,20 +175,33 @@ export default function CourtsMapPage() {
             <PageHeader title="Find Courts" description="Discover nearby courts and see who's playing." />
         </div>
         <div className="flex-1 relative">
-            <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
-                <Map
-                    center={center}
-                    zoom={zoom}
-                    onCenterChanged={(e) => setCenter(e.detail.center)}
-                    onZoomChanged={(e) => setZoom(e.detail.zoom)}
-                    gestureHandling={'greedy'}
-                    disableDefaultUI={true}
-                    mapId={'rackt_map'}
-                >
-                    {markers}
-                    {selectedCourt && <CourtInfoWindow court={selectedCourt} onClose={() => setSelectedCourt(null)} />}
-                </Map>
-            </APIProvider>
+            {apiKey ? (
+                <APIProvider apiKey={apiKey}>
+                    <Map
+                        center={center}
+                        zoom={zoom}
+                        onCenterChanged={(e) => setCenter(e.detail.center)}
+                        onZoomChanged={(e) => setZoom(e.detail.zoom)}
+                        gestureHandling={'greedy'}
+                        disableDefaultUI={true}
+                        mapId={'rackt_map'}
+                    >
+                        {courts.map((court) => (
+                            <AdvancedMarker
+                                key={court.id}
+                                position={{ lat: court.location.latitude, lng: court.location.longitude }}
+                                onClick={() => setSelectedCourt(court)}
+                            />
+                        ))}
+
+                        {selectedCourt && <CourtInfoWindow court={selectedCourt} onClose={() => setSelectedCourt(null)} />}
+                    </Map>
+                </APIProvider>
+            ) : (
+                <div className="flex items-center justify-center h-full bg-muted">
+                    <p className="text-muted-foreground">Google Maps API key is missing.</p>
+                </div>
+            )}
             
             {!isFilterPanelOpen && (
                  <Button onClick={() => setIsFilterPanelOpen(true)} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 shadow-lg">
