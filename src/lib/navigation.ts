@@ -17,6 +17,7 @@ import {
   Menu,
   Dumbbell,
   LifeBuoy,
+  Map,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -31,6 +32,7 @@ export const NAV_ITEMS_MAIN: NavItem[] = [
   { href: '/challenges', label: 'Challenges', icon: Swords },
   { href: '/friends', label: 'Friends', icon: Users },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/courts', label: 'Find Courts', icon: Map },
   { href: '/match-history', label: 'Match History', icon: History },
   { href: '/practice', label: 'Practice Log', icon: Dumbbell },
   { href: '/games', label: 'Games', icon: Gamepad2 },
@@ -42,7 +44,7 @@ export const NAV_ITEMS_MAIN: NavItem[] = [
 export const NAV_ITEMS_MOBILE_MAIN: NavItem[] = [
     { href: '/dashboard', label: 'Home', icon: Home },
     { href: '/challenges', label: 'Challenges', icon: Swords },
-    { href: '/tournaments', label: 'Compete', icon: Trophy },
+    { href: '/courts', label: 'Find Courts', icon: Map },
     { href: '/profile', label: 'Profile', icon: UserIcon },
 ];
 

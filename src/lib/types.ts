@@ -3,6 +3,7 @@
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
+import type { GeoPoint } from 'firebase/firestore';
 
 export type Sport = SportType;
 const SportEnum = z.enum(SPORTS);
@@ -313,6 +314,14 @@ export interface PracticeSession {
   createdAt: number;
 }
 
+export interface Court {
+  id: string;
+  name: string;
+  location: GeoPoint;
+  geohash: string;
+  supportedSports: Sport[];
+  address?: string;
+}
 
 // --- Zod Schemas ---
 

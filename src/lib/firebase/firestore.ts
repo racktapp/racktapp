@@ -20,9 +20,11 @@ import {
   limit,
   addDoc,
   Transaction,
+  GeoPoint,
 } from 'firebase/firestore';
+import * as geofire from 'geofire-common';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -731,4 +733,47 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
     status: 'pending',
   };
   await setDoc(reportRef, newReport);
+}
+
+// Courts Functions
+export async function findCourts(
+  latitude: number,
+  longitude: number,
+  radiusKm: number,
+  sports: Sport[]
+): Promise<Court[]> {
+  const center = [latitude, longitude];
+  const radiusInM = radiusKm * 1000;
+
+  const bounds = geofire.geohashQueryBounds(center, radiusInM);
+  const promises = [];
+  for (const b of bounds) {
+    const q = query(
+      collection(db, 'courts'),
+      orderBy('geohash'),
+      where('geohash', '>=', b[0]),
+      where('geohash', '<=', b[1])
+    );
+    promises.push(getDocs(q));
+  }
+  
+  const snapshots = await Promise.all(promises);
+  const matchingDocs: Court[] = [];
+
+  for (const snap of snapshots) {
+    for (const doc of snap.docs) {
+      const court = doc.data() as Court;
+      const lat = court.location.latitude;
+      const lng = court.location.longitude;
+      const distanceInKm = geofire.distanceBetween([lat, lng], center);
+      const distanceInM = distanceInKm * 1000;
+      if (distanceInM <= radiusInM) {
+        if (sports.length === 0 || court.supportedSports.some(s => sports.includes(s))) {
+            matchingDocs.push(court);
+        }
+      }
+    }
+  }
+
+  return matchingDocs;
 }

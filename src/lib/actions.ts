@@ -46,12 +46,13 @@ import {
     getPracticeSessionsForUser,
     createReport,
     deleteUserDocument,
+    findCourts
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import { type Sport, type User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport } from '@/lib/types';
+import type { Sport, User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -903,4 +904,14 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
     } catch (error: any) {
         return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
     }
+}
+
+// --- Courts Actions ---
+export async function findCourtsAction(
+  latitude: number,
+  longitude: number,
+  radiusKm: number,
+  sports: Sport[]
+): Promise<Court[]> {
+    return findCourts(latitude, longitude, radiusKm, sports);
 }
