@@ -112,18 +112,21 @@ const CourtInfoWindow = ({ court, onClose }: { court: Court, onClose: () => void
     );
 };
 
-const CourtMarkers = ({ courts, onMarkerClick }: { courts: Court[], onMarkerClick: (court: Court) => void }) => {
-    return useMemo(() => (
-        <>
-            {courts.map((court) => (
-                <AdvancedMarker 
-                    key={court.id} 
-                    position={{ lat: court.location.latitude, lng: court.location.longitude }}
-                    onClick={() => onMarkerClick(court)}
-                />
-            ))}
-        </>
-    ), [courts, onMarkerClick]);
+const CourtMarker = ({ court, onClick }: { court: Court; onClick: () => void }) => (
+    <AdvancedMarker
+      position={{ lat: court.location.latitude, lng: court.location.longitude }}
+      onClick={onClick}
+    />
+);
+
+const CourtMarkers = ({ courts, onMarkerClick }: { courts: Court[]; onMarkerClick: (court: Court) => void }) => {
+    return (
+      <>
+        {courts.map((court) => (
+          <CourtMarker key={court.id} court={court} onClick={() => onMarkerClick(court)} />
+        ))}
+      </>
+    );
 };
 
 
