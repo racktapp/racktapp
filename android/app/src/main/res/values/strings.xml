@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">RacktAndroid</string>
-    <string name="title_activity_main">RacktAndroid</string>
+    <string name="app_name">Rackt</string>
+    <string name="title_activity_main">Rackt</string>
     <string name="package_name">com.taivas.rackt</string>
     <string name="custom_url_scheme">com.taivas.rackt</string>
 </resources>
