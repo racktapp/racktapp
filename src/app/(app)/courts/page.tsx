@@ -12,12 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapIcon, LocateFixed, X, Swords, SlidersHorizontal } from 'lucide-react';
+import { MapIcon, LocateFixed, X, Swords, SlidersHorizontal, ArrowRight } from 'lucide-react';
 import { type Court, type Sport } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import Image from 'next/image';
 import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
 import { useAuth } from '@/hooks/use-auth';
+import Link from 'next/link';
 
 const FilterPanel = ({
   radius,
@@ -90,12 +91,22 @@ const CourtInfoWindow = ({ court, onClose }: { court: Court, onClose: () => void
                         <Image key={sport} src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} unoptimized title={sport} />
                     ))}
                 </div>
-                <CreateOpenChallengeDialog user={user} onChallengeCreated={() => {}}>
-                    <Button size="sm">
-                        <Swords className="mr-2" />
-                        Post Challenge
-                    </Button>
-                </CreateOpenChallengeDialog>
+                <div className="flex gap-2 items-center">
+                    <CreateOpenChallengeDialog user={user} onChallengeCreated={() => {}}>
+                        <Button size="sm">
+                            <Swords className="mr-2" />
+                            Post Challenge
+                        </Button>
+                    </CreateOpenChallengeDialog>
+                    {court.url && (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={court.url} target="_blank" rel="noopener noreferrer">
+                                View on Google Maps
+                                <ArrowRight className="ml-2" />
+                            </Link>
+                        </Button>
+                    )}
+                </div>
             </div>
         </InfoWindow>
     );

@@ -323,6 +323,7 @@ export interface Court {
   };
   supportedSports: Sport[];
   address?: string;
+  url?: string;
 }
 
 // --- Zod Schemas ---

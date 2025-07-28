@@ -917,6 +917,7 @@ export async function findCourtsAction(
     // If no sports are selected, search for generic "court"
     const selectedSports = sports.length > 0 ? sports : ['court'];
     const searchPromises = selectedSports.map(sport => {
+        // Use a more specific query for better results
         const query = `${sport} court`;
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
         return fetch(url).then(res => res.json());
@@ -934,7 +935,8 @@ export async function findCourtsAction(
                 for (const place of result.results) {
                     if (!seenPlaceIds.has(place.place_id)) {
                         seenPlaceIds.add(place.place_id);
-                        allPlaces.push({ ...place, sport });
+                         const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,url,geometry,vicinity&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+                         allPlaces.push(fetch(placeDetailsUrl).then(res => res.json()).then(detailResult => ({...detailResult.result, sport})));
                     }
                 }
             } else if (result.status !== 'ZERO_RESULTS') {
@@ -942,7 +944,9 @@ export async function findCourtsAction(
             }
         }
         
-        return allPlaces.map(place => ({
+        const detailedPlaces = await Promise.all(allPlaces);
+
+        return detailedPlaces.map(place => ({
             id: place.place_id,
             name: place.name,
             location: {
@@ -950,6 +954,7 @@ export async function findCourtsAction(
                 longitude: place.geometry.location.lng,
             },
             address: place.vicinity,
+            url: place.url,
             supportedSports: [place.sport], // We can only be sure about the sport we searched for
         }));
 
