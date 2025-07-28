@@ -158,6 +158,13 @@ export default function CourtsMapPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latitude, longitude])
 
+  const markers = useMemo(() => courts.map((court) => (
+    <AdvancedMarker
+        key={court.id}
+        position={{ lat: court.location.latitude, lng: court.location.longitude }}
+        onClick={() => setSelectedCourt(court)}
+    />
+  )), [courts]);
 
   if (locationLoading) {
     return (
@@ -184,13 +191,7 @@ export default function CourtsMapPage() {
                     disableDefaultUI={true}
                     mapId={'rackt_map'}
                 >
-                    {courts.map((court) => (
-                        <AdvancedMarker
-                            key={court.id}
-                            position={{ lat: court.location.latitude, lng: court.location.longitude }}
-                            onClick={() => setSelectedCourt(court)}
-                        />
-                    ))}
+                    {markers}
                     {selectedCourt && <CourtInfoWindow court={selectedCourt} onClose={() => setSelectedCourt(null)} />}
                 </Map>
             </APIProvider>
