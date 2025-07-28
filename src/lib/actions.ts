@@ -45,8 +45,7 @@ import {
     logPracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    deleteUserDocument,
-    findCourts
+    deleteUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -913,5 +912,49 @@ export async function findCourtsAction(
   radiusKm: number,
   sports: Sport[]
 ): Promise<Court[]> {
-    return findCourts(latitude, longitude, radiusKm, sports);
+    const radiusInM = radiusKm * 1000;
+    
+    // If no sports are selected, search for generic "court"
+    const selectedSports = sports.length > 0 ? sports : ['court'];
+    const searchPromises = selectedSports.map(sport => {
+        const query = `${sport} court`;
+        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+        return fetch(url).then(res => res.json());
+    });
+    
+    try {
+        const results = await Promise.all(searchPromises);
+        const allPlaces: any[] = [];
+        const seenPlaceIds = new Set<string>();
+
+        for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            const sport = selectedSports[i];
+            if (result.status === 'OK') {
+                for (const place of result.results) {
+                    if (!seenPlaceIds.has(place.place_id)) {
+                        seenPlaceIds.add(place.place_id);
+                        allPlaces.push({ ...place, sport });
+                    }
+                }
+            } else if (result.status !== 'ZERO_RESULTS') {
+                console.error(`Google Places API Error for sport "${sport}":`, result.status, result.error_message || '');
+            }
+        }
+        
+        return allPlaces.map(place => ({
+            id: place.place_id,
+            name: place.name,
+            location: {
+                latitude: place.geometry.location.lat,
+                longitude: place.geometry.location.lng,
+            },
+            address: place.vicinity,
+            supportedSports: [place.sport], // We can only be sure about the sport we searched for
+        }));
+
+    } catch (error) {
+        console.error("Failed to fetch courts from Google Maps API:", error);
+        return [];
+    }
 }

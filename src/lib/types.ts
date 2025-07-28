@@ -317,8 +317,10 @@ export interface PracticeSession {
 export interface Court {
   id: string;
   name: string;
-  location: GeoPoint;
-  geohash: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
   supportedSports: Sport[];
   address?: string;
 }
