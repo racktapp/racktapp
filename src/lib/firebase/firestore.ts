@@ -775,5 +775,7 @@ export async function findCourts(
     }
   }
 
-  return matchingDocs;
+  // Remove duplicates
+  const uniqueCourts = Array.from(new Map(matchingDocs.map(item => [item['id'], item])).values());
+  return uniqueCourts;
 }
