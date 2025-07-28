@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapIcon, LocateFixed, X, Swords } from 'lucide-react';
+import { MapIcon, LocateFixed, X, Swords, SlidersHorizontal } from 'lucide-react';
 import { type Court, type Sport } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import Image from 'next/image';
@@ -35,7 +35,7 @@ const FilterPanel = ({
   isFetching: boolean;
 }) => {
   return (
-    <Card className="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-lg z-10 shadow-lg">
+    <Card className="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-lg z-10 shadow-lg animate-in fade-in-0 zoom-in-95">
       <CardContent className="p-4 space-y-4">
         <div>
             <label className="text-sm font-medium">Radius: {radius} km</label>
@@ -114,6 +114,7 @@ export default function CourtsMapPage() {
 
   const [radius, setRadius] = useState(5);
   const [selectedSports, setSelectedSports] = useState<Sport[]>([]);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
 
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
 
@@ -135,6 +136,7 @@ export default function CourtsMapPage() {
         setFetchError(e.message || "Failed to fetch courts.");
     } finally {
         setIsFetching(false);
+        setIsFilterPanelOpen(false);
     }
   }, [center, radius, selectedSports]);
   
@@ -142,7 +144,8 @@ export default function CourtsMapPage() {
     if (latitude && longitude) {
         handleSearch();
     }
-  }, [latitude, longitude, handleSearch])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latitude, longitude])
 
 
   if (locationLoading) {
@@ -180,14 +183,24 @@ export default function CourtsMapPage() {
                     {selectedCourt && <CourtInfoWindow court={selectedCourt} onClose={() => setSelectedCourt(null)} />}
                 </Map>
             </APIProvider>
-            <FilterPanel 
-                radius={radius}
-                setRadius={setRadius}
-                selectedSports={selectedSports}
-                setSelectedSports={setSelectedSports}
-                onApply={handleSearch}
-                isFetching={isFetching}
-            />
+            
+            {!isFilterPanelOpen && (
+                 <Button onClick={() => setIsFilterPanelOpen(true)} className="absolute top-4 left-1/2 -translate-x-1/2 z-10 shadow-lg">
+                    <SlidersHorizontal className="mr-2" />
+                    Filters
+                </Button>
+            )}
+
+            {isFilterPanelOpen && (
+                <FilterPanel 
+                    radius={radius}
+                    setRadius={setRadius}
+                    selectedSports={selectedSports}
+                    setSelectedSports={setSelectedSports}
+                    onApply={handleSearch}
+                    isFetching={isFetching}
+                />
+            )}
             {courts.length === 0 && !isFetching && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background p-3 rounded-lg shadow-lg text-sm text-muted-foreground">
                     No courts found. Try expanding the radius.

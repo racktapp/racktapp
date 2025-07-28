@@ -4,7 +4,7 @@
 import { ReactNode, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Check, LogOut, Settings, User as UserIcon, Menu, Sun, Moon, Home, Swords, Trophy, Map } from 'lucide-react';
+import { Check, LogOut, Settings, User as UserIcon, Menu, Sun, Moon, Home, Swords, Trophy, Map, SlidersHorizontal } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import Image from 'next/image';
 import { useTheme } from 'next-themes';
