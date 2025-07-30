@@ -26,6 +26,10 @@ import { Separator } from '@/components/ui/separator';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 
+export async function generateStaticParams() {
+  return [] 
+}
+
 type ProfileData = Awaited<ReturnType<typeof getProfilePageDataAction>>;
 
 const achievementIconMap: Record<string, LucideIcon> = {
