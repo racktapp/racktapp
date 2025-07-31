@@ -1,8 +1,4 @@
 
-export async function generateStaticParams() {
-  return [] 
-}
-
 import ClientView from "./ClientView";
 
 interface PageProps {
