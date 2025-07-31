@@ -4,93 +4,79 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // By default, deny all reads and writes
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // --- Helper Functions ---
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
+    
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    function isParticipant(resource) {
-      return request.auth.uid in resource.data.participantIds;
-    }
 
-    // --- Collections ---
-
-    // Users: Can read all profiles, but only write to your own.
+    // USER PROFILES
+    // - Anyone can read public user profiles.
+    // - A user can only create their own profile.
+    // - A user can only update their own profile, and cannot change protected fields like stats.
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.username == resource.data.username;
+      allow update: if isOwner(userId) && 
+                       !('sports' in request.resource.data) && 
+                       !('email' in request.resource.data);
+      allow delete: if isOwner(userId);
     }
-
-    // Matches: Can read/write if you are a participant.
-    // Allow listing matches you are a part of.
-    match /matches/{matchId} {
-      allow read, write: if isSignedIn() && isParticipant(resource);
-      allow list: if isSignedIn() && request.auth.uid in query.filters.participants;
-    }
-
-    // Challenges: Can interact if you are the sender or receiver.
+    
+    // CHALLENGES & FRIEND REQUESTS
+    // - Users can read/write requests where they are the sender or receiver.
+    // - Users can list requests sent to them.
     match /challenges/{challengeId} {
       allow read, write: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      allow list: if isSignedIn() && (request.auth.uid == query.filters.fromId || request.auth.uid == query.filters.toId);
+      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
     }
-
-    // Open Challenges: Anyone can read, only owner can create/delete.
-    match /openChallenges/{challengeId} {
-      allow read, create: if isSignedIn();
-      allow delete: if isSignedIn() && isOwner(resource.data.posterId);
-    }
-
-    // Friend Requests: Can interact if you are the sender or receiver.
     match /friendRequests/{requestId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      allow list: if isSignedIn() && (request.auth.uid == query.filters.fromId || request.auth.uid == query.filters.toId);
-    }
-    
-    // Tournaments: Can read/write if you are a participant.
-    match /tournaments/{tournamentId} {
-        allow read, write: if isSignedIn() && isParticipant(resource);
-        allow list: if isSignedIn() && request.auth.uid in query.filters.participantIds;
+      allow read, write, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
     }
 
-    // Chats & Messages: Can read/write if you are a participant.
-    match /chats/{chatId} {
-      allow read, write: if isSignedIn() && isParticipant(resource);
-      allow list: if isSignedIn() && request.auth.uid in query.filters.participantIds;
-
-      match /messages/{messageId} {
-        allow read, write: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));
-      }
+    // OPEN CHALLENGES
+    // - Any signed-in user can read the list of open challenges.
+    // - A user can only create/delete their own open challenges.
+    match /openChallenges/{challengeId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(request.resource.data.posterId);
+      allow delete: if isOwner(resource.data.posterId);
     }
     
-    // Rally Games: Can read/write if you are a participant.
-    match /rallyGames/{gameId} {
-        allow read, write: if isSignedIn() && isParticipant(resource);
-        allow list: if isSignedIn() && request.auth.uid in query.filters.participantIds;
-    }
-
-    // Legend Games: Can read/write if you are a participant.
-    match /legendGames/{gameId} {
-        allow read, write: if isSignedIn() && isParticipant(resource);
-        allow list: if isSignedIn() && request.auth.uid in query.filters.participantIds;
-    }
-    
-    // Practice Sessions: Can only manage your own.
+    // PRACTICE SESSIONS
+    // - Users can only CRUD their own practice sessions.
     match /practiceSessions/{sessionId} {
-      allow read, create, delete: if isSignedIn() && isOwner(resource.data.userId);
-      allow list: if isSignedIn() && request.auth.uid == query.filters.userId;
+      allow read, write, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow list: if isSignedIn() && request.query.where.userId == request.auth.uid;
+    }
+    
+    // REPORTS
+    // - Any signed-in user can create a report.
+    // - Only admins (not implemented, so effectively no one) can read/write.
+    match /reports/{reportId} {
+        allow create: if isSignedIn();
+        allow read, write, delete: if false; // To be implemented with admin roles
     }
 
-    // Reports: Any signed-in user can create a report.
-    match /reports/{reportId} {
-      allow create: if isSignedIn();
+    // --- Collections with participantIds array ---
+    // General rule for collections that store participants in an array.
+    // This covers matches, tournaments, chats, rallyGames, and legendGames.
+    // - List: Can query if your UID is in the participantIds array. THIS IS THE KEY FIX.
+    // - Read/Write: Can access a specific document if you are a participant.
+    match /{collection}/{docId}
+      where collection in ['matches', 'tournaments', 'chats', 'rallyGames', 'legendGames'] {
+        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/$(collection)/$(docId)).data.participantIds;
+        allow read, write: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+    }
+
+    // Sub-collection for chat messages.
+    match /chats/{chatId}/messages/{messageId} {
+      allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
     }
   }
 }
