@@ -2,122 +2,101 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
+  
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isParticipant(resourceId, collectionName) {
-      return request.auth.uid in get(/databases/$(database)/documents/$(collectionName)/$(resourceId)).data.participantIds;
-    }
-    
-    // USERS
-    // Users can be read by anyone authenticated (for profiles, leaderboards).
-    // A user can only create their own doc and update their own non-statistical data.
+    // --- User Profiles ---
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && 
-                       !('sports' in request.resource.data) &&
-                       !('friendIds' in request.resource.data);
-      allow delete: if false; // Deletion should be a server-side process
+      // Anyone can read a user's public profile data.
+      allow read: if request.auth != null;
+      
+      // Users can only create their own profile document.
+      allow create: if request.auth.uid == userId;
+
+      // Users can only update their own profile, and only specific fields.
+      allow update: if request.auth.uid == userId &&
+                       request.resource.data.keys().hasOnly(['username', 'preferredSports', 'avatarUrl', 'flexedAchievementId']);
     }
 
-    // MATCHES
-    // Can only be created/updated by server-side functions (transactions).
-    // Can be read by any participant.
+    // --- Matches ---
     match /matches/{matchId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
-      allow create, update, delete: if false; // Handled by server actions
-    }
-
-    // FRIEND REQUESTS
-    // Can be created by anyone authenticated.
-    // Can only be read or deleted by the sender or receiver.
-    match /friendRequests/{requestId} {
-      allow read, delete: if isAuthenticated() && 
-                             (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.fromId;
-      allow update: if false;
-    }
-
-    // CHALLENGES
-    // Direct challenges between two users.
-    match /challenges/{challengeId} {
-      allow read, update: if isAuthenticated() && 
-                             (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.fromId;
-      allow delete: if isAuthenticated() && 
-                      (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-    }
-
-    // OPEN CHALLENGES
-    // Public challenges anyone can see and accept.
-    match /openChallenges/{challengeId} {
-      allow read, create: if isAuthenticated();
-      allow delete: if isAuthenticated() && isOwner(resource.data.posterId);
-      allow update: if false;
+      // Only participants can read a match document.
+      allow read: if request.auth != null && request.auth.uid in resource.data.participants;
+      
+      // Only authenticated users can create a new match report (pending match).
+      allow create: if request.auth != null;
+      
+      // Participants can confirm or decline a match.
+      allow update: if request.auth != null && request.auth.uid in resource.data.participants;
     }
     
-    // TOURNAMENTS
-    // Can be read by any participant.
-    // Create/Update/Delete handled by server actions.
-    match /tournaments/{tournamentId} {
-        allow read: if isAuthenticated() && isParticipant(tournamentId, 'tournaments');
-        allow create, update, delete: if false;
+    // --- Challenges & Friend Requests ---
+    match /challenges/{challengeId} {
+      allow read, update: if request.auth != null && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if request.auth != null;
+    }
+    
+    match /openChallenges/{challengeId} {
+      // Anyone authenticated can read open challenges.
+      allow read: if request.auth != null;
+      // Only the poster can create or delete their open challenge.
+      allow create, delete: if request.auth != null && request.resource.data.posterId == request.auth.uid;
     }
 
-    // CHATS
-    // A user can only read/write to chats they are a part of.
+    match /friendRequests/{requestId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create, delete: if request.auth != null;
+    }
+    
+    // --- Chat ---
     match /chats/{chatId} {
-      allow read, update: if isAuthenticated() && isParticipant(chatId, 'chats');
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
-      allow delete: if false;
-
-      // MESSAGES
-      // A user can only read/write messages in a chat they are a part of.
+      // Participants can read, create, and update chats.
+      allow read, create, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      
+      // Participants can read and write messages in their chats.
       match /messages/{messageId} {
-        allow read: if isAuthenticated() && isParticipant(chatId, 'chats');
-        allow create: if isAuthenticated() && isParticipant(chatId, 'chats') && isOwner(request.resource.data.senderId);
-        allow update, delete: if false;
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
     }
     
-    // GAMES (Rally & Legend)
-    // A user can only read/write to games they are a part of.
-    match /rallyGames/{gameId} {
-      allow read, update: if isAuthenticated() && isParticipant(gameId, 'rallyGames');
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
-      allow delete: if isAuthenticated() && isParticipant(gameId, 'rallyGames');
-    }
-     match /legendGames/{gameId} {
-      allow read, update: if isAuthenticated() && isParticipant(gameId, 'legendGames');
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
-      allow delete: if isAuthenticated() && isParticipant(gameId, 'legendGames');
+    // --- Games ---
+    function isGameParticipant(gameDoc) {
+      return request.auth != null && request.auth.uid in gameDoc.data.participantIds;
     }
 
-    // PRACTICE SESSIONS
-    // Users can only manage their own practice sessions.
+    match /rallyGames/{gameId} {
+      allow read, create, update, delete: if isGameParticipant(resource);
+    }
+    
+    match /legendGames/{gameId} {
+      allow read, create, update, delete: if isGameParticipant(resource);
+    }
+    
+    // --- Tournaments ---
+    match /tournaments/{tournamentId} {
+      // Allow any authenticated user to read a tournament bracket.
+      allow read: if request.auth != null;
+      
+      // Only the organizer can update the tournament (report winners).
+      allow update: if request.auth != null && request.auth.uid == resource.data.organizerId;
+      
+      // Any authenticated user can create a tournament.
+      allow create: if request.auth != null;
+    }
+
+    // --- Practice Sessions ---
     match /practiceSessions/{sessionId} {
-      allow read, create, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      // Users can only interact with their own practice sessions.
+      allow read, create, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
-    // REPORTS
-    // Users can create reports, but not read them.
+    // --- User Reports ---
     match /reports/{reportId} {
-        allow create: if isAuthenticated() && isOwner(request.resource.data.reporterId);
-        allow read, update, delete: if false; // Only admins
-    }
-    
-    // COURTS (Assuming this might be a future feature, read-only for now)
-    match /courts/{courtId} {
-        allow read: if isAuthenticated();
-        allow write: if false; // Managed by admins
+        // Only allow users to create reports. Review will be done via Admin SDK.
+        allow create: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
     }
   }
 }
