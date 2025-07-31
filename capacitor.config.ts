@@ -4,9 +4,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.taivas.rackt',
+  appId: 'com.rackt.app',
   appName: 'Rackt',
-  webDir: 'out',
+  webDir: '.next',
   bundledWebRuntime: false
 };
 
