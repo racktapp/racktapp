@@ -3,6 +3,7 @@ import ClientView from "./ClientView";
 
 // Stub out static export for chat pages:
 export async function generateStaticParams() {
+  // Added a comment to trigger a file change
   return [];  // no chat pages to pre-render
 }
 
