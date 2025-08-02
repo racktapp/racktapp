@@ -1,10 +1,9 @@
 // NO "use client" here — this is a server component
 import ClientView from "./ClientView";
 
-// Stub out static export for chat pages:
+// Tell Next.js “I don’t need any static chat/[id] pages”
 export async function generateStaticParams() {
-  // Added a comment to trigger a file change
-  return [];  // no chat pages to pre-render
+  return []; 
 }
 
 interface PageProps {
