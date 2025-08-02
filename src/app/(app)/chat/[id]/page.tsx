@@ -1,10 +1,10 @@
-// NO "use client" here — this is a server component
-import ClientView from "./ClientView";
-
-// Tell Next.js “I don’t need any static chat/[id] pages”
+// Tell Next.js “no static chat pages are needed”
 export async function generateStaticParams() {
-  return []; 
+  return [];
 }
+
+// NO "use client" here—this is a server component
+import ClientView from "./ClientView";
 
 interface PageProps {
   params: { id: string };
