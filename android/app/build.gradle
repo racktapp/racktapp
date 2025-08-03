@@ -1,12 +1,13 @@
+
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.taivas.rackt"
+    namespace "com.rackt.app"
     compileSdk 34
     defaultConfig {
-        applicationId "com.taivas.rackt"
-        minSdk 22
-        targetSdk 34
+        applicationId "com.rackt.app"
+        minSdkVersion 22
+        targetSdkVersion 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -17,23 +18,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    packagingOptions {
-        resources {
-            excludes += '/META-INF/DEPENDENCIES'
-        }
-    }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation project(':capacitor-android')
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    implementation 'com.google.firebase:firebase-analytics'
-    implementation platform('com.google.firebase:firebase-bom:33.2.0')
+    implementation project(':capacitor-cordova-android-plugins')
 }
-
-apply from: 'capacitor.build.gradle'
-apply plugin: 'com.google.gms.google-services'

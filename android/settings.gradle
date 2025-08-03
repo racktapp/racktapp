@@ -1,5 +1,12 @@
+
+rootProject.name = 'android'
+
 include ':app'
+
 include ':capacitor-android'
-project(':capacitor-android').projectDir = new File(settingsDir, '../node_modules/@capacitor/android/capacitor')
+project(':capacitor-android').projectDir = file('../node_modules/@capacitor/android')
+
 include ':capacitor-cordova-android-plugins'
-project(':capacitor-cordova-android-plugins').projectDir = new File(settingsDir, '../node_modules/@capacitor/cordova-android-plugins/src')
+project(':capacitor-cordova-android-plugins').projectDir = file('../node_modules/@capacitor/cordova-android-plugins')
+
+apply from: "capacitor.settings.gradle"
