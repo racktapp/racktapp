@@ -1,4 +1,4 @@
-
+// Top-level settings for the Capacitor Android project
 rootProject.name = 'android'
 
 include ':app'
@@ -9,4 +9,6 @@ project(':capacitor-android').projectDir = file('../node_modules/@capacitor/andr
 include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = file('../node_modules/@capacitor/cordova-android-plugins')
 
-apply from: "capacitor.settings.gradle"
+// This hook wires in any Cordova plugins you may be using
+apply from: 'capacitor.settings.gradle'
+
