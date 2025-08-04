@@ -3,80 +3,91 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // By default, deny all access.
+
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isParticipant() {
+      return request.auth.uid in resource.data.participantIds;
+    }
+
+    // Default: Deny all
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Allow authenticated users to read and write their own user document.
-    // Allow any user to read public profile information.
+    // USERS collection
+    // Anyone can read a user's public profile.
+    // Only the user can write to their own document.
     match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth.uid == userId;
+      allow read: if isAuth();
+      allow write: if isOwner(userId);
     }
-
-    // Allow participants to read match documents.
-    // Allow authenticated users to create new matches.
-    // Allow participants to update pending matches.
-    match /matches/{matchId} {
-      allow read: if request.auth.uid in resource.data.participants;
-      allow create: if request.auth != null && request.auth.uid in request.resource.data.participants;
-      allow update: if request.auth.uid in resource.data.participants && resource.data.status == 'pending';
-    }
-
-    // Allow authenticated users to manage their friend requests.
+    
+    // FRIEND REQUESTS collection
+    // Allow read/write if you are the sender or receiver of the request.
     match /friendRequests/{requestId} {
-      allow read, write: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
-    }
-    
-    // Allow participants to read and write to their chats and messages.
-    match /chats/{chatId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
-      
-      match /messages/{messageId} {
-        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
-      }
-    }
-    
-    // Allow authenticated users to create and read open challenges.
-    // Allow the user who posted a challenge to delete it.
-    match /openChallenges/{challengeId} {
-      allow read, create: if request.auth != null;
-      allow delete: if request.auth.uid == resource.data.posterId;
+      allow read, create, delete: if isAuth() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
     }
 
-    // Allow involved users to manage direct challenges.
-    match /challenges/{challengeId} {
-      allow read, write: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
+    // MATCHES, CHALLENGES, and CHATS collections
+    // Allow read/write/update if you are a participant.
+    // Allow list (query) if the query is for documents you are a participant in.
+    match /{collectionName}/{docId}
+      where collectionName in ['matches', 'challenges', 'chats'] {
+        allow read, update, delete: if isAuth() && isParticipant();
+        allow create: if isAuth(); // Further validation in backend logic
+        allow list: if isAuth() && request.auth.uid in request.query.where.value;
     }
     
-    // Allow authenticated users to create tournaments.
-    // Allow participants to read tournament data.
-    // Allow the organizer to update the tournament.
+    // Allow read for messages within a chat you are part of.
+    match /chats/{chatId}/messages/{messageId} {
+       allow read, create: if isAuth() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+    }
+    
+    // GAME collections
+    // Allow read/write/update if you are a participant in the game.
+    match /{gameCollection}/{gameId}
+       where gameCollection in ['rallyGames', 'legendGames'] {
+        allow read, update, delete: if isAuth() && isParticipant();
+        allow create: if isAuth(); // Further validation in backend logic
+        allow list: if isAuth() && request.auth.uid in request.query.where.value;
+    }
+
+    // TOURNAMENTS collection
+    // Allow read to any authenticated user.
+    // Allow creation/updates only by the organizer.
     match /tournaments/{tournamentId} {
-      allow read: if request.auth.uid in resource.data.participantIds;
-      allow create: if request.auth != null;
-      allow update: if request.auth.uid == resource.data.organizerId;
+        allow read, create: if isAuth();
+        allow update, delete: if isAuth() && request.auth.uid == resource.data.organizerId;
     }
     
-    // Allow participants to interact with their games.
-    match /rallyGames/{gameId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
+    // OPEN CHALLENGES collection
+    // Allow any authenticated user to read/list challenges.
+    // Allow users to create challenges.
+    // Allow only the owner to delete their own open challenge.
+    match /openChallenges/{challengeId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isOwner(request.resource.data.posterId);
+      allow delete: if isAuth() && isOwner(resource.data.posterId);
     }
     
-    match /legendGames/{gameId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
+    // PRACTICE SESSIONS collection
+    // Users can only read/write their own practice sessions.
+    match /practiceSessions/{sessionId} {
+      allow read, write: if isAuth() && request.auth.uid == resource.data.userId;
     }
 
-    // Allow authenticated users to log and read their own practice sessions.
-    match /practiceSessions/{sessionId} {
-      allow read, write: if request.auth.uid == resource.data.userId;
-    }
-    
-    // Allow any authenticated user to submit a report.
+    // REPORTS collection
+    // Users can create reports. No one can read them directly.
     match /reports/{reportId} {
-      allow create: if request.auth != null;
+      allow create: if isAuth();
     }
   }
 }
