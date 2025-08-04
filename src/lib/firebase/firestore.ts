@@ -737,11 +737,11 @@ export async function getPracticeSessionsForUser(
     collection(db, 'practiceSessions'),
     where('userId', '==', userId),
     where('sport', '==', sport),
-    orderBy('date', 'desc'),
     limit(50)
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+  // Sort by date on the client-side
+  return snapshot.docs.map((doc) => doc.data() as PracticeSession).sort((a, b) => b.date - a.date);
 }
 
 // User Reporting

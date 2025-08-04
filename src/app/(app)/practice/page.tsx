@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,6 +15,8 @@ import { CreatePracticeLogDialog } from '@/components/practice/create-practice-l
 import { PracticeSessionCard } from '@/components/practice/practice-session-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
 
 export default function PracticeLogPage() {
   const { user } = useAuth();
@@ -56,7 +59,25 @@ export default function PracticeLogPage() {
       );
     }
     if (error) {
-      return <FirestoreIndexAlert message={error} />;
+       // This is a fallback in case the automatic link generation fails.
+       // It provides manual instructions.
+      return (
+        <Alert variant="destructive">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>Database Index Required</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">To view practice logs, a specific database index needs to be created in your Firebase project. This is a one-time setup.</p>
+            <p className="font-semibold">Please create the following composite index in your Firestore console:</p>
+            <ul className="list-disc pl-5 mt-2 text-xs bg-muted p-2 rounded-md font-mono">
+                <li>Collection ID: `practiceSessions`</li>
+                <li>Field 1: `userId` (Ascending)</li>
+                <li>Field 2: `sport` (Ascending)</li>
+                <li>Field 3: `date` (Descending)</li>
+            </ul>
+            <p className="mt-2 text-xs">After the index is built (status becomes "Enabled"), this page will work correctly.</p>
+          </AlertDescription>
+        </Alert>
+      );
     }
     if (sessions.length === 0) {
       return (
