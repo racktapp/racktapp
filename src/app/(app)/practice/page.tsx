@@ -47,6 +47,7 @@ export default function PracticeLogPage() {
   }, [fetchSessions]);
 
   const sortedSessions = useMemo(() => {
+    // Sort on the client-side
     return [...sessions].sort((a, b) => b.date - a.date);
   }, [sessions]);
 
