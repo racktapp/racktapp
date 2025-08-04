@@ -1,59 +1,92 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- Users Collection ---
+    // Users can read their own data and any user can read public profiles.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Allow authenticated users to manage their own practice sessions
-      match /practiceSessions/{sessionId} {
-        allow list, get: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.userId == request.auth.uid;
-        allow update, delete: if request.auth != null && request.auth.uid == userId && resource.data.userId == request.auth.uid;
-      }
+      allow read: if true;
+      allow write: if isOwner(userId);
     }
-    match /matches/{matchId} {
-      allow read: if request.auth != null && resource.data.participants.hasAny([request.auth.uid]);
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && resource.data.participants.hasAny([request.auth.uid]);
-    }
+    
+    // --- Friend Requests ---
+    // Users can only see requests sent to or from them.
     match /friendRequests/{requestId} {
-      allow read: if request.auth != null && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
-      allow create, delete: if request.auth != null;
+      allow read, delete: if isOwner(resource.data.fromId) || isOwner(resource.data.toId);
+      allow create: if isOwner(request.resource.data.fromId);
+    }
+    
+    // --- Challenges ---
+    // Users can only interact with challenges they are a part of.
+    match /challenges/{challengeId} {
+      allow read, update: if isOwner(resource.data.fromId) || isOwner(resource.data.toId);
+      allow create: if isOwner(request.resource.data.fromId);
+      // Allow the query for notifications
       allow list: if request.auth != null && (request.query.where.toId == request.auth.uid || request.query.where.fromId == request.auth.uid);
     }
-     match /challenges/{challengeId} {
-      allow read: if request.auth != null && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
-      allow list: if request.auth != null && (request.query.where.toId == request.auth.uid || request.query.where.fromId == request.auth.uid);
-    }
+
     match /openChallenges/{challengeId} {
-      allow read, create: if request.auth != null;
-      allow delete: if request.auth != null && resource.data.posterId == request.auth.uid;
+      allow read: if request.auth != null;
+      allow create: if isOwner(request.resource.data.posterId);
+      allow delete: if isOwner(resource.data.posterId);
     }
-    match /tournaments/{tournamentId} {
-        allow read, create: if request.auth != null;
-        allow update: if request.auth != null && resource.data.organizerId == request.auth.uid;
+
+    // --- Matches ---
+    // Anyone can read a confirmed match, but only participants can read pending ones.
+    match /matches/{matchId} {
+      allow read: if resource.data.status == 'confirmed' || (request.auth != null && request.auth.uid in resource.data.participants);
+      allow create: if isOwner(request.resource.data.reportedById);
+      allow update: if request.auth != null && request.auth.uid in resource.data.participants;
     }
+
+    // --- Chats ---
+    // Users can only access chats they are a part of.
     match /chats/{chatId} {
-      allow read: if request.auth != null && request.auth.uid in resource.data.participantIds;
-      allow list: if request.auth != null && request.query.where.participantIds.hasAny([request.auth.uid]);
-      match /messages/{messageId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      // Allow the query for the chat list
+      allow list: if request.auth != null && request.auth.uid == request.query.where.participantIds;
+       match /messages/{messageId} {
         allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
     }
+    
+    // --- Tournaments ---
+    match /tournaments/{tournamentId} {
+        allow read: if request.auth != null;
+        allow create: if isOwner(request.resource.data.organizerId);
+        allow update: if isOwner(resource.data.organizerId);
+    }
+
+    // --- Games ---
     match /rallyGames/{gameId} {
-        allow read: if request.auth != null && (request.auth.uid in resource.data.participantIds || request.auth.uid == resource.data.currentPlayerId);
-        allow list: if request.auth != null && request.query.where.participantIds.hasAny([request.auth.uid]);
-        allow create, update, delete: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow read: if request.auth != null && (request.auth.uid in resource.data.participantIds || resource.data.currentPlayerId == request.auth.uid);
+      allow write: if isOwner(request.resource.data.currentPlayerId);
+      allow list: if request.auth != null && request.auth.uid == request.query.where.participantIds;
     }
+
     match /legendGames/{gameId} {
-        allow read: if request.auth != null && (request.auth.uid in resource.data.participantIds || request.auth.uid == resource.data.currentPlayerId);
-        allow list: if request.auth != null && request.query.where.participantIds.hasAny([request.auth.uid]);
-        allow create, update, delete: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow read: if request.auth != null && (request.auth.uid in resource.data.participantIds || resource.data.currentPlayerId == request.auth.uid);
+      allow write: if isOwner(request.resource.data.currentPlayerId);
+      allow list: if request.auth != null && request.auth.uid == request.query.where.participantIds;
     }
+
+    // --- Practice Sessions ---
+    // Users can only manage their own practice sessions.
+    match /users/{userId}/practiceSessions/{sessionId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // --- User Reports ---
     match /reports/{reportId} {
-      allow create: if request.auth != null;
+      allow create: if isOwner(request.resource.data.reporterId);
+      // Only backend processes should read/write reports
+      allow read, write, list: if false; 
     }
   }
 }
