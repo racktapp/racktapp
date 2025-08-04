@@ -41,10 +41,9 @@ service cloud.firestore {
     // - Users can create challenges.
     // - Users can update (accept/decline/cancel) challenges they are involved in.
     match /challenges/{challengeId} {
-      allow read, write: if isAuthenticated() && (isOwner(resource.data.fromId) || isOwner(resource.data.toId));
-      allow create: if isAuthenticated() && isOwner(request.resource.data.fromId);
+      allow read, write, update: if isAuthenticated() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isAuthenticated();
     }
-    
 
     // OPEN CHALLENGES
     // - Any authenticated user can read open challenges.
@@ -58,7 +57,9 @@ service cloud.firestore {
     // FRIEND REQUESTS
     // - Users can only read/write requests where they are the sender or receiver.
     match /friendRequests/{requestId} {
-      allow read, write, delete: if isAuthenticated() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow list, read: if isAuthenticated() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.fromId);
+      allow delete: if isAuthenticated() && (isOwner(resource.data.fromId) || isOwner(resource.data.toId));
     }
 
     // CHATS & MESSAGES
@@ -74,15 +75,16 @@ service cloud.firestore {
     // RALLY & LEGEND GAMES
     // - Users can only interact with games they are participating in.
     match /rallyGames/{gameId} {
-      allow read, write, delete: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
+      allow read, write, delete: if isAuthenticated() && (request.auth.uid in resource.data.participantIds || request.auth.uid == resource.data.currentPlayerId);
     }
     match /legendGames/{gameId} {
-      allow read, write, delete: if isAuthenticated() && request.auth.uid in resource.data.participantIds;
+      allow read, write, delete: if isAuthenticated() && (request.auth.uid in resource.data.participantIds || request.auth.uid == resource.data.currentPlayerId);
     }
 
     // TOURNAMENTS
     // - Authenticated users can read tournaments.
-    // - Only the organizer can create or update a tournament.
+    // - Only the organizer can create a tournament.
+    // - Only the organizer can update the tournament bracket.
     match /tournaments/{tournamentId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated() && isOwner(request.resource.data.organizerId);
@@ -90,14 +92,10 @@ service cloud.firestore {
     }
 
     // PRACTICE SESSIONS
-    // - Users can only list, read, create, update, and delete their own practice sessions.
+    // - Users can only create, read, and list their own practice sessions.
     match /practiceSessions/{sessionId} {
-      // allow query for a user's own sessions
-      allow list: if isAuthenticated()
-                  && request.auth.uid == request.query.resource.data.userId;
-      // allow direct reads, creates, updates, and deletes
-      allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow list, read: if isAuthenticated() && request.query.where.userId == request.auth.uid;
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
     }
     
     // REPORTS
