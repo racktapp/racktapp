@@ -1,92 +1,102 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    
+    // By default, deny all reads and writes.
+    // Specific rules below will grant access where needed.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // --- Users Collection ---
-    // Users can read their own data and any user can read public profiles.
+    // --- User Profiles ---
+    // Users can read their own profile.
+    // Users can only update their own profile.
     match /users/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId);
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Note: allow list is intentionally omitted for privacy.
+      // Searching for users is handled by a server-side action.
     }
     
-    // --- Friend Requests ---
-    // Users can only see requests sent to or from them.
+    // --- User Subcollections (e.g., practiceSessions) ---
+    // A user can do anything they want within their own subcollections.
+    match /users/{userId}/{subcollection}/{docId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- Game Collections (rallyGames, legendGames) ---
+    // Participants can read and write to the game they are in.
+    match /rallyGames/{gameId} {
+      allow read, write: if request.auth != null && resource.data.participantIds.hasAny([request.auth.uid]);
+    }
+    match /legendGames/{gameId} {
+      allow read, write: if request.auth != null && resource.data.participantIds.hasAny([request.auth.uid]);
+    }
+
+    // --- Social Collections (friendRequests, challenges, chats) ---
+    // These require more granular control.
+    
     match /friendRequests/{requestId} {
-      allow read, delete: if isOwner(resource.data.fromId) || isOwner(resource.data.toId);
-      allow create: if isOwner(request.resource.data.fromId);
+      // Allow read/delete if you are the sender or receiver.
+      allow get, delete: if request.auth != null && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      // Allow creation by anyone authenticated.
+      allow create: if request.auth != null;
+    }
+
+    match /challenges/{challengeId} {
+       // Allow read/write if you are the sender or receiver.
+      allow read, write: if request.auth != null && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      // Allow creation by anyone authenticated.
+      allow create: if request.auth != null;
     }
     
-    // --- Challenges ---
-    // Users can only interact with challenges they are a part of.
-    match /challenges/{challengeId} {
-      allow read, update: if isOwner(resource.data.fromId) || isOwner(resource.data.toId);
-      allow create: if isOwner(request.resource.data.fromId);
-      // Allow the query for notifications
-      allow list: if request.auth != null && (request.query.where.toId == request.auth.uid || request.query.where.fromId == request.auth.uid);
-    }
-
     match /openChallenges/{challengeId} {
-      allow read: if request.auth != null;
-      allow create: if isOwner(request.resource.data.posterId);
-      allow delete: if isOwner(resource.data.posterId);
+        // Anyone can read open challenges.
+        allow get, list: if request.auth != null;
+        // Only the poster can create or delete their own challenge.
+        allow create: if request.auth != null && request.resource.data.posterId == request.auth.uid;
+        allow delete: if request.auth != null && resource.data.posterId == request.auth.uid;
     }
 
-    // --- Matches ---
-    // Anyone can read a confirmed match, but only participants can read pending ones.
-    match /matches/{matchId} {
-      allow read: if resource.data.status == 'confirmed' || (request.auth != null && request.auth.uid in resource.data.participants);
-      allow create: if isOwner(request.resource.data.reportedById);
-      allow update: if request.auth != null && request.auth.uid in resource.data.participants;
-    }
-
-    // --- Chats ---
-    // Users can only access chats they are a part of.
     match /chats/{chatId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
-      // Allow the query for the chat list
-      allow list: if request.auth != null && request.auth.uid == request.query.where.participantIds;
-       match /messages/{messageId} {
-        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      // Participants can read the chat document.
+      allow get: if request.auth != null && resource.data.participantIds.hasAny([request.auth.uid]);
+      // Participants can update the chat (e.g., lastRead timestamp).
+      allow update: if request.auth != null && resource.data.participantIds.hasAny([request.auth.uid]);
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Participants can read all messages in the chat.
+        allow read: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+        // A user can only create a message if they are a participant and the senderId is their own.
+        allow create: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]) && request.resource.data.senderId == request.auth.uid;
       }
     }
     
-    // --- Tournaments ---
+    // --- Tournaments Collection ---
     match /tournaments/{tournamentId} {
-        allow read: if request.auth != null;
-        allow create: if isOwner(request.resource.data.organizerId);
-        allow update: if isOwner(resource.data.organizerId);
-    }
-
-    // --- Games ---
-    match /rallyGames/{gameId} {
-      allow read: if request.auth != null && (request.auth.uid in resource.data.participantIds || resource.data.currentPlayerId == request.auth.uid);
-      allow write: if isOwner(request.resource.data.currentPlayerId);
-      allow list: if request.auth != null && request.auth.uid == request.query.where.participantIds;
-    }
-
-    match /legendGames/{gameId} {
-      allow read: if request.auth != null && (request.auth.uid in resource.data.participantIds || resource.data.currentPlayerId == request.auth.uid);
-      allow write: if isOwner(request.resource.data.currentPlayerId);
-      allow list: if request.auth != null && request.auth.uid == request.query.where.participantIds;
-    }
-
-    // --- Practice Sessions ---
-    // Users can only manage their own practice sessions.
-    match /users/{userId}/practiceSessions/{sessionId} {
-      allow read, write: if isOwner(userId);
+        // Participants can read a tournament they are in.
+        allow get: if request.auth != null && resource.data.participantIds.hasAny([request.auth.uid]);
+        // Only the organizer can update the tournament (e.g., report winners).
+        allow update: if request.auth != null && resource.data.organizerId == request.auth.uid;
+        // Anyone can list tournaments they are part of.
+        allow list: if request.auth != null && request.query.filters.size() == 1 && request.query.filters[0].field.string_value == 'participantIds' && request.query.filters[0].op.string_value == 'array-contains' && request.query.filters[0].value.string_value == request.auth.uid;
     }
     
-    // --- User Reports ---
-    match /reports/{reportId} {
-      allow create: if isOwner(request.resource.data.reporterId);
-      // Only backend processes should read/write reports
-      allow read, write, list: if false; 
+    // --- Global Collections ---
+    // These need careful rules to allow queries.
+    
+    // Allow users to query their pending matches
+    match /matches/{matchId} {
+      allow list: if request.auth != null 
+                    && request.query.filters.size() == 2 
+                    && 'participants' in request.query.filters[0].field.string_value
+                    && request.query.filters[0].op.string_value == 'array-contains'
+                    && request.query.filters[0].value.string_value == request.auth.uid
+                    && 'status' in request.query.filters[1].field.string_value
+                    && request.query.filters[1].op.string_value == '=='
+                    && request.query.filters[1].value.string_value == 'pending';
     }
   }
 }
