@@ -2,131 +2,99 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Deny all reads and writes by default.
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    //
-    // Functions
-    //
+  
+    // Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
     
-    function isUser(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
     
-    function isFriend(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.friendIds.hasAny([request.auth.uid]);
-    }
-    
-    function isParticipant(participants) {
-      return isSignedIn() && request.auth.uid in participants;
-    }
-    
-    function getGameParticipants(gamePath) {
-        return get(gamePath).data.participantIds;
+    function isParticipant(resource) {
+      return request.auth.uid in resource.data.participantIds;
     }
 
-    //
-    // User Profile Rules
-    //
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Users Collection
     match /users/{userId} {
-      // Anyone can read a user's profile
-      allow read: if true;
-      
-      // Only the user themselves can update their profile or delete it
-      allow update, delete: if isUser(userId);
-
-      // Rules for practiceSessions subcollection
-      match /practiceSessions/{sessionId} {
-        allow read, write, create, delete: if isUser(userId);
-      }
+      allow read: if isSignedIn();
+      allow update: if isOwner(userId)
+                    && request.resource.data.keys().hasOnly(['username', 'preferredSports', 'avatarUrl'])
+                    && request.resource.data.username is string
+                    && request.resource.data.username.size() > 2
+                    && request.resource.data.preferredSports is list;
     }
     
-    //
-    // Friend Request Rules
-    //
-    match /friendRequests/{requestId} {
-      // Allow read/delete only by the sender or receiver
-      allow read, delete: if isSignedIn() && (isUser(resource.data.fromId) || isUser(resource.data.toId));
-      
-      // Allow creation by the sender
-      allow create: if isSignedIn() && isUser(request.resource.data.fromId);
+    // Practice Sessions Subcollection
+    match /users/{userId}/practiceSessions/{sessionId} {
+      allow read, create: if isOwner(userId);
     }
     
-    //
-    // Challenge Rules
-    //
+    // Matches Collection
+    match /matches/{matchId} {
+      // Allow any participant to read a match document
+      allow read: if isSignedIn() && resource.data.participants.hasAny([request.auth.uid]);
+      
+      // Allow creating a match if the reporter is one of the participants
+      allow create: if isSignedIn() && request.resource.data.reportedById == request.auth.uid;
+      
+      // Allow a participant to confirm or decline
+      allow update: if isSignedIn() && resource.data.participants.hasAny([request.auth.uid]);
+    }
+    
+    // Challenges Collections
     match /challenges/{challengeId} {
-      allow read, update: if isSignedIn() && (isUser(resource.data.fromId) || isUser(resource.data.toId));
-      allow create: if isSignedIn() && isUser(request.resource.data.fromId);
+      allow read, update, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
     }
-    
+
     match /openChallenges/{challengeId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isUser(request.resource.data.posterId);
-      allow delete: if isSignedIn() && isUser(resource.data.posterId);
-    }
-
-    //
-    // Match History Rules
-    //
-    match /matches/{matchId} {
-      // Allow reads and updates (confirm/decline) only by participants
-      allow read, update: if isParticipant(resource.data.participants);
-      // Allow creation by any signed-in user, as it's validated in the action
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.posterId == request.auth.uid;
+      allow delete: if isOwner(resource.data.posterId);
     }
     
-    //
-    // Chat Rules
-    //
-    match /chats/{chatId} {
-        // Allow chat actions only if the user is a participant
-        allow read, update, delete: if isParticipant(resource.data.participantIds);
-        allow create: if isParticipant(request.resource.data.participantIds);
-
-        // Allow actions on messages only if user is a participant of the parent chat
-        match /messages/{messageId} {
-            allow read: if isParticipant(getGameParticipants(/databases/$(database)/documents/chats/$(chatId)));
-            allow create: if isUser(request.resource.data.senderId) && isParticipant(getGameParticipants(/databases/$(database)/documents/chats/$(chatId)));
-        }
+    // Friend Requests Collection
+    match /friendRequests/{requestId} {
+      allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isSignedIn() && request.resource.data.fromId == request.auth.uid;
     }
     
-    //
-    // Game Rules (Rally & Legend)
-    //
+    // Tournaments Collection
+    match /tournaments/{tournamentId} {
+      allow read: if isSignedIn() && isParticipant(resource);
+      allow create: if isSignedIn() && request.resource.data.organizerId == request.auth.uid;
+      allow update: if isSignedIn() && request.auth.uid == resource.data.organizerId;
+    }
+
+    // Reports Collection
+    match /reports/{reportId} {
+      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid;
+    }
+    
+    // Game Collections
     match /rallyGames/{gameId} {
-      allow read, update, delete: if isParticipant(resource.data.participantIds);
-      allow create: if isParticipant(request.resource.data.participantIds);
+        allow read, update, delete: if isSignedIn() && isParticipant(resource);
     }
     
     match /legendGames/{gameId} {
-       allow read, update, delete: if isParticipant(resource.data.participantIds);
-       allow create: if isParticipant(request.resource.data.participantIds);
+        allow read, update, delete: if isSignedIn() && isParticipant(resource);
     }
     
-    //
-    // Tournament Rules
-    //
-    match /tournaments/{tournamentId} {
-      // Any signed-in user can view a tournament
-      allow read: if isSignedIn();
-      // Only the organizer can create/update it
-      allow create: if isUser(request.resource.data.organizerId);
-      allow update: if isUser(resource.data.organizerId);
-    }
+    // Chat collection and Messages subcollection
+    match /chats/{chatId} {
+      allow read, update: if isSignedIn() && isParticipant(resource);
+      allow create: if isSignedIn() && request.resource.data.participantIds.hasAny([request.auth.uid]);
 
-    //
-    // Report Rules
-    //
-    match /reports/{reportId} {
-      // Only signed-in users can create a report
-      allow create: if isUser(request.resource.data.reporterId);
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+      }
     }
   }
 }
