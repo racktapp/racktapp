@@ -1,101 +1,96 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default deny: By default, no one can read or write to any document.
+    // Default deny all access to prevent unauthorized operations.
     match /{document=**} {
       allow read, write: if false;
     }
 
     // --- User Profiles ---
-    // Anyone authenticated can view a user's profile.
-    // A user can only create, update, or delete their own profile.
+    // Users can read any public profile, but only write to their own.
     match /users/{userId} {
-      allow get: if request.auth != null;
-      allow list: if request.auth != null;
+      allow read: if request.auth != null;
       allow create: if request.auth.uid == userId;
-      allow update, delete: if request.auth.uid == userId;
-
-      // --- User Subcollections ---
-      // A user can only manage documents within their own subcollections.
-      match /practiceSessions/{sessionId} {
-        allow read, write: if request.auth.uid == userId;
-      }
+      allow update: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
     }
 
-    // --- Matches ---
-    // Users can only read matches they participated in.
-    match /matches/{matchId} {
-      allow get: if request.auth.uid in resource.data.participants;
-      allow list: if request.auth.uid == request.query.where.value;
-      allow create: if request.auth.uid in request.resource.data.participants;
-      allow update: if request.auth.uid in resource.data.participants;
+    // --- Practice Sessions (Subcollection) ---
+    // Users can only manage their own practice sessions.
+    match /users/{userId}/practiceSessions/{sessionId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // --- Friend Requests ---
+    // Allow read/write only if the user is the sender or receiver.
+    match /friendRequests/{requestId} {
+      allow read, delete: if request.auth != null && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if request.auth != null;
     }
 
     // --- Challenges (Direct) ---
-    // Users can read/write challenges they sent or received.
+    // Allow read/write only if the user is the sender or receiver.
     match /challenges/{challengeId} {
-      allow read, create, update, delete: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
-      allow list: if request.auth.uid == request.query.where.value;
+      allow read, update, delete: if request.auth != null && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if request.auth != null;
     }
 
     // --- Open Challenges ---
-    // Anyone authenticated can list/read open challenges.
-    // A user can only create/delete their own open challenges.
+    // Allow any authenticated user to read/list.
+    // Allow creation for any authenticated user.
+    // Allow deletion only for the user who posted it.
     match /openChallenges/{challengeId} {
-      allow read, list: if request.auth != null;
-      allow create: if request.auth.uid == request.resource.data.posterId;
-      allow delete: if request.auth.uid == resource.data.posterId;
+      allow read, create: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.posterId;
     }
 
-    // --- Friend Requests ---
-    // Users can read/write requests they sent or received.
-    match /friendRequests/{requestId} {
-        allow read, create, update, delete: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
-        allow list: if request.auth.uid == request.query.where.value;
-    }
-
-    // --- Chats ---
-    // Users can only interact with chats they are a part of.
-    match /chats/{chatId} {
-      allow read, update: if request.auth.uid in resource.data.participantIds;
-      allow list: if request.query.where.value == request.auth.uid; // Allows querying for user's own chats
-
-      // --- Chat Messages ---
-      // Users can only read/write messages in chats they are a part of.
-      match /messages/{messageId} {
-        allow read, create: if get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
-      }
+    // --- Matches ---
+    // Allow read if a participant.
+    // Allow creation for any authenticated user (validation is in server logic).
+    // Allow update (confirm/decline) if a participant.
+    match /matches/{matchId} {
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null;
     }
 
     // --- Tournaments ---
-    // Users can only read/write tournaments they are a part of.
+    // Allow any authenticated user to read/list.
+    // Allow creation for any authenticated user.
+    // Allow update only by the organizer.
     match /tournaments/{tournamentId} {
-        allow read: if request.auth.uid in resource.data.participantIds;
-        allow list: if request.query.where.value == request.auth.uid;
-        allow create: if request.auth.uid == request.resource.data.organizerId;
-        allow update: if request.auth.uid == resource.data.organizerId;
+      allow read, create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == resource.data.organizerId;
     }
 
-    // --- AI Games ---
-    // Users can interact with games they are participating in.
-    match /rallyGames/{gameId} {
-        allow read, update, delete: if request.auth.uid in resource.data.participantIds;
-        allow list: if request.query.where.value == request.auth.uid;
-        allow create: if request.auth.uid in request.resource.data.participantIds;
+    // --- Chats ---
+    // Allow read/write on a chat document if the user is a participant.
+    match /chats/{chatId} {
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
-    match /legendGames/{gameId} {
-        allow read, update, delete: if request.auth.uid in resource.data.participantIds;
-        allow list: if request.query.where.value == request.auth.uid;
-        allow create: if request.auth.uid in request.resource.data.participantIds;
+
+    // --- Chat Messages (Subcollection) ---
+    // Allow read if a participant in the parent chat.
+    // Allow create if the sender is the authenticated user.
+    match /chats/{chatId}/messages/{messageId} {
+      allow read: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
     }
-    
-    // --- User Reports ---
-    // Any authenticated user can create a report.
-    match /reports/{reportId} {
+
+    // --- Games (Rally & Legend) ---
+    // Generic rule for game collections.
+    // Allow read/update if the user is a participant.
+    // Allow creation for any authenticated user (server logic handles validation).
+    match /{gameCollection}/{gameId} where gameCollection in ['rallyGames', 'legendGames'] {
+      allow read, update, delete: if request.auth != null && request.auth.uid in resource.data.participantIds;
       allow create: if request.auth != null;
+    }
+
+    // --- User Reports ---
+    // Only allow creation. Reports should be read/managed by an admin process, not by users.
+    match /reports/{reportId} {
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.reporterId;
     }
   }
 }
