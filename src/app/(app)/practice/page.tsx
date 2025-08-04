@@ -46,10 +46,13 @@ export default function PracticeLogPage() {
     fetchSessions();
   }, [fetchSessions]);
 
-  const sortedSessions = useMemo(() => {
-    // Sort on the client-side
-    return [...sessions].sort((a, b) => b.date - a.date);
-  }, [sessions]);
+  const filteredAndSortedSessions = useMemo(() => {
+    if (!sessions || !user) return [];
+    // Client-side filtering and sorting
+    return sessions
+      .filter(session => session.userId === user.uid && session.sport === sport)
+      .sort((a, b) => b.date - a.date);
+  }, [sessions, user, sport]);
 
   const renderContent = () => {
     if (isLoading) {
@@ -62,7 +65,7 @@ export default function PracticeLogPage() {
     if (error) {
       return <FirestoreIndexAlert message={error} />;
     }
-    if (sortedSessions.length === 0) {
+    if (filteredAndSortedSessions.length === 0) {
       return (
         <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
             <Dumbbell className="h-12 w-12 text-muted-foreground" />
@@ -73,7 +76,7 @@ export default function PracticeLogPage() {
     }
     return (
       <div className="space-y-4">
-        {sortedSessions.map((session, i) => (
+        {filteredAndSortedSessions.map((session, i) => (
           <PracticeSessionCard 
             key={session.id} 
             session={session} 

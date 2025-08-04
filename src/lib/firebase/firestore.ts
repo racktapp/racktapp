@@ -729,15 +729,14 @@ export async function logPracticeSession(
     });
 }
 
-export async function getPracticeSessionsForUser(userId: string, sport: Sport): Promise<PracticeSession[]> {
-    const q = query(
-      collection(db, 'practiceSessions'),
-      where('userId', '==', userId),
-      where('sport', '==', sport),
-      limit(50)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+export async function getPracticeSessionsForUser(
+  userId: string,
+  sport: Sport
+): Promise<PracticeSession[]> {
+  // Fetches all documents and leaves filtering/sorting to the client
+  // to avoid needing a composite index.
+  const snapshot = await getDocs(collection(db, "practiceSessions"));
+  return snapshot.docs.map((doc) => doc.data() as PracticeSession);
 }
 
 // User Reporting
