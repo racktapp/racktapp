@@ -33,11 +33,11 @@ export default function PracticeLogPage() {
       if (result.success) {
         setSessions(result.data || []);
       } else {
-        // Pass the full error message from the action
+        // The full error message, including the URL, will be in result.error
         setError(result.error);
       }
     } catch (err: any) {
-      // Also catch any unexpected errors
+      // Also catch any unexpected errors during the action call itself
       setError(err.message || "An unexpected error occurred.");
     }
     setIsLoading(false);

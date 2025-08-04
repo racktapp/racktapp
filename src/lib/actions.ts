@@ -905,6 +905,7 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         const sessions = await getPracticeSessionsForUser(userId, sport);
         return { success: true, data: sessions };
     } catch (error: any) {
+        // Return the full error message, which may contain the index creation URL
         return { success: false, error: error.message };
     }
 }
