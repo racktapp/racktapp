@@ -693,39 +693,36 @@ export async function logPracticeSession(
   data: z.infer<typeof practiceSessionSchema>,
   userId: string
 ): Promise<void> {
-    await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const userDoc = await transaction.get(userRef);
-        if (!userDoc.exists()) throw new Error('User not found.');
+  await runTransaction(db, async (transaction) => {
+    const userRef = doc(db, 'users', userId);
+    
+    // Create the practice session document in the subcollection
+    const sessionRef = doc(collection(userRef, 'practiceSessions'));
+    const newSession: PracticeSession = {
+      id: sessionRef.id,
+      userId,
+      sport: data.sport,
+      date: data.date.getTime(),
+      duration: data.duration,
+      intensity: data.intensity,
+      notes: data.notes,
+      createdAt: Timestamp.now().toMillis(),
+    };
+    transaction.set(sessionRef, newSession);
 
-        const user = userDoc.data() as User;
-        const currentStats = user.sports?.[data.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
+    // Update user's sport stats
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists()) throw new Error('User not found.');
+    const user = userDoc.data() as User;
+    const currentStats = user.sports?.[data.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
+    const newRank = currentStats.racktRank + 2;
+    const updatedEloHistory = [...(currentStats.eloHistory || []), { date: data.date.getTime(), elo: newRank }].slice(-30);
 
-        // Award 2 points for logging a practice session
-        const newRank = currentStats.racktRank + 2;
-
-        const updatedEloHistory = [...(currentStats.eloHistory || []), { date: data.date.getTime(), elo: newRank }].slice(-30);
-
-        // Update user's sport stats
-        transaction.update(userRef, {
-            [`sports.${data.sport}.racktRank`]: newRank,
-            [`sports.${data.sport}.eloHistory`]: updatedEloHistory,
-        });
-
-        // Create the practice session document
-        const sessionRef = doc(collection(db, 'practiceSessions'));
-        const newSession: PracticeSession = {
-            id: sessionRef.id,
-            userId,
-            sport: data.sport,
-            date: data.date.getTime(),
-            duration: data.duration,
-            intensity: data.intensity,
-            notes: data.notes,
-            createdAt: Timestamp.now().toMillis(),
-        };
-        transaction.set(sessionRef, newSession);
+    transaction.update(userRef, {
+      [`sports.${data.sport}.racktRank`]: newRank,
+      [`sports.${data.sport}.eloHistory`]: updatedEloHistory,
     });
+  });
 }
 
 export async function getPracticeSessionsForUser(
@@ -733,17 +730,18 @@ export async function getPracticeSessionsForUser(
   sport: Sport
 ): Promise<PracticeSession[]> {
   try {
-    const q = query(
-      collection(db, "practiceSessions"),
-      where("userId", "==", userId),
-      where("sport", "==", sport),
-      orderBy("date", "desc")
-    );
+    const sessionsRef = collection(db, 'users', userId, 'practiceSessions');
+    const q = query(sessionsRef, orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+    
+    // Since sport is not in the subcollection query, we filter it client-side.
+    // This is fine because we're only querying the current user's (small) subcollection.
+    return snapshot.docs
+      .map((doc) => doc.data() as PracticeSession)
+      .filter((session) => session.sport === sport);
+      
   } catch (error: any) {
     console.error("Error in getPracticeSessionsForUser:", error);
-    // Re-throwing the error to be caught by the action
     throw new Error(error.message);
   }
 }
@@ -767,40 +765,54 @@ export async function findCourts(
   radiusKm: number,
   sports: Sport[]
 ): Promise<Court[]> {
-  const center = [latitude, longitude];
-  const radiusInM = radiusKm * 1000;
+    const radiusInM = radiusKm * 1000;
+    
+    // If no sports are selected, search for generic "court"
+    const selectedSports = sports.length > 0 ? sports : ['court'];
+    const searchPromises = selectedSports.map(sport => {
+        // Use a more specific query for better results
+        const query = `${sport} court`;
+        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+        return fetch(url).then(res => res.json());
+    });
+    
+    try {
+        const results = await Promise.all(searchPromises);
+        const allPlaces: any[] = [];
+        const seenPlaceIds = new Set<string>();
 
-  const bounds = geofire.geohashQueryBounds(center, radiusInM);
-  const promises = [];
-  for (const b of bounds) {
-    const q = query(
-      collection(db, 'courts'),
-      orderBy('geohash'),
-      where('geohash', '>=', b[0]),
-      where('geohash', '<=', b[1])
-    );
-    promises.push(getDocs(q));
-  }
-  
-  const snapshots = await Promise.all(promises);
-  const matchingDocs: Court[] = [];
-
-  for (const snap of snapshots) {
-    for (const doc of snap.docs) {
-      const court = doc.data() as Court;
-      const lat = court.location.latitude;
-      const lng = court.location.longitude;
-      const distanceInKm = geofire.distanceBetween([lat, lng], center);
-      const distanceInM = distanceInKm * 1000;
-      if (distanceInM <= radiusInM) {
-        if (sports.length === 0 || court.supportedSports.some(s => sports.includes(s))) {
-            matchingDocs.push(court);
+        for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            const sport = selectedSports[i];
+            if (result.status === 'OK') {
+                for (const place of result.results) {
+                    if (!seenPlaceIds.has(place.place_id)) {
+                        seenPlaceIds.add(place.place_id);
+                         const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,url,geometry,vicinity&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+                         allPlaces.push(fetch(placeDetailsUrl).then(res => res.json()).then(detailResult => ({...detailResult.result, sport})));
+                    }
+                }
+            } else if (result.status !== 'ZERO_RESULTS') {
+                console.error(`Google Places API Error for sport "${sport}":`, result.status, result.error_message || '');
+            }
         }
-      }
-    }
-  }
+        
+        const detailedPlaces = await Promise.all(allPlaces);
 
-  // Remove duplicates
-  const uniqueCourts = Array.from(new Map(matchingDocs.map(item => [item['id'], item])).values());
-  return uniqueCourts;
+        return detailedPlaces.map(place => ({
+            id: place.place_id,
+            name: place.name,
+            location: {
+                latitude: place.geometry.location.lat,
+                longitude: place.geometry.location.lng,
+            },
+            address: place.vicinity,
+            url: place.url,
+            supportedSports: [place.sport], // We can only be sure about the sport we searched for
+        }));
+
+    } catch (error) {
+        console.error("Failed to fetch courts from Google Maps API:", error);
+        return [];
+    }
 }
