@@ -1,5 +1,4 @@
 
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -733,10 +732,20 @@ export async function getPracticeSessionsForUser(
   userId: string,
   sport: Sport
 ): Promise<PracticeSession[]> {
-  // Fetches all documents and leaves filtering/sorting to the client
-  // to avoid needing a composite index.
-  const snapshot = await getDocs(collection(db, "practiceSessions"));
-  return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+  try {
+    const q = query(
+      collection(db, "practiceSessions"),
+      where("userId", "==", userId),
+      where("sport", "==", sport),
+      orderBy("date", "desc")
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+  } catch (error: any) {
+    console.error("Error in getPracticeSessionsForUser:", error);
+    // Re-throwing the error to be caught by the action
+    throw new Error(error.message);
+  }
 }
 
 // User Reporting
@@ -795,5 +804,3 @@ export async function findCourts(
   const uniqueCourts = Array.from(new Map(matchingDocs.map(item => [item['id'], item])).values());
   return uniqueCourts;
 }
-
-    

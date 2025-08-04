@@ -46,14 +46,6 @@ export default function PracticeLogPage() {
     fetchSessions();
   }, [fetchSessions]);
 
-  const filteredAndSortedSessions = useMemo(() => {
-    if (!sessions || !user) return [];
-    // Client-side filtering and sorting
-    return sessions
-      .filter(session => session.userId === user.uid && session.sport === sport)
-      .sort((a, b) => b.date - a.date);
-  }, [sessions, user, sport]);
-
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -74,7 +66,7 @@ export default function PracticeLogPage() {
         </Alert>
       );
     }
-    if (filteredAndSortedSessions.length === 0) {
+    if (sessions.length === 0) {
       return (
         <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
             <Dumbbell className="h-12 w-12 text-muted-foreground" />
@@ -85,7 +77,7 @@ export default function PracticeLogPage() {
     }
     return (
       <div className="space-y-4">
-        {filteredAndSortedSessions.map((session, i) => (
+        {sessions.map((session, i) => (
           <PracticeSessionCard 
             key={session.id} 
             session={session} 
