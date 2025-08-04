@@ -694,18 +694,39 @@ export async function logPracticeSession(
   data: z.infer<typeof practiceSessionSchema>,
   userId: string
 ): Promise<void> {
-  const sessionRef = doc(collection(db, 'practiceSessions'));
-  const newSession: PracticeSession = {
-    id: sessionRef.id,
-    userId,
-    sport: data.sport,
-    date: data.date.getTime(),
-    duration: data.duration,
-    intensity: data.intensity,
-    notes: data.notes,
-    createdAt: Timestamp.now().toMillis(),
-  };
-  await setDoc(sessionRef, newSession);
+    await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await transaction.get(userRef);
+        if (!userDoc.exists()) throw new Error('User not found.');
+
+        const user = userDoc.data() as User;
+        const currentStats = user.sports?.[data.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
+
+        // Award 2 points for logging a practice session
+        const newRank = currentStats.racktRank + 2;
+
+        const updatedEloHistory = [...(currentStats.eloHistory || []), { date: data.date.getTime(), elo: newRank }].slice(-30);
+
+        // Update user's sport stats
+        transaction.update(userRef, {
+            [`sports.${data.sport}.racktRank`]: newRank,
+            [`sports.${data.sport}.eloHistory`]: updatedEloHistory,
+        });
+
+        // Create the practice session document
+        const sessionRef = doc(collection(db, 'practiceSessions'));
+        const newSession: PracticeSession = {
+            id: sessionRef.id,
+            userId,
+            sport: data.sport,
+            date: data.date.getTime(),
+            duration: data.duration,
+            intensity: data.intensity,
+            notes: data.notes,
+            createdAt: Timestamp.now().toMillis(),
+        };
+        transaction.set(sessionRef, newSession);
+    });
 }
 
 export async function getPracticeSessionsForUser(

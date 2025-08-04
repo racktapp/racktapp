@@ -886,6 +886,20 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
 
 // --- Practice Log Actions ---
 
+export async function logPracticeSessionAction(
+  data: z.infer<typeof practiceSessionSchema>,
+  userId: string
+) {
+  try {
+    await logPracticeSession(data, userId);
+    revalidatePath('/practice');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+}
+
 export async function getPracticeSessionsAction(userId: string, sport: Sport) {
     try {
         const sessions = await getPracticeSessionsForUser(userId, sport);
