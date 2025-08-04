@@ -729,14 +729,17 @@ export async function logPracticeSession(
     });
 }
 
-export async function getPracticeSessionsForUser(): Promise<PracticeSession[]> {
+export async function getPracticeSessionsForUser(userId: string, sport: Sport): Promise<PracticeSession[]> {
     const q = query(
       collection(db, 'practiceSessions'),
-      limit(200) // Fetch a reasonable number of recent sessions for all users
+      where('userId', '==', userId),
+      where('sport', '==', sport),
+      orderBy('date', 'desc'),
+      limit(50)
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => doc.data() as PracticeSession);
-  }
+}
 
 // User Reporting
 export async function createReport(data: z.infer<typeof reportUserSchema>) {

@@ -900,9 +900,9 @@ export async function logPracticeSessionAction(
   }
 }
 
-export async function getPracticeSessionsAction() {
+export async function getPracticeSessionsAction(userId: string, sport: Sport) {
     try {
-        const sessions = await getPracticeSessionsForUser();
+        const sessions = await getPracticeSessionsForUser(userId, sport);
         return { success: true, data: sessions };
     } catch (error: any) {
         // Return the full error message, which may contain the index creation URL

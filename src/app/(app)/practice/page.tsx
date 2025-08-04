@@ -30,13 +30,10 @@ export default function PracticeLogPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await getPracticeSessionsAction();
+      // The action now handles filtering and sorting, so we just set the data.
+      const result = await getPracticeSessionsAction(user.uid, sport);
       if (result.success) {
-        // Filter and sort sessions on the client side
-        const userSessionsForSport = (result.data || [])
-            .filter(session => session.userId === user.uid && session.sport === sport)
-            .sort((a, b) => b.date - a.date);
-        setSessions(userSessionsForSport);
+        setSessions(result.data || []);
       } else {
         setError(result.error);
       }
