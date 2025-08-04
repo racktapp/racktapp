@@ -15,8 +15,6 @@ import { CreatePracticeLogDialog } from '@/components/practice/create-practice-l
 import { PracticeSessionCard } from '@/components/practice/practice-session-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
 
 export default function PracticeLogPage() {
   const { user } = useAuth();
@@ -34,13 +32,13 @@ export default function PracticeLogPage() {
     try {
       const result = await getPracticeSessionsAction(user.uid, sport);
       if (result.success) {
-        setSessions(result.data || []);
+        // Sort sessions on the client side
+        const sortedSessions = (result.data || []).sort((a, b) => b.date - a.date);
+        setSessions(sortedSessions);
       } else {
-        // The full error message, including the URL, will be in result.error
         setError(result.error);
       }
     } catch (err: any) {
-      // Also catch any unexpected errors during the action call itself
       setError(err.message || "An unexpected error occurred.");
     }
     setIsLoading(false);
@@ -59,25 +57,7 @@ export default function PracticeLogPage() {
       );
     }
     if (error) {
-       // This is a fallback in case the automatic link generation fails.
-       // It provides manual instructions.
-      return (
-        <Alert variant="destructive">
-          <Terminal className="h-4 w-4" />
-          <AlertTitle>Database Index Required</AlertTitle>
-          <AlertDescription>
-            <p className="mb-2">To view practice logs, a specific database index needs to be created in your Firebase project. This is a one-time setup.</p>
-            <p className="font-semibold">Please create the following composite index in your Firestore console:</p>
-            <ul className="list-disc pl-5 mt-2 text-xs bg-muted p-2 rounded-md font-mono">
-                <li>Collection ID: `practiceSessions`</li>
-                <li>Field 1: `userId` (Ascending)</li>
-                <li>Field 2: `sport` (Ascending)</li>
-                <li>Field 3: `date` (Descending)</li>
-            </ul>
-            <p className="mt-2 text-xs">After the index is built (status becomes "Enabled"), this page will work correctly.</p>
-          </AlertDescription>
-        </Alert>
-      );
+      return <FirestoreIndexAlert message={error} />;
     }
     if (sessions.length === 0) {
       return (

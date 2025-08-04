@@ -370,7 +370,7 @@ export async function deleteFriendRequest(requestId: string) {
 export async function removeFriend(userId: string, friendId: string) {
   await runTransaction(db, async (t) => {
     t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
-    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
+    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(friendId) });
   });
 }
 
@@ -741,7 +741,7 @@ export async function getPracticeSessionsForUser(
   );
   const snapshot = await getDocs(q);
   // Sort by date on the client-side
-  return snapshot.docs.map((doc) => doc.data() as PracticeSession).sort((a, b) => b.date - a.date);
+  return snapshot.docs.map((doc) => doc.data() as PracticeSession);
 }
 
 // User Reporting
