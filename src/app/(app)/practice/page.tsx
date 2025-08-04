@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, TriangleAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ import { PracticeSession } from '@/lib/types';
 import { CreatePracticeLogDialog } from '@/components/practice/create-practice-log-dialog';
 import { PracticeSessionCard } from '@/components/practice/practice-session-card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function PracticeLogPage() {
   const { user } = useAuth();
@@ -63,7 +63,16 @@ export default function PracticeLogPage() {
       );
     }
     if (error) {
-      return <FirestoreIndexAlert message={error} />;
+       return (
+        <Alert variant="destructive">
+          <TriangleAlert className="h-4 w-4" />
+          <AlertTitle>Error Loading Practice Sessions</AlertTitle>
+          <AlertDescription>
+            <p>{error}</p>
+            <p className="mt-2 text-xs">This may be due to a permissions issue or a missing database index. Please check your Firestore Rules and Indexes.</p>
+          </AlertDescription>
+        </Alert>
+      );
     }
     if (filteredAndSortedSessions.length === 0) {
       return (
@@ -108,5 +117,3 @@ export default function PracticeLogPage() {
     </div>
   );
 }
-
-    
