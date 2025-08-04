@@ -33,10 +33,12 @@ export default function PracticeLogPage() {
       if (result.success) {
         setSessions(result.data || []);
       } else {
+        // Pass the full error message from the action
         setError(result.error);
       }
-    } catch (error: any) {
-      setError(error.message);
+    } catch (err: any) {
+      // Also catch any unexpected errors
+      setError(err.message || "An unexpected error occurred.");
     }
     setIsLoading(false);
   }, [user, sport]);
