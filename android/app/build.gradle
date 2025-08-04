@@ -1,21 +1,36 @@
-
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.rackt.app"
+    namespace "com.taivas.rackt"
     compileSdk 34
+
     defaultConfig {
-        applicationId "com.rackt.app"
-        minSdkVersion 22
-        targetSdkVersion 34
+        applicationId "com.taivas.rackt"
+        minSdk 22
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    signingConfigs {
+        release {
+            // If you have a keystore.properties file, it'll be applied automatically here
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    packagingOptions {
+        resources {
+            // Avoid duplicate META-INF entries
+            excludes += '/META-INF/DEPENDENCIES'
         }
     }
 }
@@ -23,6 +38,22 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.6.1'
+
+    // Capacitor core runtime
     implementation project(':capacitor-android')
+    // Any Cordova plugins you’ve added
     implementation project(':capacitor-cordova-android-plugins')
+
+    // Firebase Analytics via BOM
+    implementation platform('com.google.firebase:firebase-bom:33.2.0')
+    implementation 'com.google.firebase:firebase-analytics'
+
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
+
+// Capacitor's own Gradle wiring
+apply from: 'capacitor.build.gradle'
+// Google services plugin (for Firebase)
+apply plugin: 'com.google.gms.google-services'
