@@ -523,7 +523,7 @@ export async function reportTournamentWinner(tournamentId: string, matchId: stri
                 break;
             }
         }
-        if (!matchFound) throw new Error("Match not found.");
+        if (!matchFound) throw new Error("Match not found in bracket.");
         t.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
     });
 }
@@ -734,7 +734,6 @@ export async function getPracticeSessionsForUser(userId: string, sport: Sport): 
       collection(db, 'practiceSessions'),
       where('userId', '==', userId),
       where('sport', '==', sport),
-      orderBy('date', 'desc'),
       limit(50)
     );
     const snapshot = await getDocs(q);
@@ -797,3 +796,5 @@ export async function findCourts(
   const uniqueCourts = Array.from(new Map(matchingDocs.map(item => [item['id'], item])).values());
   return uniqueCourts;
 }
+
+    

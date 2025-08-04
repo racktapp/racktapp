@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Dumbbell } from 'lucide-react';
@@ -30,7 +30,6 @@ export default function PracticeLogPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // The action now handles filtering and sorting, so we just set the data.
       const result = await getPracticeSessionsAction(user.uid, sport);
       if (result.success) {
         setSessions(result.data || []);
@@ -47,6 +46,10 @@ export default function PracticeLogPage() {
     fetchSessions();
   }, [fetchSessions]);
 
+  const sortedSessions = useMemo(() => {
+    return [...sessions].sort((a, b) => b.date - a.date);
+  }, [sessions]);
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -58,7 +61,7 @@ export default function PracticeLogPage() {
     if (error) {
       return <FirestoreIndexAlert message={error} />;
     }
-    if (sessions.length === 0) {
+    if (sortedSessions.length === 0) {
       return (
         <div className="flex h-64 flex-col items-center justify-center rounded-lg border-2 border-dashed">
             <Dumbbell className="h-12 w-12 text-muted-foreground" />
@@ -69,7 +72,7 @@ export default function PracticeLogPage() {
     }
     return (
       <div className="space-y-4">
-        {sessions.map((session, i) => (
+        {sortedSessions.map((session, i) => (
           <PracticeSessionCard 
             key={session.id} 
             session={session} 
@@ -101,3 +104,5 @@ export default function PracticeLogPage() {
     </div>
   );
 }
+
+    
