@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './use-auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { Challenge, FriendRequest, RallyGame, LegendGame } from '@/lib/types';
 
 export interface NotificationCounts {
     friendRequestCount: number;
@@ -24,58 +25,59 @@ export function useNotifications() {
             return;
         }
 
-        const queries = {
-            friendRequests: query(collection(db, 'friendRequests'), where('toId', '==', user.uid), where('status', '==', 'pending')),
-            challenges: query(collection(db, 'challenges'), where('toId', '==', user.uid), where('status', '==', 'pending')),
-            rallyGames: query(collection(db, 'rallyGames'), where('currentPlayerId', '==', user.uid), where('status', '==', 'ongoing')),
-            legendGames: query(collection(db, 'legendGames'), where('currentPlayerId', '==', user.uid), where('status', '==', 'ongoing')),
-        };
-
         const unsubs: (() => void)[] = [];
-        let currentCounts = { friendRequestCount: 0, challengeCount: 0, gameTurnCount: 0 };
+        const currentCounts = { friendRequestCount: 0, challengeCount: 0, gameTurnCount: 0 };
         
-        let loaded = 0;
-        const totalQueries = 4;
-        
-        const updateState = () => {
+        const updateTotal = () => {
             const total = currentCounts.friendRequestCount + currentCounts.challengeCount + currentCounts.gameTurnCount;
             setCounts({ ...currentCounts, total });
-            if (loaded === totalQueries) {
-                setIsLoading(false);
-            }
         };
 
-        unsubs.push(onSnapshot(queries.friendRequests, (snap) => {
-            currentCounts.friendRequestCount = snap.size;
-            if(loaded < totalQueries) loaded++;
-            updateState();
+        // --- Friend Requests Listener ---
+        const frQuery = query(collection(db, 'friendRequests'), where('toId', '==', user.uid));
+        unsubs.push(onSnapshot(frQuery, (snap) => {
+            currentCounts.friendRequestCount = snap.docs.filter(doc => (doc.data() as FriendRequest).status === 'pending').length;
+            updateTotal();
         }));
 
-        unsubs.push(onSnapshot(queries.challenges, (snap) => {
-            currentCounts.challengeCount = snap.size;
-            if(loaded < totalQueries) loaded++;
-            updateState();
+        // --- Challenges Listener ---
+        const challengeQuery = query(collection(db, 'challenges'), where('toId', '==', user.uid));
+        unsubs.push(onSnapshot(challengeQuery, (snap) => {
+            currentCounts.challengeCount = snap.docs.filter(doc => (doc.data() as Challenge).status === 'pending').length;
+            updateTotal();
         }));
         
+        // --- Game Listeners ---
         let rallyCount = 0;
         let legendCount = 0;
-
         const updateGameCount = () => {
             currentCounts.gameTurnCount = rallyCount + legendCount;
-            updateState();
+            updateTotal();
         }
 
-        unsubs.push(onSnapshot(queries.rallyGames, (snap) => {
-            rallyCount = snap.size;
-            if(loaded < totalQueries) loaded++;
+        const rallyQuery = query(collection(db, 'rallyGames'), where('participantIds', 'array-contains', user.uid));
+        unsubs.push(onSnapshot(rallyQuery, (snap) => {
+            rallyCount = snap.docs.filter(doc => {
+                const game = doc.data() as RallyGame;
+                return game.status === 'ongoing' && game.currentPlayerId === user.uid;
+            }).length;
             updateGameCount();
         }));
 
-        unsubs.push(onSnapshot(queries.legendGames, (snap) => {
-            legendCount = snap.size;
-            if(loaded < totalQueries) loaded++;
+        const legendQuery = query(collection(db, 'legendGames'), where('participantIds', 'array-contains', user.uid));
+        unsubs.push(onSnapshot(legendQuery, (snap) => {
+            legendCount = snap.docs.filter(doc => {
+                const game = doc.data() as LegendGame;
+                return game.status === 'ongoing' && game.currentPlayerId === user.uid;
+            }).length;
             updateGameCount();
         }));
+        
+        // This is a one-time check for loading state.
+        // The listeners will continue to run, but this sets loading to false after initial setup.
+        // It's a simplification to avoid complex multi-listener loading state management.
+        const timer = setTimeout(() => setIsLoading(false), 2000);
+        unsubs.push(() => clearTimeout(timer));
 
         return () => {
             unsubs.forEach(unsub => unsub());
