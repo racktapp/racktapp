@@ -886,22 +886,12 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
 
 // --- Practice Log Actions ---
 
-export async function logPracticeSessionAction(values: z.infer<typeof practiceSessionSchema>, userId: string) {
-    try {
-        await logPracticeSession(values, userId);
-        revalidatePath('/practice');
-        return { success: true, message: 'Practice session logged!' };
-    } catch (error: any) {
-        return { success: false, message: error.message || 'Failed to log practice session.' };
-    }
-}
-
 export async function getPracticeSessionsAction(userId: string, sport: Sport) {
     try {
         const sessions = await getPracticeSessionsForUser(userId, sport);
         return { success: true, data: sessions };
     } catch (error: any) {
-        return { success: false, error: error.message || 'Failed to fetch practice sessions.' };
+        return { success: false, error: error.message };
     }
 }
 

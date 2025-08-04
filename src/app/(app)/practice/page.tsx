@@ -29,14 +29,14 @@ export default function PracticeLogPage() {
     setIsLoading(true);
     setError(null);
     try {
-        const result = await getPracticeSessionsAction(user.uid, sport);
-        if (result.success) {
-            setSessions(result.data || []);
-        } else {
-            setError(result.error || 'Failed to load sessions.');
-        }
+      const result = await getPracticeSessionsAction(user.uid, sport);
+      if (result.success) {
+        setSessions(result.data || []);
+      } else {
+        setError(result.error);
+      }
     } catch (error: any) {
-        setError(error.message);
+      setError(error.message);
     }
     setIsLoading(false);
   }, [user, sport]);
