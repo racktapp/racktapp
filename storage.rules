@@ -1,22 +1,24 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // AVATARS
-    // Allow anyone to read user avatars.
-    // Only allow an authenticated user to write to their own avatar directory.
-    match /avatars/{userId}/{allPaths=**} {
+    // Allow public read access to all avatars.
+    // This allows anyone to view profile pictures.
+    match /avatars/{allPaths=**} {
       allow read: if true;
+    }
+
+    // Restrict write access to user-specific avatar folders.
+    // Only the authenticated user can upload or delete their own avatar.
+    match /avatars/{userId}/{allPaths=**} {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // SWING ANALYSIS VIDEOS
-    // Only allow an authenticated user to read or write videos in their own directory.
-    match /swings/{userId}/{videoId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // By default, deny all other reads and writes to storage.
+    // This is a secure default.
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
-    
   }
 }
