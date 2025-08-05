@@ -13,31 +13,35 @@ service cloud.firestore {
     }
     
     function isParticipant(resource) {
-        return request.auth.uid in resource.data.participantIds;
+      return request.auth.uid in resource.data.participantIds;
     }
 
     // --- User Profiles ---
-    // Anyone can read profiles for leaderboards, search, etc.
-    // Only the owner can create, update, or delete their own profile.
+    // Users can read any profile (for leaderboards, friend searches, etc.)
+    // Users can only create, update, or delete their own profile document.
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isOwner(userId);
       
-      // Practice sessions are private.
+      // Practice sessions are private to the user
       match /practiceSessions/{sessionId} {
-        allow read, write: if isOwner(userId);
+        allow read, create, update, delete: if isOwner(userId);
       }
     }
 
     // --- Friend Requests ---
-    // Only the sender or receiver can interact with a request.
+    // A user can read a request if they sent it or received it.
+    // A user can create a request if they are the sender.
+    // A user can delete a request if they sent it or received it.
     match /friendRequests/{requestId} {
       allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
     }
 
     // --- Challenges ---
-    // Only the sender or receiver can interact with a direct challenge.
+    // A user can read/delete a challenge if they sent or received it.
+    // A user can create a challenge if they are the sender.
+    // A user can update a challenge (accept/decline) if they are the recipient.
     match /challenges/{challengeId} {
       allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
@@ -45,20 +49,23 @@ service cloud.firestore {
     }
 
     // --- Open Challenges ---
-    // Anyone can read open challenges. Only the poster can delete them.
+    // Any signed-in user can read all open challenges.
+    // A user can only delete an open challenge they posted.
     match /openChallenges/{challengeId} {
         allow read, create: if isSignedIn();
         allow delete: if isSignedIn() && isOwner(resource.data.posterId);
     }
     
     // --- Matches ---
-    // A user can access a match if they are a participant.
+    // A user can read/update a match they participated in.
+    // A participant can create a match report.
     match /matches/{matchId} {
-      allow read, update, create: if isSignedIn() && isParticipant(request.resource);
+      allow read, update: if isSignedIn() && isParticipant(resource);
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
     }
 
     // --- Chats & Messages ---
-    // Participants can access their chat and messages.
+    // A user can read/write to a chat if they are a participant.
     match /chats/{chatId} {
       allow read, update: if isSignedIn() && isParticipant(resource);
       
@@ -68,14 +75,15 @@ service cloud.firestore {
     }
     
     // --- Tournaments ---
-    // Anyone can read tournaments, but only the organizer can update them.
+    // Any signed-in user can read any tournament.
+    // Only the organizer can update a tournament (reporting winners).
     match /tournaments/{tournamentId} {
       allow read, create: if isSignedIn();
       allow update: if isSignedIn() && isOwner(resource.data.organizerId);
     }
 
     // --- AI Games (Rally & Legend) ---
-    // Participants can access their games.
+    // A user can access a game if they are a participant.
     match /rallyGames/{gameId} {
       allow read, update, create, delete: if isSignedIn() && isParticipant(request.resource);
     }
@@ -85,9 +93,9 @@ service cloud.firestore {
     }
     
     // --- Reports ---
-    // Any signed-in user can create a report.
+    // Only signed-in users can create a report.
     match /reports/{reportId} {
-      allow create: if isSignedIn();
+        allow create: if isSignedIn();
     }
   }
 }
