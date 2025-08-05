@@ -21,11 +21,11 @@ service cloud.firestore {
     }
 
     match /friendRequests/{requestId} {
-      // Rules for individual document access (get, delete)
+      // Allow individual document access if you are the sender or receiver.
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      // Rule for creating a document
+      // Allow creating a request if you are the sender.
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
-      // Rule for querying the collection (list)
+      // Allow LISTING requests sent TO you for the notification query.
       allow list: if isSignedIn() && request.query.toId == request.auth.uid;
     }
 
@@ -33,6 +33,7 @@ service cloud.firestore {
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
       allow update: if isSignedIn() && isOwner(resource.data.toId);
+      // Allow LISTING challenges sent TO you for the notification query.
       allow list: if isSignedIn() && request.query.toId == request.auth.uid;
     }
 
