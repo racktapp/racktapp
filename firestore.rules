@@ -3,10 +3,84 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default allow read/write access for all documents for any signed-in user.
-    // This is insecure for production but will resolve permission errors for debugging.
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // --- Utility Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // --- User Profiles & Subcollections ---
+    match /users/{userId} {
+      // Allow signed-in users to read profiles for searching, leaderboards, etc.
+      allow read: if isSignedIn();
+      // Only the user themselves can create, update, or delete their profile.
+      allow create, update, delete: if isOwner(userId);
+
+      // Secure the practiceSessions subcollection.
+      match /practiceSessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // --- Collection-level Rules (for app queries) ---
+
+    // Friend Requests: Allow querying requests sent TO the current user.
+    // Individual doc access is still handled by the rule below.
+    match /friendRequests/{requestId} {
+      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
+      allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
+    }
+    
+    // Challenges: Allow querying challenges sent TO the current user.
+    match /challenges/{challengeId} {
+      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
+      allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
+      allow update: if isSignedIn() && request.auth.uid == resource.data.toId;
+    }
+    
+    // Open Challenges: Allow querying by sport.
+    match /openChallenges/{challengeId} {
+      allow list, create: if isSignedIn();
+      allow get: if isSignedIn();
+      allow delete: if isSignedIn() && isOwner(resource.data.posterId);
+    }
+    
+    // Matches, Games: Allow querying collections where the user is a participant.
+    match /matches/{matchId} {
+      allow list, get, update, create: if isSignedIn() && request.auth.uid in resource.data.participants;
+    }
+    
+    match /rallyGames/{gameId} {
+      allow list, get, update, create, delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+    }
+
+    match /legendGames/{gameId} {
+      allow list, get, update, create, delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+    }
+    
+    // Chats: Allow querying chats where the user is a participant.
+    match /chats/{chatId} {
+      allow list, get, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+
+      match /messages/{messageId} {
+        allow list, get, create: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+      }
+    }
+    
+    // Tournaments: Allow querying where user is a participant.
+    match /tournaments/{tournamentId} {
+      allow list, get, create: if isSignedIn();
+      allow update: if isSignedIn() && isOwner(resource.data.organizerId);
+    }
+
+    // Reports: Allow any signed-in user to create a report.
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
     }
   }
 }
