@@ -17,7 +17,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function PracticeLogPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const { toast } = useToast();
 
@@ -43,11 +43,13 @@ export default function PracticeLogPage() {
   }, [user, sport]);
 
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    if (!authLoading && user) {
+        fetchSessions();
+    }
+  }, [fetchSessions, authLoading, user]);
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading || authLoading) {
       return (
         <div className="flex h-64 items-center justify-center">
           <LoadingSpinner className="h-8 w-8" />
@@ -89,14 +91,14 @@ export default function PracticeLogPage() {
     );
   };
   
-  if (!user) return null;
+  if (!user && !authLoading) return null;
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Practice Log"
         description={`Track your ${sport} training sessions and monitor your progress.`}
-        actions={
+        actions={ user &&
           <CreatePracticeLogDialog onSessionLogged={fetchSessions}>
             <Button>
               <Dumbbell className="mr-2 h-4 w-4" />

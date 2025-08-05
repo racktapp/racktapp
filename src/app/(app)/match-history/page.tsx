@@ -15,7 +15,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function MatchHistoryPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const [confirmedMatches, setConfirmedMatches] = useState<Match[]>([]);
@@ -52,8 +52,10 @@ export default function MatchHistoryPage() {
   }, [user]);
 
   useEffect(() => {
-    fetchMatchData();
-  }, [fetchMatchData]);
+    if (!authLoading && user) {
+        fetchMatchData();
+    }
+  }, [fetchMatchData, authLoading, user]);
 
   const filteredMatches = useMemo(() => {
     if (!Array.isArray(confirmedMatches)) return [];
@@ -93,7 +95,7 @@ export default function MatchHistoryPage() {
   };
 
   const renderContent = () => {
-     if (isLoading) {
+     if (isLoading || authLoading) {
       return (
         <div className="flex h-64 items-center justify-center">
           <LoadingSpinner className="h-8 w-8" />
@@ -140,7 +142,11 @@ export default function MatchHistoryPage() {
     )
   }
 
-  if (!user) return null;
+  if (!user && !authLoading) {
+    // This case can happen briefly during redirect, or if something is wrong.
+    // It's better to show nothing than an error.
+    return null;
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">

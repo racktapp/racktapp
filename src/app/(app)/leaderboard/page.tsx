@@ -33,7 +33,7 @@ const getStreakDisplay = (streak: number) => {
 };
 
 export default function LeaderboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const { toast } = useToast();
 
@@ -59,8 +59,10 @@ export default function LeaderboardPage() {
   }, [user, sport, toast]);
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, [fetchLeaderboard]);
+    if (!authLoading && user) {
+        fetchLeaderboard();
+    }
+  }, [fetchLeaderboard, authLoading, user]);
 
   const rankedUsers = useMemo(() => {
     return leaderboard
@@ -77,6 +79,14 @@ export default function LeaderboardPage() {
         };
       });
   }, [leaderboard, sport]);
+
+  if (authLoading) {
+    return (
+        <div className="flex h-64 items-center justify-center">
+            <LoadingSpinner className="h-8 w-8" />
+        </div>
+    );
+  }
 
   if (!user) return null;
 

@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function ChallengesPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const { toast } = useToast();
 
@@ -51,8 +51,18 @@ export default function ChallengesPage() {
 
 
   useEffect(() => {
-    fetchChallenges();
-  }, [fetchChallenges]);
+    if (!authLoading && user) {
+        fetchChallenges();
+    }
+  }, [fetchChallenges, authLoading, user]);
+
+  if (authLoading) {
+    return (
+        <div className="flex h-64 items-center justify-center">
+            <LoadingSpinner className="h-8 w-8" />
+        </div>
+    );
+  }
 
   if (!user) return null;
 
