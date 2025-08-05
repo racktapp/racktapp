@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -13,17 +12,15 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
-    function isParticipant() {
+    function isParticipant(resource) {
         return request.auth.uid in resource.data.participantIds;
-    }
-    
-    function isSenderOrReceiver() {
-        return request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
     }
 
     // --- User Profiles ---
     // Users can read any profile (for leaderboards, friend searches, etc.)
-    // Users can only create, update, and delete their own profile document.
+    // Users can only create their own profile document.
+    // Users can only update their own profile document.
+    // Users can delete their own profile document.
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId);
@@ -32,70 +29,83 @@ service cloud.firestore {
       
       // Practice sessions are private to the user
       match /practiceSessions/{sessionId} {
-        allow read, write: if isOwner(userId);
+        allow read, create, update, delete: if isOwner(userId);
       }
     }
 
     // --- Friend Requests ---
-    // You can interact with a request if you sent it or received it.
+    // A user can read a request if they sent it or received it.
+    // A user can create a request if they are the sender.
+    // A user can delete a request if they sent it or received it (cancel/decline).
     match /friendRequests/{requestId} {
-      allow read, delete: if isSignedIn() && isSenderOrReceiver();
+      allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
     }
 
     // --- Challenges ---
-    // You can interact with a challenge if you sent it or received it.
+    // A user can read/delete a challenge if they sent or received it.
+    // A user can create a challenge if they are the sender.
+    // A user can update a challenge (accept/decline) if they are the recipient.
     match /challenges/{challengeId} {
-      allow read, delete: if isSignedIn() && isSenderOrReceiver();
+      allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
-      allow update: if isSignedIn() && request.auth.uid == resource.data.toId; // Only recipient can accept/decline
+      allow update: if isSignedIn() && request.auth.uid == resource.data.toId;
     }
 
     // --- Open Challenges ---
-    // Anyone can read open challenges. Only the poster can delete their own.
+    // Any signed-in user can read all open challenges.
+    // Any signed-in user can create an open challenge.
+    // A user can only delete an open challenge they posted.
     match /openChallenges/{challengeId} {
         allow read, create: if isSignedIn();
         allow delete: if isSignedIn() && isOwner(resource.data.posterId);
     }
     
     // --- Matches ---
-    // You can read or update a match if you are a participant.
+    // A user can read a match they participated in.
+    // Any participant can create a match report.
+    // Any participant can update a pending match (confirm/decline).
     match /matches/{matchId} {
-      allow read, update: if isSignedIn() && isParticipant();
+      allow read, update: if isSignedIn() && isParticipant(resource);
       allow create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
     }
 
     // --- Chats & Messages ---
-    // You can read or write to a chat if you are a participant.
+    // A user can read/write to a chat if they are a participant.
+    // Messages can only be read/written by participants of the parent chat.
     match /chats/{chatId} {
-      allow read, update: if isSignedIn() && isParticipant();
+      allow read, update: if isSignedIn() && isParticipant(resource);
       
       match /messages/{messageId} {
-        // You can read messages in a chat you are part of.
         allow read: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
-        // You can only create messages as yourself in a chat you are part of.
-        allow create: if isSignedIn() && isOwner(request.resource.data.senderId) && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+        allow create: if isSignedIn() && request.auth.uid == request.resource.data.senderId && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
       }
     }
     
     // --- Tournaments ---
-    // Anyone can read tournaments. Only the organizer can update them.
+    // Any signed-in user can read any tournament.
+    // Any signed-in user can create a tournament.
+    // Only the organizer can update a tournament (reporting winners).
     match /tournaments/{tournamentId} {
       allow read, create: if isSignedIn();
       allow update: if isSignedIn() && isOwner(resource.data.organizerId);
     }
 
     // --- AI Games (Rally & Legend) ---
-    // You can access a game if you are a participant.
+    // A user can access a game if they are a participant.
+    // Creation is handled by server-side actions, but reads/updates are direct.
     match /rallyGames/{gameId} {
-      allow read, write: if isSignedIn() && isParticipant();
+      allow read, update, delete: if isSignedIn() && isParticipant(resource);
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
     }
+    
     match /legendGames/{gameId} {
-      allow read, write: if isSignedIn() && isParticipant();
+      allow read, update, delete: if isSignedIn() && isParticipant(resource);
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
     }
     
     // --- Reports ---
-    // Any signed-in user can create a report.
+    // Only signed-in users can create a report.
     match /reports/{reportId} {
         allow create: if isSignedIn();
     }
