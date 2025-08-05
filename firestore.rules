@@ -21,8 +21,11 @@ service cloud.firestore {
     }
 
     match /friendRequests/{requestId} {
+      // Allow a user to get or delete a request if they are the sender or receiver
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      // Allow a user to create a request if they are the sender
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
+      // Allow a user to list requests sent TO them. This matches the app's notification query.
       allow list: if isSignedIn() && request.query.toId == request.auth.uid;
     }
 
@@ -30,6 +33,7 @@ service cloud.firestore {
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
       allow update: if isSignedIn() && isOwner(resource.data.toId);
+      // Allow a user to list challenges sent TO them. This matches the app's notification query.
       allow list: if isSignedIn() && request.query.toId == request.auth.uid;
     }
 
@@ -39,15 +43,19 @@ service cloud.firestore {
     }
     
     match /matches/{matchId} {
+      // Allow read/write to a match document if the user is a participant
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participants;
+      // Allow listing matches where the user is a participant.
       allow list: if isSignedIn() && request.query.participants.hasAny([request.auth.uid]);
     }
 
     match /chats/{chatId} {
       allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      // Allow listing chats where the user is a participant.
       allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
 
       match /messages/{messageId} {
+        // Allow read/create messages if the user is a participant of the parent chat document.
         allow read, create: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
       }
     }
