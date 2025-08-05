@@ -70,15 +70,6 @@
       ]
     },
     {
-      "collectionGroup": "matches",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sport", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "participants", "arrayConfig": "CONTAINS" }
-      ]
-    },
-    {
       "collectionGroup": "openChallenges",
       "queryScope": "COLLECTION",
       "fields": [
