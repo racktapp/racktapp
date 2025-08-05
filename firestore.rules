@@ -23,16 +23,14 @@ service cloud.firestore {
     match /friendRequests/{requestId} {
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
-      // This rule EXACTLY matches the query for notifications
-      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
+      allow list: if isSignedIn() && request.query.toId == request.auth.uid;
     }
 
     match /challenges/{challengeId} {
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
       allow update: if isSignedIn() && isOwner(resource.data.toId);
-       // This rule EXACTLY matches the query for notifications
-      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
+      allow list: if isSignedIn() && request.query.toId == request.auth.uid;
     }
 
     match /openChallenges/{challengeId} {
@@ -42,12 +40,12 @@ service cloud.firestore {
     
     match /matches/{matchId} {
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participants;
-      allow list: if isSignedIn() && request.query.where.participants.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.participants.hasAny([request.auth.uid]);
     }
 
     match /chats/{chatId} {
       allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
 
       match /messages/{messageId} {
         allow read, create: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
@@ -61,12 +59,12 @@ service cloud.firestore {
 
     match /rallyGames/{gameId} {
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
     }
     
     match /legendGames/{gameId} {
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
     }
     
     match /reports/{reportId} {
