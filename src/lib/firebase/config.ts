@@ -16,8 +16,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-// Connect to the specific 'rackt' database instead of the default.
-const db = getFirestore(app, 'rackt');
+// Connect to the specific 'test' database instead of the default.
+const db = getFirestore(app, 'test');
 const storage = getStorage(app);
 
 export { app, auth, db, storage };
