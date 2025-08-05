@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -696,7 +697,11 @@ export async function logPracticeSession(
   await runTransaction(db, async (transaction) => {
     const userRef = doc(db, 'users', userId);
     
-    // Create the practice session document in the subcollection
+    // READ FIRST
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists()) throw new Error('User not found.');
+    
+    // NOW DO ALL WRITES
     const sessionRef = doc(collection(userRef, 'practiceSessions'));
     const newSession: PracticeSession = {
       id: sessionRef.id,
@@ -710,9 +715,6 @@ export async function logPracticeSession(
     };
     transaction.set(sessionRef, newSession);
 
-    // Update user's sport stats
-    const userDoc = await transaction.get(userRef);
-    if (!userDoc.exists()) throw new Error('User not found.');
     const user = userDoc.data() as User;
     const currentStats = user.sports?.[data.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
     const newRank = currentStats.racktRank + 2;
