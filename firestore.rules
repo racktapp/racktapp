@@ -3,6 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Default catch-all: deny all reads/writes.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Utility Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
@@ -12,72 +18,77 @@ service cloud.firestore {
     }
 
     // --- User Profiles ---
-    // Users can read any profile for leaderboards, search, etc.
-    // Users can only write to their own document.
+    // Users can read any profile for leaderboards, friend searches, etc.
+    // Users can only create, update, or delete their own profile document.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && isOwner(userId);
-
-      // Practice sessions are private to the user.
-      match /practiceSessions/{sessionId} {
-        allow read, write: if isSignedIn() && isOwner(userId);
-      }
-    }
-
-    // --- Friend Requests & Challenges ---
-    // Rules must match the queries in use-notifications.ts exactly.
-    // The query is `where('toId', '==', user.uid)`, so the rule must check that.
-    match /friendRequests/{requestId} {
-      allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
-      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
+      allow create, update, delete: if isOwner(userId);
     }
     
-    match /challenges/{challengeId} {
-      allow read, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.fromId;
-      allow update: if isSignedIn() && request.auth.uid == resource.data.toId;
-      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
+    // Practice sessions are private and can only be accessed by the owner.
+    match /users/{userId}/practiceSessions/{sessionId} {
+      allow read, write: if isSignedIn() && isOwner(userId);
     }
 
+    // --- Friend Requests ---
+    // A user can list requests where they are the recipient.
+    // A user can list requests where they are the sender.
+    // A user can get a specific request if they are the sender or receiver.
+    match /friendRequests/{requestId} {
+      allow list: if isSignedIn() && (request.auth.uid == request.query.toId || request.auth.uid == request.query.fromId);
+      allow get: if isSignedIn() && (resource.data.toId == request.auth.uid || resource.data.fromId == request.auth.uid);
+      allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
+      allow delete: if isSignedIn() && (resource.data.toId == request.auth.uid || resource.data.fromId == request.auth.uid);
+    }
+
+    // --- Challenges ---
+    // A user can list challenges where they are the recipient or sender.
+    match /challenges/{challengeId} {
+      allow list: if isSignedIn() && (request.auth.uid == request.query.toId || request.auth.uid == request.query.fromId);
+      allow get: if isSignedIn() && (resource.data.toId == request.auth.uid || resource.data.fromId == request.auth.uid);
+      allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
+      allow update: if isSignedIn() && isOwner(resource.data.toId); // Only recipient can accept/decline
+      allow delete: if isSignedIn() && (isOwner(resource.data.fromId) || isOwner(resource.data.toId));
+    }
+    
     // --- Open Challenges ---
-    // Anyone can read open challenges based on the sport.
+    // Any signed-in user can list open challenges.
     match /openChallenges/{challengeId} {
       allow read, create: if isSignedIn();
       allow delete: if isSignedIn() && isOwner(resource.data.posterId);
-      allow list: if isSignedIn();
     }
-    
-    // --- Rules for collections queried with 'array-contains' ---
-    // The rule must check the 'participantIds' field directly.
+
+    // --- Matches, Chats, Games ---
+    // The rule is the same for all: a user can list items where they are a participant.
     match /matches/{matchId} {
-      allow read, update, create: if isSignedIn() && request.auth.uid in resource.data.participants;
-      allow list: if isSignedIn() && request.auth.uid in request.query.where.participants;
+      allow get, update, create: if isSignedIn() && request.auth.uid in request.resource.data.participants;
+      allow list: if isSignedIn() && request.auth.uid in request.query.participants;
     }
     
     match /chats/{chatId} {
-      allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
+      allow get, update, create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow list: if isSignedIn() && request.auth.uid in request.query.participantIds;
       
       match /messages/{messageId} {
         allow read, create: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
       }
     }
-    
+
     match /rallyGames/{gameId} {
-      allow read, update, delete, create: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
-    }
-    
-    match /legendGames/{gameId} {
-      allow read, update, delete, create: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
+      allow get, update, create, delete: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow list: if isSignedIn() && request.auth.uid in request.query.participantIds;
     }
 
+    match /legendGames/{gameId} {
+      allow get, update, create, delete: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      allow list: if isSignedIn() && request.auth.uid in request.query.participantIds;
+    }
+    
+    // --- Tournaments ---
+    // Any signed-in user can list/read tournaments. Only organizer can update.
     match /tournaments/{tournamentId} {
       allow read, create: if isSignedIn();
       allow update: if isSignedIn() && isOwner(resource.data.organizerId);
-      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
     }
     
     // --- Reports ---
