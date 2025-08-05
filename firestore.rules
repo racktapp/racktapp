@@ -8,83 +8,102 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // USER-RELATED RULES
+    // --- USERS ---
+    // Anyone can view a user's public profile.
+    // Only the authenticated user can modify their own document.
     match /users/{userId} {
-      allow read;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId) && 
-                      // Protect critical fields from being changed by the user
-                      request.resource.data.email == resource.data.email &&
-                      request.resource.data.uid == resource.data.uid;
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow read: if true;
+      allow write: if isUser(userId);
 
-      // Subcollection for user practice sessions
+      // Anyone can read practice sessions, but only the user can create them.
       match /practiceSessions/{sessionId} {
-        allow read, write: if isSignedIn() && isOwner(userId);
+        allow read: if true;
+        allow create: if isUser(userId);
+        allow update, delete: if false; // Sessions are immutable
       }
     }
-
-    // FRIEND-RELATED RULES
+    
+    // --- FRIEND REQUESTS ---
+    // Users can create requests.
+    // Users can read/delete requests sent to them or by them.
     match /friendRequests/{requestId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isSignedIn() && 
-                             (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
+      allow create: if isSignedIn();
+      allow read, delete: if isSignedIn() && (resource.data.fromId == request.auth.uid || resource.data.toId == request.auth.uid);
+    }
+
+    // --- CHALLENGES ---
+    // Users can create challenges.
+    // Participants can read/update the challenge.
+    match /challenges/{challengeId} {
+        allow create: if isSignedIn();
+        allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+        allow delete: if false; // Challenges are updated to a 'cancelled' or 'declined' status, not deleted.
     }
     
-    // CHALLENGE-RELATED RULES
-    match /challenges/{challengeId} {
-        allow read, create: if isSignedIn();
-        allow update, delete: if isSignedIn() &&
-                               (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-    }
-
+    // --- OPEN CHALLENGES ---
+    // Anyone can read open challenges.
+    // Signed-in users can create them.
+    // Only the poster can delete their own open challenge.
     match /openChallenges/{challengeId} {
-        allow read;
-        allow create: if isSignedIn() && isOwner(resource.data.posterId);
-        allow delete: if isSignedIn() && isOwner(resource.data.posterId);
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow delete: if isSignedIn() && resource.data.posterId == request.auth.uid;
     }
 
-    // MATCH-RELATED RULES
+    // --- MATCHES ---
+    // Participants can read their own matches.
+    // Signed-in users can create new pending matches.
+    // Participants can update a match (to confirm/decline).
     match /matches/{matchId} {
       allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
       allow create: if isSignedIn();
       allow update: if isSignedIn() && request.auth.uid in resource.data.participants;
     }
 
-    // CHAT-RELATED RULES
+    // --- CHATS ---
+    // Participants can read/write to their own chats and messages.
     match /chats/{chatId} {
-      allow read, update, create: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow read, create, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
       
       match /messages/{messageId} {
         allow read, create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
     }
     
-    // GAME-RELATED RULES
+    // --- GAMES (Rally & Legend) ---
+    // Participants can read/update their own games.
     match /rallyGames/{gameId} {
-      allow read, update, delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
       allow create: if isSignedIn();
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
     }
     
     match /legendGames/{gameId} {
-      allow read, update, delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
       allow create: if isSignedIn();
+      allow delete: if isSignedIn() && request.auth.uid in resource.data.participantIds;
     }
     
-    // TOURNAMENT-RELATED RULES
+    // --- TOURNAMENTS ---
+    // Anyone can read a tournament bracket.
+    // Only authenticated users can create tournaments.
+    // Only the organizer can update the tournament (e.g., report winners).
     match /tournaments/{tournamentId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.auth.uid == request.resource.data.organizerId;
-        allow update: if isSignedIn() && request.auth.uid == resource.data.organizerId;
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.organizerId == request.auth.uid;
     }
 
-    // REPORT-RELATED RULES
+    // --- REPORTS ---
+    // Allow any signed-in user to create a report.
     match /reports/{reportId} {
       allow create: if isSignedIn();
+      // Only backend processes should read/update reports.
+      allow read, update, delete: if false; 
     }
   }
 }

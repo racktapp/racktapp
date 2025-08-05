@@ -1,3 +1,4 @@
+
 {
   "indexes": [
     {
@@ -27,14 +28,6 @@
       ]
     },
     {
-      "collectionGroup": "friendRequests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "fromId", "order": "ASCENDING" },
-        { "fieldPath": "toId", "order": "ASCENDING" }
-      ]
-    },
-     {
       "collectionGroup": "friendRequests",
       "queryScope": "COLLECTION",
       "fields": [
@@ -142,5 +135,6 @@
         { "fieldPath": "sports.Pickleball.racktRank", "order": "DESCENDING" }
       ]
     }
-  ]
+  ],
+  "fieldOverrides": []
 }
