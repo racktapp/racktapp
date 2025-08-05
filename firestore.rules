@@ -1,10 +1,8 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Utility Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,91 +11,64 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // --- User Profiles ---
     match /users/{userId} {
-      // Allow signed-in users to read profiles (for leaderboards, search, etc.)
       allow read: if isSignedIn();
-      // Only the owner can write to their own profile.
       allow write: if isOwner(userId);
 
-      // Practice sessions are private.
       match /practiceSessions/{sessionId} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // --- Friend Requests ---
     match /friendRequests/{requestId} {
-      // Allow read/delete if you are the sender or receiver.
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      // Allow creating a request.
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
-      // Allow listing requests sent TO you (for notifications) or FROM you (for sent list).
-      allow list: if isSignedIn() && (request.auth.uid == request.query.toId || request.auth.uid == request.query.fromId);
+      // This rule EXACTLY matches the query for notifications
+      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
     }
 
-    // --- Challenges ---
     match /challenges/{challengeId} {
-      // Allow read/delete if you are the sender or receiver.
       allow get, delete: if isSignedIn() && (request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId);
-      // Allow creating a challenge.
       allow create: if isSignedIn() && isOwner(request.resource.data.fromId);
-      // Allow the recipient to update the status (accept/decline).
       allow update: if isSignedIn() && isOwner(resource.data.toId);
-       // Allow listing challenges sent TO you (for notifications) or FROM you (for sent list).
-      allow list: if isSignedIn() && (request.auth.uid == request.query.toId || request.auth.uid == request.query.fromId);
+       // This rule EXACTLY matches the query for notifications
+      allow list: if isSignedIn() && request.query.where.toId == request.auth.uid;
     }
 
-    // --- Open Challenges ---
     match /openChallenges/{challengeId} {
       allow read, create: if isSignedIn();
       allow delete: if isSignedIn() && isOwner(resource.data.posterId);
     }
     
-    // --- Matches ---
     match /matches/{matchId} {
-      // Allow read/create/update if you are a participant in the match.
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participants;
-      // Allow listing matches you participated in.
-      allow list: if isSignedIn() && request.query.participants == request.auth.uid;
+      allow list: if isSignedIn() && request.query.where.participants.hasAny([request.auth.uid]);
     }
 
-    // --- Chats & Messages ---
     match /chats/{chatId} {
       allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      // Allow listing chats you are a participant in.
-      allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
 
       match /messages/{messageId} {
-        // Allow read/create in a chat if you are a participant of that chat.
         allow read, create: if isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
       }
     }
     
-    // --- Tournaments ---
     match /tournaments/{tournamentId} {
-      // Anyone can read tournaments.
-      allow read: if isSignedIn();
-      // Anyone can create a tournament.
-      allow create: if isSignedIn();
-      // Only the organizer can update it.
+      allow read, create: if isSignedIn();
       allow update: if isSignedIn() && isOwner(resource.data.organizerId);
-      // Allow listing tournaments you are in.
-      allow list: if isSignedIn() && request.auth.uid == request.query.participantIds;
     }
 
-    // --- AI Games (Rally & Legend) ---
     match /rallyGames/{gameId} {
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
     }
     
     match /legendGames/{gameId} {
       allow read, write: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow list: if isSignedIn() && request.query.participantIds.hasAny([request.auth.uid]);
+      allow list: if isSignedIn() && request.query.where.participantIds.hasAny([request.auth.uid]);
     }
     
-    // --- Reports ---
     match /reports/{reportId} {
       allow create: if isSignedIn();
     }
