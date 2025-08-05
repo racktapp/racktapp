@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if isOwner(userId);
+
+      match /practiceSessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /friendRequests/{requestId} {
+      allow read, delete: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
+      allow create: if isOwner(request.resource.data.fromId);
+    }
+
+    match /challenges/{challengeId} {
+      allow read, delete: if request.auth.uid == resource.data.fromId || request.auth.uid == resource.data.toId;
+      allow create: if isOwner(request.resource.data.fromId);
+      allow update: if isOwner(resource.data.toId);
+    }
+
+    match /openChallenges/{challengeId} {
+      allow read, create: if request.auth != null;
+      allow delete: if isOwner(resource.data.posterId);
+    }
+    
+    match /matches/{matchId} {
+      allow read, write: if request.auth.uid in resource.data.participants;
+    }
+
+    match /chats/{chatId} {
+      allow read, update: if request.auth.uid in resource.data.participantIds;
+
+      match /messages/{messageId} {
+        allow read, create: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      }
+    }
+    
+    match /tournaments/{tournamentId} {
+      allow read, create: if request.auth != null;
+      allow update: if isOwner(resource.data.organizerId);
+    }
+
+    match /rallyGames/{gameId} {
+      allow read, write: if request.auth.uid in resource.data.participantIds;
+    }
+    
+    match /legendGames/{gameId} {
+      allow read, write: if request.auth.uid in resource.data.participantIds;
+    }
+    
+    match /reports/{reportId} {
+      allow create: if request.auth != null;
+    }
+  }
+}

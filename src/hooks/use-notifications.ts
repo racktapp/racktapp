@@ -1,8 +1,8 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './use-auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Challenge, FriendRequest, RallyGame, LegendGame } from '@/lib/types';
 
@@ -18,72 +18,75 @@ export function useNotifications() {
     const [counts, setCounts] = useState<NotificationCounts>({ friendRequestCount: 0, challengeCount: 0, gameTurnCount: 0, total: 0 });
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
+    const fetchCounts = useCallback(async () => {
         if (!user) {
             setCounts({ friendRequestCount: 0, challengeCount: 0, gameTurnCount: 0, total: 0 });
             setIsLoading(false);
             return;
         }
 
-        const unsubs: (() => void)[] = [];
-        const currentCounts = { friendRequestCount: 0, challengeCount: 0, gameTurnCount: 0 };
-        
-        const updateTotal = () => {
-            const total = currentCounts.friendRequestCount + currentCounts.challengeCount + currentCounts.gameTurnCount;
-            setCounts({ ...currentCounts, total });
-        };
+        try {
+            const frQuery = query(collection(db, 'friendRequests'), where('toId', '==', user.uid), where('status', '==', 'pending'));
+            const frSnap = await getDocs(frQuery);
+            const friendRequestCount = frSnap.size;
 
-        // --- Friend Requests Listener ---
-        const frQuery = query(collection(db, 'friendRequests'), where('toId', '==', user.uid));
-        unsubs.push(onSnapshot(frQuery, (snap) => {
-            currentCounts.friendRequestCount = snap.docs.filter(doc => (doc.data() as FriendRequest).status === 'pending').length;
-            updateTotal();
-        }));
+            const challengeQuery = query(collection(db, 'challenges'), where('toId', '==', user.uid), where('status', '==', 'pending'));
+            const challengeSnap = await getDocs(challengeQuery);
+            const challengeCount = challengeSnap.size;
 
-        // --- Challenges Listener ---
-        const challengeQuery = query(collection(db, 'challenges'), where('toId', '==', user.uid));
-        unsubs.push(onSnapshot(challengeQuery, (snap) => {
-            currentCounts.challengeCount = snap.docs.filter(doc => (doc.data() as Challenge).status === 'pending').length;
-            updateTotal();
-        }));
-        
-        // --- Game Listeners ---
-        let rallyCount = 0;
-        let legendCount = 0;
-        const updateGameCount = () => {
-            currentCounts.gameTurnCount = rallyCount + legendCount;
-            updateTotal();
+            // Real-time listeners for games are less likely to cause permission issues
+            // because the reads are less frequent and queries are simple.
+            // We can keep these as onSnapshot.
+            let rallyCount = 0;
+            let legendCount = 0;
+            const rallyQuery = query(collection(db, 'rallyGames'), where('participantIds', 'array-contains', user.uid), where('status', '==', 'ongoing'), where('currentPlayerId', '==', user.uid));
+            const legendQuery = query(collection(db, 'legendGames'), where('participantIds', 'array-contains', user.uid), where('status', '==', 'ongoing'), where('currentPlayerId', '==', user.uid));
+            
+            const rallySnap = await getDocs(rallyQuery);
+            rallyCount = rallySnap.size;
+
+            const legendSnap = await getDocs(legendQuery);
+            legendCount = legendSnap.size;
+
+            const gameTurnCount = rallyCount + legendCount;
+            const total = friendRequestCount + challengeCount + gameTurnCount;
+            setCounts({ friendRequestCount, challengeCount, gameTurnCount, total });
+
+        } catch (error) {
+            console.error("Error fetching notification counts:", error);
+        } finally {
+            setIsLoading(false);
         }
+    }, [user]);
 
-        const rallyQuery = query(collection(db, 'rallyGames'), where('participantIds', 'array-contains', user.uid));
-        unsubs.push(onSnapshot(rallyQuery, (snap) => {
-            rallyCount = snap.docs.filter(doc => {
-                const game = doc.data() as RallyGame;
-                return game.status === 'ongoing' && game.currentPlayerId === user.uid;
-            }).length;
-            updateGameCount();
-        }));
+    useEffect(() => {
+        fetchCounts(); // Initial fetch
 
-        const legendQuery = query(collection(db, 'legendGames'), where('participantIds', 'array-contains', user.uid));
-        unsubs.push(onSnapshot(legendQuery, (snap) => {
-            legendCount = snap.docs.filter(doc => {
-                const game = doc.data() as LegendGame;
-                return game.status === 'ongoing' && game.currentPlayerId === user.uid;
-            }).length;
-            updateGameCount();
-        }));
+        if (!user) return;
         
-        // This is a one-time check for loading state.
-        // The listeners will continue to run, but this sets loading to false after initial setup.
-        // It's a simplification to avoid complex multi-listener loading state management.
-        const timer = setTimeout(() => setIsLoading(false), 2000);
-        unsubs.push(() => clearTimeout(timer));
+        // Setup listeners for real-time updates on games, which are less problematic
+        const gameQuery = (collectionName: string) => query(
+            collection(db, collectionName),
+            where('participantIds', 'array-contains', user.uid),
+            where('status', '==', 'ongoing'),
+            where('currentPlayerId', '==', user.uid)
+        );
+
+        const rallyUnsub = onSnapshot(gameQuery('rallyGames'), () => fetchCounts());
+        const legendUnsub = onSnapshot(gameQuery('legendGames'), () => fetchCounts());
+        
+        // Also refetch when friend requests or challenges change status
+        const frUnsub = onSnapshot(query(collection(db, 'friendRequests'), where('toId', '==', user.uid)), () => fetchCounts());
+        const chUnsub = onSnapshot(query(collection(db, 'challenges'), where('toId', '==', user.uid)), () => fetchCounts());
+
 
         return () => {
-            unsubs.forEach(unsub => unsub());
+            rallyUnsub();
+            legendUnsub();
+            frUnsub();
+            chUnsub();
         };
-
-    }, [user]);
+    }, [user, fetchCounts]);
 
     return { ...counts, isLoading };
 }
