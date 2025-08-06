@@ -229,7 +229,7 @@ function FriendsPageContent() {
                 incomingRequests.map((req, i) => (
                     <UserCard 
                       key={req.id} 
-                      user={{ uid: req.fromId, username: req.fromUsername, avatarUrl: req.fromAvatarUrl }}
+                      user={{ uid: req.fromId, username: req.fromName, avatarUrl: req.fromAvatarUrl }}
                       className="opacity-0 animate-fade-in-slide-up"
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
@@ -334,7 +334,7 @@ function FriendsPageContent() {
 
 export default function FriendsPage() {
     return (
-        <Suspense>
+        <Suspense fallback={<div className="container mx-auto flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner className="h-8 w-8" /></div>}>
             <FriendsPageContent />
         </Suspense>
     );

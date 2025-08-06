@@ -6,7 +6,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
   authDomain: "rackt-the-social-sports-hub.firebaseapp.com",
   projectId: "rackt-the-social-sports-hub",
   storageBucket: "rackt-the-social-sports-hub.appspot.com",
