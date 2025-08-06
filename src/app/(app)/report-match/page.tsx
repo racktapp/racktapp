@@ -168,7 +168,7 @@ export default function ReportMatchPage() {
                     <FormLabel>Opponent</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                        <SelectContent>{availableOpponent1.map(p => <SelectItem key={p.uid} value={p.uid}>{p.name}</SelectItem>)}</SelectContent>
+                        <SelectContent>{availableOpponent1.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -182,7 +182,7 @@ export default function ReportMatchPage() {
                         <FormLabel>Your Partner</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger></FormControl>
-                            <SelectContent>{availablePartners.map(p => <SelectItem key={p.uid} value={p.uid}>{p.name}</SelectItem>)}</SelectContent>
+                            <SelectContent>{availablePartners.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}</SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
@@ -192,7 +192,7 @@ export default function ReportMatchPage() {
                         <FormLabel>Second Opponent</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select opponent" /></SelectTrigger></FormControl>
-                            <SelectContent>{availableOpponent2.map(p => <SelectItem key={p.uid} value={p.uid}>{p.name}</SelectItem>)}</SelectContent>
+                            <SelectContent>{availableOpponent2.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}</SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
@@ -214,7 +214,7 @@ export default function ReportMatchPage() {
                  <Select onValueChange={field.onChange} value={field.value} disabled={selectedPlayers.length < (matchType === 'Singles' ? 2 : 4)}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select winner" /></SelectTrigger></FormControl>
                     <SelectContent>
-                        {selectedPlayers.map(p => <SelectItem key={p.uid} value={p.uid}>{p.name}</SelectItem>)}
+                        {selectedPlayers.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}
                     </SelectContent>
                 </Select>
                 <FormDescription>Select one player from the winning team.</FormDescription>
