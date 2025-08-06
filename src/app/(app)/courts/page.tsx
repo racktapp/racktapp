@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Loader } from '@googlemaps/js-api-loader';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { findCourtsAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
@@ -74,76 +74,36 @@ const FilterPanel = ({
   );
 };
 
-const CourtInfoWindow = ({ court, onClose }: { court: Court, onClose: () => void }) => {
-    const { user } = useAuth();
-    if (!user) return null;
-
-    return (
-        <InfoWindow
-            position={{ lat: court.location.latitude, lng: court.location.longitude }}
-            onCloseClick={onClose}
-        >
-            <div className="p-2 space-y-2 max-w-xs">
-                <h3 className="font-bold">{court.name}</h3>
-                {court.address && <p className="text-sm text-muted-foreground">{court.address}</p>}
-                <div className="flex items-center gap-2">
-                    {court.supportedSports.map(sport => (
-                        <Image key={sport} src={SPORT_ICONS[sport]} alt={sport} width={20} height={20} unoptimized title={sport} />
-                    ))}
-                </div>
-                <div className="flex gap-2 items-center">
-                    <CreateOpenChallengeDialog user={user} onChallengeCreated={() => {}}>
-                        <Button size="sm">
-                            <Swords className="mr-2" />
-                            Post Challenge
-                        </Button>
-                    </CreateOpenChallengeDialog>
-                    {court.url && (
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={court.url} target="_blank" rel="noopener noreferrer">
-                                View on Google Maps
-                                <ArrowRight className="ml-2" />
-                            </Link>
-                        </Button>
-                    )}
-                </div>
-            </div>
-        </InfoWindow>
-    );
-};
-
 
 export default function CourtsMapPage() {
   const { latitude, longitude, error: locationError, loading: locationLoading } = useUserLocation();
+  const { user } = useAuth();
   
   const [courts, setCourts] = useState<Court[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  
   const [center, setCenter] = useState({ lat: 51.5072, lng: -0.1276 }); // Default to London
-  const [zoom, setZoom] = useState(12);
-
   const [radius, setRadius] = useState(5);
   const [selectedSports, setSelectedSports] = useState<Sport[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
 
-  const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
-
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  useEffect(() => {
-    if (latitude && longitude) {
-      setCenter({ lat: latitude, lng: longitude });
-    }
-  }, [latitude, longitude]);
-
   const handleSearch = useCallback(async () => {
-    if (!center) return;
+    if (!map) return;
     setIsFetching(true);
     setFetchError(null);
-    setSelectedCourt(null);
+    const currentCenter = map.getCenter();
+    if (!currentCenter) return;
+    
     try {
-        const results = await findCourtsAction(center.lat, center.lng, radius, selectedSports);
+        const results = await findCourtsAction(currentCenter.lat(), currentCenter.lng(), radius, selectedSports);
         setCourts(results);
     } catch (e: any) {
         setFetchError(e.message || "Failed to fetch courts.");
@@ -151,14 +111,82 @@ export default function CourtsMapPage() {
         setIsFetching(false);
         setIsFilterPanelOpen(false);
     }
-  }, [center, radius, selectedSports]);
-  
+  }, [map, radius, selectedSports]);
+
   useEffect(() => {
-    if (latitude && longitude && apiKey) {
-        handleSearch();
+    if (latitude && longitude && map) {
+      const newCenter = { lat: latitude, lng: longitude };
+      setCenter(newCenter);
+      map.setCenter(newCenter);
+      map.setZoom(12);
+      handleSearch();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latitude, longitude, apiKey])
+  }, [latitude, longitude, map]);
+
+  useEffect(() => {
+    if (apiKey && mapRef.current && !map) {
+      const loader = new Loader({
+        apiKey,
+        version: 'weekly',
+      });
+
+      loader.load().then(async () => {
+        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+        const newMap = new Map(mapRef.current!, {
+          center,
+          zoom: 12,
+          disableDefaultUI: true,
+          gestureHandling: 'greedy',
+          mapId: 'rackt_map',
+        });
+        setMap(newMap);
+      });
+    }
+  }, [apiKey, map, center]);
+
+  useEffect(() => {
+    // Clear existing markers
+    markers.forEach(marker => marker.setMap(null));
+    setMarkers([]);
+
+    if (map && courts.length > 0) {
+      const newMarkers = courts.map(court => {
+        const marker = new google.maps.Marker({
+          position: { lat: court.location.latitude, lng: court.location.longitude },
+          map: map,
+          title: court.name,
+        });
+
+        marker.addListener('click', () => {
+            if (infoWindowRef.current) {
+                infoWindowRef.current.close();
+            }
+            
+            const infoWindowContent = `
+                <div class="p-2 space-y-2 max-w-xs font-sans">
+                    <h3 class="font-bold">${court.name}</h3>
+                    ${court.address ? `<p class="text-sm text-gray-500">${court.address}</p>` : ''}
+                    <div class="flex items-center gap-2">
+                        ${court.supportedSports.map(sport => `<img src="${SPORT_ICONS[sport]}" alt="${sport}" width="20" height="20" title="${sport}" />`).join('')}
+                    </div>
+                    <div class="flex gap-2 items-center mt-2">
+                         ${user ? `<a href="/challenges" class="text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-md text-sm px-3 py-1.5 text-center inline-flex items-center">Challenge</a>` : ''}
+                         ${court.url ? `<a href="${court.url}" target="_blank" rel="noopener noreferrer" class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 font-medium rounded-md text-sm px-3 py-1.5 text-center inline-flex items-center">View on Maps</a>` : ''}
+                    </div>
+                </div>`;
+            
+            const infoWindow = new google.maps.InfoWindow({ content: infoWindowContent });
+            infoWindow.open(map, marker);
+            infoWindowRef.current = infoWindow;
+        });
+        return marker;
+      });
+      setMarkers(newMarkers);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, courts, user]);
+
 
   if (locationLoading) {
     return (
@@ -175,32 +203,12 @@ export default function CourtsMapPage() {
             <PageHeader title="Find Courts" description="Discover nearby courts and see who's playing." />
         </div>
         <div className="flex-1 relative">
-            {apiKey ? (
-                <APIProvider apiKey={apiKey}>
-                    <Map
-                        center={center}
-                        zoom={zoom}
-                        onCenterChanged={(e) => setCenter(e.detail.center)}
-                        onZoomChanged={(e) => setZoom(e.detail.zoom)}
-                        gestureHandling={'greedy'}
-                        disableDefaultUI={true}
-                        mapId={'rackt_map'}
-                    >
-                        {courts.map((court) => (
-                            <AdvancedMarker
-                                key={court.id}
-                                position={{ lat: court.location.latitude, lng: court.location.longitude }}
-                                onClick={() => setSelectedCourt(court)}
-                            />
-                        ))}
-
-                        {selectedCourt && <CourtInfoWindow court={selectedCourt} onClose={() => setSelectedCourt(null)} />}
-                    </Map>
-                </APIProvider>
-            ) : (
-                <div className="flex items-center justify-center h-full bg-muted">
+            {!apiKey ? (
+                 <div className="flex items-center justify-center h-full bg-muted">
                     <p className="text-muted-foreground">Google Maps API key is missing.</p>
                 </div>
+            ) : (
+                <div ref={mapRef} className="w-full h-full" />
             )}
             
             {!isFilterPanelOpen && (
@@ -210,7 +218,7 @@ export default function CourtsMapPage() {
                 </Button>
             )}
 
-            {isFilterPanelOpen && (
+            {isFilterPanelOpen && map && (
                 <FilterPanel 
                     radius={radius}
                     setRadius={setRadius}
