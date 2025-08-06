@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -27,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { deleteGameAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '../ui/skeleton';
 
 interface GameListItemProps {
   game: RallyGame | LegendGame;
@@ -65,6 +65,20 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
     // Always reset the loading state to prevent the UI from getting stuck.
     setIsDeleting(false);
   };
+  
+  if (!opponent && game.mode !== 'solo') {
+    return (
+        <Card>
+            <CardContent className="p-4 flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2">
+                    <Skeleton className="h-4 w-[150px]" />
+                    <Skeleton className="h-4 w-[100px]" />
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
 
 
   return (

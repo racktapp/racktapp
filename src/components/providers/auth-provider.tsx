@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -30,7 +31,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
   
   const reloadUser = useCallback(async () => {
-    if (!auth) return;
     const firebaseUser = auth.currentUser;
     if (firebaseUser) {
         setLoading(true);

@@ -14,19 +14,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase on the client side
-function getFirebaseApp(): FirebaseApp {
-  if (getApps().length === 0) {
-    return initializeApp(firebaseConfig);
-  }
-  return getApp();
-}
-
 let app: FirebaseApp;
 let auth: ReturnType<typeof getAuth>;
 let db: ReturnType<typeof getFirestore>;
 let storage: ReturnType<typeof getStorage>;
 
-// This function should be called from the root client component
 export function initializeFirebase() {
     if (typeof window !== 'undefined') {
         if (getApps().length === 0) {

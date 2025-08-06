@@ -37,9 +37,12 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction, classN
   const { toast } = useToast();
   const [processingAction, setProcessingAction] = useState<string | null>(null);
 
-  const opponent = type === 'incoming' 
-    ? { uid: challenge.fromId, username: challenge.fromName, avatarUrl: challenge.fromAvatarUrl }
-    : { uid: challenge.toId, username: challenge.toName, avatarUrl: challenge.toAvatarUrl };
+  const opponentData = type === 'incoming' ? challenge.participantsData[challenge.fromId] : challenge.participantsData[challenge.toId];
+
+  const opponent = opponentData 
+    ? { uid: opponentData.uid, username: opponentData.username, avatarUrl: opponentData.avatarUrl }
+    : { uid: type === 'incoming' ? challenge.fromId : challenge.toId, username: 'loading...', avatarUrl: null };
+
 
   const handleAction = async (action: 'accept' | 'decline' | 'cancel') => {
     setProcessingAction(action);

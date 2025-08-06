@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ReactNode, useState, useRef } from 'react';
@@ -27,19 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '../user-avatar';
-
-
-// IMPORTANT: Replace these placeholder paths with your actual image paths in the /public folder.
-// For example, if you have an image at /public/avatars/my-cool-avatar.png,
-// the url should be '/avatars/my-cool-avatar.png'.
-const STOCK_AVATARS = [
-  { url: '/avatars/01.png' },
-  { url: '/avatars/02.png' },
-  { url: '/avatars/03.png' },
-  { url: '/avatars/04.png' },
-  { url: '/avatars/05.png' },
-  { url: '/avatars/06.png' },
-];
+import { STOCK_AVATARS } from '@/lib/constants';
 
 interface EditProfileDialogProps {
   children: ReactNode;

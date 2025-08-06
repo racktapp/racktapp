@@ -65,7 +65,8 @@ export default function ReportMatchPage() {
   const opponent2Id = form.watch('opponent2');
 
   const selectedPlayers = useMemo(() => {
-    const players: User[] = [user!].filter(Boolean);
+    if (isFetchingPlayers || !user) return [];
+    const players: User[] = [user].filter(Boolean);
     if (opponent1Id) {
       const p = availablePlayers.find(p => p.uid === opponent1Id);
       if (p) players.push(p);
@@ -81,7 +82,7 @@ export default function ReportMatchPage() {
       }
     }
     return players;
-  }, [user, availablePlayers, matchType, opponent1Id, partnerId, opponent2Id]);
+  }, [user, availablePlayers, matchType, opponent1Id, partnerId, opponent2Id, isFetchingPlayers]);
 
 
   async function onSubmit(values: z.infer<typeof reportMatchSchema>) {
@@ -103,6 +104,10 @@ export default function ReportMatchPage() {
     }
   }
 
+  const availablePartners = availablePlayers.filter(p => p.uid !== opponent1Id && p.uid !== opponent2Id);
+  const availableOpponent1 = availablePlayers.filter(p => p.uid !== partnerId);
+  const availableOpponent2 = availablePlayers.filter(p => p.uid !== opponent1Id && p.uid !== partnerId);
+
   if (!user || isFetchingPlayers) {
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8 flex h-full w-full items-center justify-center">
@@ -110,10 +115,6 @@ export default function ReportMatchPage() {
       </div>
     );
   }
-  
-  const availablePartners = availablePlayers.filter(p => p.uid !== opponent1Id && p.uid !== opponent2Id);
-  const availableOpponent1 = availablePlayers.filter(p => p.uid !== partnerId);
-  const availableOpponent2 = availablePlayers.filter(p => p.uid !== opponent1Id && p.uid !== partnerId);
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">

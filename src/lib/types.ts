@@ -1,5 +1,4 @@
 
-
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -102,6 +101,9 @@ export interface Challenge {
   location?: string;
   matchDateTime: number; // Combined timestamp
   createdAt: number;
+  participantsData: {
+    [key: string]: { username: string; avatarUrl?: string | null; uid: string };
+  };
 }
 
 export interface OpenChallenge {

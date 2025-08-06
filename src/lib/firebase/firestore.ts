@@ -1,5 +1,4 @@
 
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -391,11 +390,22 @@ export async function getFriendshipStatus(currentUserId: string, profileUserId: 
 
 export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' | 'createdAt' | 'status'>) {
     const ref = doc(collection(db, 'challenges'));
+    const [fromUserDoc, toUserDoc] = await Promise.all([
+        getDoc(doc(db, 'users', challengeData.fromId)),
+        getDoc(doc(db, 'users', challengeData.toId)),
+    ]);
+    const fromUser = fromUserDoc.data() as User;
+    const toUser = toUserDoc.data() as User;
+
     await setDoc(ref, { 
         ...challengeData, 
         id: ref.id, 
         status: 'pending', 
         createdAt: Timestamp.now().toMillis(),
+        participantsData: {
+            [fromUser.uid]: { uid: fromUser.uid, username: fromUser.username, avatarUrl: fromUser.avatarUrl || null },
+            [toUser.uid]: { uid: toUser.uid, username: toUser.username, avatarUrl: toUser.avatarUrl || null }
+        }
     });
 }
 
@@ -461,6 +471,7 @@ export async function challengeFromOpen(openChallenge: OpenChallenge, challenger
         toId: openChallenge.posterId, toUsername: openChallenge.posterUsername, toAvatarUrl: openChallenge.posterAvatarUrl,
         sport: openChallenge.sport, location: openChallenge.location,
         matchDateTime: Timestamp.now().toMillis(), wager: "A friendly match",
+        participantsData: {}, // This will be populated in createDirectChallenge
     });
 }
 

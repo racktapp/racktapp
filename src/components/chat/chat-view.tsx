@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -104,6 +103,15 @@ export function ChatView({ chat, currentUser }: ChatViewProps) {
     }
   }
   
+  if (!otherParticipant) {
+    return (
+        <div className="flex h-full flex-col items-center justify-center p-4">
+            <LoadingSpinner className="h-8 w-8" />
+            <p className="mt-2 text-muted-foreground">Loading participant...</p>
+        </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col bg-muted/30">
         {/* Header */}

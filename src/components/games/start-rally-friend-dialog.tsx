@@ -90,14 +90,14 @@ export function StartRallyFriendDialog({ children, opponent }: StartRallyFriendD
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
-          <DialogTitle>{opponent ? `Rematch ${opponent.username}` : 'Challenge a Friend'}</DialogTitle>
+          <DialogTitle>{opponent ? `Rematch @${opponent.username}` : 'Challenge a Friend'}</DialogTitle>
           <DialogDescription>{opponent ? 'Start a new Rally Game.' : 'Start a Rally Game with one of your friends.'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
             <div className="space-y-2">
                 <label className="text-sm font-medium">Friend</label>
                 <Select onValueChange={setSelectedFriendId} value={selectedFriendId}>
-                    <SelectTrigger disabled={isFetchingFriends}>
+                    <SelectTrigger disabled={isFetchingFriends || !!opponent}>
                         <SelectValue placeholder="Select a friend..." />
                     </SelectTrigger>
                     <SelectContent>

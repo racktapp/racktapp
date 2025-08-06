@@ -1,5 +1,4 @@
 
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,8 +26,20 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
     
     const opponentData = opponentTeamIds.map(id => match.participantsData[id]).filter(Boolean);
 
-    const opponentDisplay = opponentData.length > 0 ? opponentData.map(p => `@${p.name}`).join(' & ') : 'Unknown Opponent';
+    const opponentDisplay = opponentData.length > 0 ? opponentData.map(p => `@${p.username}`).join(' & ') : 'Unknown Opponent';
     const firstOpponent = opponentData.length > 0 ? opponentData[0] : null;
+
+    if (!firstOpponent) {
+        return (
+            <div className={cn("flex items-center gap-4", className)}>
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-1/3" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className={cn("flex items-center gap-4", className)} {...props}>

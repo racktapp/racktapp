@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { RallyGame, User } from '@/lib/types';
@@ -53,7 +52,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
   const [progress, setProgress] = useState(0);
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid)!;
-  const opponent = game.participantsData[opponentId] as User;
+  const opponent = game.participantsData[opponentId];
 
   const pointHistoryLength = game.pointHistory.length;
   const prevPointHistoryLength = useRef(pointHistoryLength);
@@ -63,7 +62,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     if (pointHistoryLength > prevPointHistoryLength.current) {
         const lastPoint = game.pointHistory[pointHistoryLength - 1];
         if (lastPoint) {
-            const winnerName = game.participantsData[lastPoint.winner]?.name ?? 'Somebody';
+            const winnerName = game.participantsData[lastPoint.winner]?.username ?? 'Somebody';
             setPointResult({ narrative: lastPoint.narrative, winnerName: `${winnerName} won the point!` });
             
             const timer = setTimeout(() => {
@@ -122,7 +121,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                     Final Score: {finalScore}
                 </AlertDescription>
             </Alert>
-            <StartRallyFriendDialog opponent={opponent}>
+            <StartRallyFriendDialog opponent={opponent as User}>
                 <Button>
                     Rematch
                     <Users className="mr-2 h-4 w-4" />
@@ -165,7 +164,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
             {`Point ${game.pointHistory.length + 1}`}
           </CardTitle>
           <CardDescription>
-             {isMyTurn ? "It's your turn to act." : `Waiting for ${opponent.name}...`}
+             {isMyTurn ? "It's your turn to act." : `Waiting for ${opponent.username}...`}
           </CardDescription>
         </CardHeader>
         <CardContent className="min-h-[150px]">
@@ -204,7 +203,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
         title="Rally Game"
-        description={`A turn-based Tennis point simulator vs ${opponent.name}.`}
+        description={`A turn-based Tennis point simulator vs ${opponent.username}.`}
       />
       
       {/* Scoreboard */}
@@ -215,7 +214,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
         </div>
         <p className="text-4xl font-bold text-muted-foreground">-</p>
          <div className="flex flex-col items-center gap-2">
-          <UserAvatar user={opponent} className="h-16 w-16" />
+          <UserAvatar user={opponent as User} className="h-16 w-16" />
           <p className="font-bold text-4xl">{game.score[opponentId]}</p>
         </div>
       </div>
