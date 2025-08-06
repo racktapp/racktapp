@@ -55,8 +55,8 @@ export function MatchPredictorDialog({ children }: { children: ReactNode }) {
     try {
       const prediction = await predictFriendMatchAction(user.uid, selectedFriendId, sport);
       const winnerName = prediction.predictedWinner === 'player1' 
-        ? user!.name 
-        : friends.find(f => f.uid === selectedFriendId)!.name;
+        ? user!.username 
+        : friends.find(f => f.uid === selectedFriendId)!.username;
       setResult({ ...prediction, winnerName });
     } catch (error: any) {
       console.error('Prediction failed:', error);
@@ -103,7 +103,7 @@ export function MatchPredictorDialog({ children }: { children: ReactNode }) {
                         {friends.length > 0 ? (
                             friends.map((friend) => (
                                 <SelectItem key={friend.uid} value={friend.uid}>
-                                    {friend.name}
+                                    {friend.username}
                                 </SelectItem>
                             ))
                         ) : (

@@ -334,7 +334,7 @@ function FriendsPageContent() {
 
 export default function FriendsPage() {
     return (
-        <Suspense fallback={<div className="container mx-auto flex h-full items-center justify-center p-4 md:p-6 lg:p-8"><LoadingSpinner className="h-8 w-8" /></div>}>
+        <Suspense>
             <FriendsPageContent />
         </Suspense>
     );

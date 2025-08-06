@@ -1,16 +1,17 @@
 
+
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: "rackt-the-social-sports-hub.firebaseapp.com",
   projectId: "rackt-the-social-sports-hub",
   storageBucket: "rackt-the-social-sports-hub.appspot.com",
   messagingSenderId: "1080946592753",
-  appId: "1:1080946592753:web:2b518f181c5936ebdad250"
+  appId: "1:1080946592753:web:b02a7c131d35f9dbdad250"
 };
 
 // Initialize Firebase
