@@ -48,11 +48,13 @@ const AchievementCard = ({ achievement }: { achievement: Achievement }) => {
     )
 }
 
-export default function ClientView({ id }: { id: string }) {
+export default function ProfilePage() {
   const { user: authUser, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const router = useRouter();
+  const params = useParams();
   const { toast } = useToast();
+  const id = params.id as string;
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);

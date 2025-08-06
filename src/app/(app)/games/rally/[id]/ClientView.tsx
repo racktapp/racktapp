@@ -10,9 +10,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { RallyGameView } from '@/components/games/rally-game-view';
 
-export default function ClientView({ id }: { id: string }) {
+export default function RallyGamePage() {
   const { user, loading: authLoading } = useAuth();
-  const gameId = id;
+  const params = useParams();
+  const gameId = params.id as string;
 
   const [game, setGame] = useState<RallyGame | null>(null);
   const [loading, setLoading] = useState(true);

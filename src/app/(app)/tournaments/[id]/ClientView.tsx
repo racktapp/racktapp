@@ -15,8 +15,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
 
-export default function ClientView({ id }: { id: string }) {
+export default function TournamentPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
 
   const { user } = useAuth();
   const [tournament, setTournament] = useState<Tournament | null>(null);
