@@ -114,7 +114,7 @@ export default function ProfilePage() {
       .slice()
       .sort((a, b) => a.date - b.date)
       .map((item) => ({
-        date: format(new Date(item.date), 'MMM d'),
+        date: item.date,
         elo: item.elo,
       }));
 
