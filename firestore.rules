@@ -2,11 +2,11 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all documents for any signed-in user.
-    // This is a temporary, permissive rule for debugging and unblocking the app.
-    // Please tighten these rules for production.
+    // This rule allows anyone to read and write to your database.
+    // It will expire on September 5, 2025.
+    // After that date, all reads and writes will be denied.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.time < timestamp.date(2025, 9, 5);
     }
   }
 }
