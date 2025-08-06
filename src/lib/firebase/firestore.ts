@@ -370,7 +370,7 @@ export async function deleteFriendRequest(requestId: string) {
 export async function removeFriend(userId: string, friendId: string) {
   await runTransaction(db, async (t) => {
     t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
-    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(friendId) });
+    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
   });
 }
 
@@ -732,15 +732,13 @@ export async function getPracticeSessionsForUser(
 ): Promise<PracticeSession[]> {
   try {
     const sessionsRef = collection(db, 'users', userId, 'practiceSessions');
-    const q = query(sessionsRef, orderBy('date', 'desc'));
+    const q = query(
+      sessionsRef,
+      where('sport', '==', sport),
+      orderBy('date', 'desc')
+    );
     const snapshot = await getDocs(q);
-    
-    // Since sport is not in the subcollection query, we filter it client-side.
-    // This is fine because we're only querying the current user's (small) subcollection.
-    return snapshot.docs
-      .map((doc) => doc.data() as PracticeSession)
-      .filter((session) => session.sport === sport);
-      
+    return snapshot.docs.map((doc) => doc.data() as PracticeSession);
   } catch (error: any) {
     console.error("Error in getPracticeSessionsForUser:", error);
     throw new Error(error.message);
