@@ -5,7 +5,7 @@
       "collectionGroup": "challenges",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "fromId", "order": "ASCENDING" },
+        { "fieldPath": "toId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
@@ -14,9 +14,8 @@
       "collectionGroup": "challenges",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "toId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "fromId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
     {
@@ -31,7 +30,7 @@
       "collectionGroup": "friendRequests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "fromId", "order": "ASCENDING" },
+        { "fieldPath": "toId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
@@ -39,7 +38,7 @@
       "collectionGroup": "friendRequests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "toId", "order": "ASCENDING" },
+        { "fieldPath": "fromId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
     },
@@ -51,13 +50,13 @@
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
-    {
-      "collectionGroup": "matches",
+     {
+      "collectionGroup": "legendGames",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "participantIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "currentPlayerId", "order": "ASCENDING" }
       ]
     },
     {
@@ -67,6 +66,15 @@
         { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -81,7 +89,6 @@
       "collectionGroup": "practiceSessions",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
-        { "fieldPath": "sport", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
       ]
     },
@@ -91,6 +98,15 @@
       "fields": [
         { "fieldPath": "participantIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rallyGames",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participantIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "currentPlayerId", "order": "ASCENDING" }
       ]
     },
     {
