@@ -90,7 +90,7 @@ export function StartRallyFriendDialog({ children, opponent }: StartRallyFriendD
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
-          <DialogTitle>{opponent ? `Rematch ${opponent.name}` : 'Challenge a Friend'}</DialogTitle>
+          <DialogTitle>{opponent ? `Rematch ${opponent.username}` : 'Challenge a Friend'}</DialogTitle>
           <DialogDescription>{opponent ? 'Start a new Rally Game.' : 'Start a Rally Game with one of your friends.'}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
@@ -108,7 +108,7 @@ export function StartRallyFriendDialog({ children, opponent }: StartRallyFriendD
                         ) : friends.length > 0 ? (
                             friends.map((friend) => (
                                 <SelectItem key={friend.uid} value={friend.uid}>
-                                    {friend.name}
+                                    @{friend.username}
                                 </SelectItem>
                             ))
                         ) : (
@@ -136,6 +136,3 @@ export function StartRallyFriendDialog({ children, opponent }: StartRallyFriendD
             </DialogFooter>
         </div>
       </DialogContent>
-    </Dialog>
-  );
-}

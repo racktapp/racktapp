@@ -26,7 +26,7 @@ export function MatchHistoryFilters({
           <SelectItem value="all">All Opponents</SelectItem>
           {friends.map(friend => (
             <SelectItem key={friend.uid} value={friend.uid}>
-              {friend.name}
+              @{friend.username}
             </SelectItem>
           ))}
         </SelectContent>

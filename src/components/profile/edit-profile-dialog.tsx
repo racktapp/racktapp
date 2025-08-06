@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ReactNode, useState, useRef } from 'react';
@@ -194,7 +193,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     }
   };
   
-  const previewSrc = previewUrl || user.avatar;
+  const previewSrc = previewUrl || user.avatarUrl;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -288,7 +287,3 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
     </Dialog>
   );
 }
-
-    
-
-    

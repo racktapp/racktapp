@@ -1,16 +1,15 @@
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase/config';
+import { initializeFirebase, auth, db } from '@/lib/firebase/config';
 import type { User as AppUser } from '@/lib/types';
 import { doc, getDoc } from 'firebase/firestore';
 
 export interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
-  reloadUser: () => Promise<void>; // Kept for API compatibility if used elsewhere
+  reloadUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +18,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialize Firebase client-side
+  useEffect(() => {
+    initializeFirebase();
+  }, []);
+
   const fetchAppUser = useCallback(async (uid: string) => {
     const userRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userRef);
@@ -26,6 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
   
   const reloadUser = useCallback(async () => {
+    if (!auth) return;
     const firebaseUser = auth.currentUser;
     if (firebaseUser) {
         setLoading(true);
@@ -44,6 +49,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
+    if (!auth) {
+        // Firebase might not be initialized yet.
+        // The effect in initializeFirebase will trigger a re-render.
+        return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const appUser = await fetchAppUser(firebaseUser.uid);

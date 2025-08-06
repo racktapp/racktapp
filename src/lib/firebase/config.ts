@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
@@ -12,26 +13,29 @@ const firebaseConfig = {
   appId: "1:1080946592753:web:b02a7c131d35f9dbdad250"
 };
 
-// Initialize Firebase
+// Initialize Firebase on the client side
 function getFirebaseApp(): FirebaseApp {
-    if (typeof window === 'undefined') {
-        // Return a mock app for the server-side rendering
-        return {
-            name: 'mock-app',
-            options: {},
-            automaticDataCollectionEnabled: false,
-        };
-    }
-    
-    if (!getApps().length) {
-        return initializeApp(firebaseConfig);
-    }
-    return getApp();
+  if (getApps().length === 0) {
+    return initializeApp(firebaseConfig);
+  }
+  return getApp();
 }
 
-export const app = getFirebaseApp();
+let app: FirebaseApp;
+let auth: ReturnType<typeof getAuth>;
+let db: ReturnType<typeof getFirestore>;
+let storage: ReturnType<typeof getStorage>;
 
-// Only initialize services on the client
-export const auth = typeof window !== 'undefined' ? getAuth(app) : ({} as any);
-export const db = typeof window !== 'undefined' ? getFirestore(app) : ({} as any);
-export const storage = typeof window !== 'undefined' ? getStorage(app) : ({} as any);
+// This function should be called from the root client component
+export function initializeFirebase() {
+    if (typeof window !== 'undefined') {
+        if (!app) {
+            app = getFirebaseApp();
+            auth = getAuth(app);
+            db = getFirestore(app);
+            storage = getStorage(app);
+        }
+    }
+}
+
+export { app, auth, db, storage };
