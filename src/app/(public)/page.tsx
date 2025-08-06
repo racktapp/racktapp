@@ -1,30 +1,10 @@
-'use client';
-import { useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { redirect } from 'next/navigation';
 
+// This page is now a simple, static server component that always redirects.
+// This is the most stable approach for the Next.js App Router, preventing
+// client-side hooks from causing issues during the build process.
+// The logic to handle authenticated vs. unauthenticated users is now
+// consolidated in the /intro page.
 export default function Home() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    // This effect will only run on the client, after the component has mounted
-    // and the loading state is resolved.
-    if (!loading) {
-      if (user) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/intro');
-      }
-    }
-  }, [user, loading, router]);
-
-  // Always return a valid component, even during the server-side build.
-  // This prevents the build from crashing.
-  return (
-    <div className="flex h-screen w-screen items-center justify-center bg-background">
-      <LoadingSpinner className="h-12 w-12" />
-    </div>
-  );
+  redirect('/intro');
 }

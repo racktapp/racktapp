@@ -4,6 +4,7 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import {
   Carousel,
@@ -14,6 +15,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const introSlides = [
   {
@@ -46,6 +49,17 @@ export default function IntroPage() {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [scrollSnaps, setScrollSnaps] = React.useState<number[]>([]);
 
+  // New logic to handle redirection for authenticated users
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, loading, router]);
+
+
   React.useEffect(() => {
     if (!emblaApi) return;
     const onSelect = () => {
@@ -58,6 +72,16 @@ export default function IntroPage() {
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi]);
+  
+  // If loading or authenticated, show a loading screen to prevent flash of content.
+  if (loading || user) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <LoadingSpinner className="h-12 w-12" />
+      </div>
+    );
+  }
+
 
   return (
     <div className="relative min-h-screen w-full bg-slate-900">
