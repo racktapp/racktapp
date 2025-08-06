@@ -1,7 +1,7 @@
 
 'use client';
-import ClientView from './ClientView';
+import ProfileClientView from './ClientView';
 
 export default function Page() {
-    return <ClientView />
+    return <ProfileClientView />
 }

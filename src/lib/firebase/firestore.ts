@@ -28,6 +28,19 @@ import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
 
+// Helper to convert Firestore Timestamps to numbers
+function convertTimestamps<T extends Record<string, any>>(obj: T): T {
+    for (const key in obj) {
+        if (obj[key] instanceof Timestamp) {
+            obj[key] = obj[key].toMillis() as any;
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            convertTimestamps(obj[key]);
+        }
+    }
+    return obj;
+}
+
+
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
   try {
@@ -316,13 +329,13 @@ export async function getConfirmedMatchesForUser(userId: string, matchLimit?: nu
         q = query(q, limit(matchLimit));
     }
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Match);
+    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Match));
 }
 
 export async function getPendingMatchesForUser(userId: string): Promise<Match[]> {
     const q = query(collection(db, 'matches'), where('participants', 'array-contains', userId), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Match);
+    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Match));
 }
 
 export async function sendFriendRequest(fromUser: User, toUser: User) {
@@ -440,7 +453,7 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
 export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
     const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
     const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as OpenChallenge);
+    const challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
     return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
 }
 
@@ -495,12 +508,12 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
 export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
     const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Tournament);
+    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
 }
 
 export async function getTournamentById(id: string): Promise<Tournament | null> {
     const docSnap = await getDoc(doc(db, 'tournaments', id));
-    return docSnap.exists() ? docSnap.data() as Tournament : null;
+    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
 }
 
 export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
@@ -674,7 +687,7 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
             matches.push(match);
         }
     });
-    return matches.sort((a, b) => a.date - b.date);
+    return matches.sort((a, b) => a.date - b.date).map(m => convertTimestamps(m));
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
@@ -749,7 +762,7 @@ export async function getPracticeSessionsForUser(
       orderBy('date', 'desc')
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => doc.data() as PracticeSession);
+    return snapshot.docs.map((doc) => convertTimestamps(doc.data() as PracticeSession));
   } catch (error: any) {
     console.error("Error in getPracticeSessionsForUser:", error);
     throw new Error(error.message);

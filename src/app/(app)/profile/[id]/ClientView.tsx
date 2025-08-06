@@ -48,7 +48,7 @@ const AchievementCard = ({ achievement }: { achievement: Achievement }) => {
     )
 }
 
-export default function ProfilePage() {
+export default function ProfileClientView() {
   const { user: authUser, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const router = useRouter();
@@ -252,18 +252,20 @@ export default function ProfilePage() {
             description="An overview of their performance."
           />
           {sportStats ? (
-            <div className="grid grid-cols-2 gap-4">
-                <StatsCard title="RacktRank" value={sportStats.racktRank} icon={Flame} />
-                <StatsCard title="Win Rate" value={`${winRate}%`} icon={Trophy} />
-                <StatsCard title="Win Streak" value={sportStats.streak} icon={Activity} />
-                <StatsCard title="Total Wins" value={sportStats.wins} icon={BarChart} />
-            </div>
+            <>
+                <div className="grid grid-cols-2 gap-4">
+                    <StatsCard title="RacktRank" value={sportStats.racktRank} icon={Flame} />
+                    <StatsCard title="Win Rate" value={`${winRate}%`} icon={Trophy} />
+                    <StatsCard title="Win Streak" value={sportStats.streak} icon={Activity} />
+                    <StatsCard title="Total Wins" value={sportStats.wins} icon={BarChart} />
+                </div>
+                <EloChart data={eloHistoryData} />
+            </>
           ) : (
             <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed">
                 <p className="text-muted-foreground">@{profileUser.username} hasn't played any {sport} matches yet.</p>
             </div>
           )}
-           <EloChart data={eloHistoryData} />
         </div>
       </div>
       

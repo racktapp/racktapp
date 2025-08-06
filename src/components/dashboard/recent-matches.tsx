@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RecentMatchesProps {
   matches: Match[];
@@ -26,12 +27,9 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
     
     const opponentData = opponentTeamIds.map(id => match.participantsData[id]).filter(Boolean);
 
-    const opponentDisplay = opponentData.length > 0 ? opponentData.map(p => `@${p.username}`).join(' & ') : 'Unknown Opponent';
-    const firstOpponent = opponentData.length > 0 ? opponentData[0] : null;
-
-    if (!firstOpponent) {
+    if (!opponentData || opponentData.length === 0) {
         return (
-            <div className={cn("flex items-center gap-4", className)}>
+             <div className={cn("flex items-center gap-4", className)}>
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-1/2" />
@@ -40,6 +38,10 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
             </div>
         )
     }
+    
+    const opponentDisplay = opponentData.map(p => `@${p.username}`).join(' & ');
+    const firstOpponent = opponentData[0];
+
 
     return (
         <div className={cn("flex items-center gap-4", className)} {...props}>

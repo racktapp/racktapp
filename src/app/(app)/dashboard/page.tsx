@@ -14,12 +14,7 @@ import { StatsHighlightCard } from '@/components/dashboard/stats-highlight-card'
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
 import { EloChart } from '@/components/dashboard/elo-chart';
-import { format } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
-
-function isTimestamp(obj: any): obj is { toDate: () => Date } {
-  return obj && typeof obj.toDate === 'function';
-}
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const ActionCard = ({ icon: Icon, title, description, href }: { icon: React.ElementType, title: string, description: string, href: string }) => (
   <Link href={href} className="block group">
@@ -44,7 +39,7 @@ const getSkillLevel = (elo: number) => {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(true);
@@ -67,8 +62,10 @@ export default function DashboardPage() {
   }, [user]);
 
   useEffect(() => {
-    fetchRecentMatches();
-  }, [fetchRecentMatches]);
+    if (user) {
+        fetchRecentMatches();
+    }
+  }, [fetchRecentMatches, user]);
   
   const sportStats = user?.sports?.[sport];
 
@@ -85,14 +82,10 @@ export default function DashboardPage() {
     const rec = `${sportStats.wins}W - ${sportStats.losses}L`;
     const str = sportStats.streak;
     
-    const sortedEloHistory = [...(sportStats.eloHistory || [])].sort((a, b) => {
-      const dateA = isTimestamp(a.date) ? a.date.toDate().getTime() : a.date;
-      const dateB = isTimestamp(b.date) ? b.date.toDate().getTime() : b.date;
-      return dateA - dateB;
-    });
+    const sortedEloHistory = [...(sportStats.eloHistory || [])].sort((a, b) => a.date - b.date);
 
     const ehd = sortedEloHistory.map((item) => ({
-      date: isTimestamp(item.date) ? item.date.toDate().getTime() : item.date,
+      date: item.date,
       elo: item.elo,
     }));
 
@@ -102,12 +95,7 @@ export default function DashboardPage() {
     
     // Find the last ELO entry from *before* the start of this month.
     const lastMonthEntry = sortedEloHistory
-      .filter((entry) => {
-        const entryDate = isTimestamp(entry.date)
-          ? entry.date.toDate().getTime()
-          : entry.date;
-        return entryDate < startOfMonth;
-      })
+      .filter((entry) => entry.date < startOfMonth)
       .pop();
       
     // Default to 1200 if no history exists at all before this month.
@@ -118,7 +106,13 @@ export default function DashboardPage() {
   }, [sportStats, user]);
 
 
-  if (!user) return null;
+  if (authLoading || !user || !sportStats) {
+    return (
+        <div className="flex h-full w-full items-center justify-center">
+            <LoadingSpinner className="h-12 w-12" />
+        </div>
+    )
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">

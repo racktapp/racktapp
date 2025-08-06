@@ -1,3 +1,4 @@
+
 'use client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -7,6 +8,8 @@ import {
 } from '@/components/ui/chart';
 import { EloDataPoint } from '@/lib/types';
 import { Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { format } from 'date-fns';
+
 
 const chartConfig = {
   elo: {
@@ -33,7 +36,13 @@ export function EloChart({ data }: EloChartProps) {
             <ChartContainer config={chartConfig} className="h-[250px] w-full">
             <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
+                <XAxis 
+                    dataKey="date" 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickMargin={8}
+                    tickFormatter={(value) => format(new Date(value), 'MMM d')}
+                />
                 <YAxis
                 tickLine={false}
                 axisLine={false}
@@ -41,8 +50,16 @@ export function EloChart({ data }: EloChartProps) {
                 domain={['dataMin - 100', 'dataMax + 100']}
                 />
                 <Tooltip
-                cursor={false}
-                content={<ChartTooltipContent indicator="line" />}
+                    cursor={false}
+                    content={<ChartTooltipContent 
+                        indicator="line" 
+                        labelFormatter={(label, payload) => {
+                             if (payload && payload.length > 0) {
+                                return format(new Date(payload[0].payload.date), 'PPP');
+                            }
+                            return label;
+                        }}
+                    />}
                 />
                 <Line
                 dataKey="elo"

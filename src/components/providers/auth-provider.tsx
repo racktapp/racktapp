@@ -5,7 +5,26 @@ import React, { createContext, useState, useEffect, ReactNode, useCallback } fro
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { initializeFirebase, auth, db } from '@/lib/firebase/config';
 import type { User as AppUser } from '@/lib/types';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
+
+// Helper to convert Firestore Timestamps to numbers recursively
+function convertTimestampsToNumbers(obj: any): any {
+    if (obj instanceof Timestamp) {
+        return obj.toMillis();
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(convertTimestampsToNumbers);
+    }
+    if (obj !== null && typeof obj === 'object') {
+        const newObj: { [key: string]: any } = {};
+        for (const key in obj) {
+            newObj[key] = convertTimestampsToNumbers(obj[key]);
+        }
+        return newObj;
+    }
+    return obj;
+}
+
 
 export interface AuthContextType {
   user: AppUser | null;
@@ -24,10 +43,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initializeFirebase();
   }, []);
 
-  const fetchAppUser = useCallback(async (uid: string) => {
+  const fetchAppUser = useCallback(async (uid: string): Promise<AppUser | null> => {
     const userRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userRef);
-    return userDoc.exists() ? userDoc.data() as AppUser : null;
+    if (!userDoc.exists()) return null;
+    // Convert timestamps before returning
+    return convertTimestampsToNumbers(userDoc.data()) as AppUser;
   }, []);
   
   const reloadUser = useCallback(async () => {
