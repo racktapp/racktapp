@@ -1,4 +1,6 @@
 
+'use client';
+
 import * as React from 'react';
 import { AvatarConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
