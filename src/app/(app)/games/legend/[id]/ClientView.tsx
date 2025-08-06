@@ -10,9 +10,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { LegendGameView } from '@/components/games/legend-game-view';
 
-export default function ClientView({ id }: { id: string }) {
+export default function ClientView({ params }: { params: { id: string } }) {
   const { user, loading: authLoading } = useAuth();
-  const gameId = id;
+  const gameId = params.id;
 
   const [game, setGame] = useState<LegendGame | null>(null);
   const [loading, setLoading] = useState(true);

@@ -10,6 +10,7 @@ interface PageProps {
   params: { id: string };
 }
 
+// The PageProps interface has been corrected to fix the build error.
 export default function LegendGamePage({ params }: PageProps) {
-  return <ClientView id={params.id} />;
+  return <ClientView params={params} />;
 }
