@@ -1,4 +1,3 @@
-
 'use client';
 import { Card, CardFooter } from '@/components/ui/card';
 import { LucideIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
