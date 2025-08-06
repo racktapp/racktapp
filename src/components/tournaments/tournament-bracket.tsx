@@ -1,3 +1,4 @@
+
 'use client';
 import { Tournament } from '@/lib/types';
 import { MatchupCard } from './matchup-card';
