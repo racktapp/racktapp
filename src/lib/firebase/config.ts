@@ -1,9 +1,7 @@
-
-
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
@@ -15,10 +13,25 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-// Connect to the default database.
-const db = getFirestore(app);
-const storage = getStorage(app);
+function getFirebaseApp(): FirebaseApp {
+    if (typeof window === 'undefined') {
+        // Return a mock app for the server-side rendering
+        return {
+            name: 'mock-app',
+            options: {},
+            automaticDataCollectionEnabled: false,
+        };
+    }
+    
+    if (!getApps().length) {
+        return initializeApp(firebaseConfig);
+    }
+    return getApp();
+}
 
-export { app, auth, db, storage };
+export const app = getFirebaseApp();
+
+// Only initialize services on the client
+export const auth = typeof window !== 'undefined' ? getAuth(app) : ({} as any);
+export const db = typeof window !== 'undefined' ? getFirestore(app) : ({} as any);
+export const storage = typeof window !== 'undefined' ? getStorage(app) : ({} as any);
