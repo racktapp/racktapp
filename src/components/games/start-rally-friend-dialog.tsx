@@ -136,3 +136,6 @@ export function StartRallyFriendDialog({ children, opponent }: StartRallyFriendD
             </DialogFooter>
         </div>
       </DialogContent>
+    </Dialog>
+  );
+}

@@ -29,8 +29,13 @@ let storage: ReturnType<typeof getStorage>;
 // This function should be called from the root client component
 export function initializeFirebase() {
     if (typeof window !== 'undefined') {
-        if (!app) {
-            app = getFirebaseApp();
+        if (getApps().length === 0) {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            storage = getStorage(app);
+        } else {
+            app = getApp();
             auth = getAuth(app);
             db = getFirestore(app);
             storage = getStorage(app);
