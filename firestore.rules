@@ -2,11 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // This rule allows anyone to read and write to your database.
-    // It will expire on September 5, 2025.
-    // After that date, all reads and writes will be denied.
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 9, 5);
+      // Allow read/write access for a limited time for testing.
+      // WARNING: Make sure you secure your database before going to production.
+      allow read, write: if request.time < timestamp.date(2025, 9, 6);
     }
   }
 }
