@@ -85,6 +85,7 @@ export default function PracticeLogPage() {
             session={session} 
             className="opacity-0 animate-fade-in-slide-up"
             style={{ animationDelay: `${i * 100}ms` }}
+            onSessionDeleted={fetchSessions}
           />
         ))}
       </div>

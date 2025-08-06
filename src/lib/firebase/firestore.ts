@@ -697,11 +697,9 @@ export async function logPracticeSession(
   await runTransaction(db, async (transaction) => {
     const userRef = doc(db, 'users', userId);
     
-    // READ FIRST
     const userDoc = await transaction.get(userRef);
     if (!userDoc.exists()) throw new Error('User not found.');
     
-    // NOW DO ALL WRITES
     const sessionRef = doc(collection(userRef, 'practiceSessions'));
     const newSession: PracticeSession = {
       id: sessionRef.id,
@@ -727,6 +725,7 @@ export async function logPracticeSession(
   });
 }
 
+
 export async function getPracticeSessionsForUser(
   userId: string,
   sport: Sport
@@ -747,6 +746,18 @@ export async function getPracticeSessionsForUser(
     throw new Error(error.message);
   }
 }
+
+export async function deletePracticeSession(sessionId: string, userId: string): Promise<void> {
+    const sessionRef = doc(db, 'users', userId, 'practiceSessions', sessionId);
+    const sessionDoc = await getDoc(sessionRef);
+
+    if (!sessionDoc.exists()) {
+        throw new Error('Session not found.');
+    }
+
+    await deleteDoc(sessionRef);
+}
+
 
 // User Reporting
 export async function createReport(data: z.infer<typeof reportUserSchema>) {

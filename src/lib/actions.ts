@@ -43,6 +43,7 @@ import {
     getGame,
     deleteOpenChallenge,
     logPracticeSession,
+    deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
     deleteUserDocument
@@ -909,6 +910,17 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         return { success: false, error: error.message };
     }
 }
+
+export async function deletePracticeSessionAction(sessionId: string, userId: string) {
+    try {
+        await deletePracticeSession(sessionId, userId);
+        revalidatePath('/practice');
+        return { success: true, message: 'Practice session deleted.' };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Failed to delete session.' };
+    }
+}
+
 
 // --- Courts Actions ---
 export async function findCourtsAction(
