@@ -66,7 +66,7 @@ export default function ProfilePage() {
     async function fetchData() {
       setLoading(true);
       try {
-        const data = await getProfilePageDataAction(id!, authUser?.uid, sport);
+        const data = await getProfilePageDataAction(id!, authUser?.uid ?? null, sport);
         setProfileData(data);
       } catch (error) {
         console.error("Failed to fetch profile data:", error);
