@@ -30,11 +30,7 @@ if (!getApps().length) {
   const serviceAccount = getServiceAccount();
 
   adminApp = initializeApp({
-    credential: cert({
-        projectId: serviceAccount.projectId,
-        clientEmail: serviceAccount.clientEmail,
-        privateKey: serviceAccount.privateKey,
-    }),
+    credential: cert(serviceAccount),
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 } else {
