@@ -47,9 +47,7 @@ import {
     getPracticeSessionsForUser,
     createReport,
     deleteUserDocument,
-    createUserDocument,
-    findCourts,
-    createLegendGame
+    findCourts
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -366,7 +364,41 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         if (!userDoc.exists()) throw new Error("Current user not found.");
         const user = userDoc.data() as User;
         
-        const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
+        const gameId = await runTransaction(db, async (transaction) => {
+            const gameRef = doc(collection(db, 'legendGames')); // Always create a new game
+            const now = Timestamp.now().toMillis();
+            const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+            
+            let newGame: LegendGame;
+            if (friendId) {
+                const friendDoc = await getDoc(doc(db, 'users', friendId));
+                if (!friendDoc.exists()) throw new Error("Friend not found.");
+                const friend = friendDoc.data() as User;
+                newGame = {
+                    id: gameRef.id, mode: 'friend', sport,
+                    participantIds: [currentUserId, friendId],
+                    participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
+                    score: { [currentUserId]: 0, [friendId]: 0 },
+                    currentPlayerId: currentUserId,
+                    turnState: 'playing', status: 'ongoing',
+                    currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+                    createdAt: now, updatedAt: now,
+                };
+            } else {
+                newGame = {
+                    id: gameRef.id, mode: 'solo', sport,
+                    participantIds: [currentUserId],
+                    participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } },
+                    score: { [currentUserId]: 0 },
+                    currentPlayerId: currentUserId,
+                    turnState: 'playing', status: 'ongoing',
+                    currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+                    createdAt: now, updatedAt: now,
+                };
+            }
+            transaction.set(gameRef, newGame);
+            return gameRef.id;
+        });
 
         revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
@@ -437,29 +469,18 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 export async function startNextLegendRoundAction(gameId: string) {
-    // This is a best practice: fetch external data *before* the transaction
-    const game = await getGameFromDb<LegendGame>(gameId, 'legendGames');
-    if (!game) throw new Error("Game not found.");
-    if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
-    
-    // Server-side validation for turn state.
-    if (game.turnState !== 'round_over') {
-        throw new Error("Current round is not over.");
-    }
-
-    const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
-
     try {
+        const game = await getGameFromDb<LegendGame>(gameId, 'legendGames');
+        if (!game) throw new Error("Game not found.");
+        if (game.status !== 'ongoing') return { success: true }; // Game already ended
+        if (game.turnState !== 'round_over') return { success: true }; // Another user already started it.
+
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
+
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, 'legendGames', gameId);
-            // Re-fetch inside transaction for safety
-            const liveGameDoc = await transaction.get(gameRef);
-            if (!liveGameDoc.exists()) throw new Error("Game not found during transaction.");
-            const liveGame = liveGameDoc.data() as LegendGame;
+            const liveGame = game; // We use the one we fetched outside the transaction
 
-            // Double-check state inside the transaction to prevent race conditions
-            if (liveGame.status !== 'ongoing' || liveGame.turnState !== 'round_over') return;
-            
             if (liveGame.currentRound) {
                 liveGame.roundHistory.push(liveGame.currentRound);
             }
@@ -470,7 +491,6 @@ export async function startNextLegendRoundAction(gameId: string) {
             if (liveGame.mode === 'solo') {
                 liveGame.currentPlayerId = liveGame.participantIds[0];
             } else { // friend mode
-                // The current player was the one who answered last, so alternate.
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
                 liveGame.currentPlayerId = otherPlayerId!;
             }
@@ -898,54 +918,26 @@ export async function findCourtsAction(
   radiusKm: number,
   sports: Sport[]
 ): Promise<Court[]> {
-    const radiusInM = radiusKm * 1000;
-    
-    // If no sports are selected, search for generic "court"
-    const selectedSports = sports.length > 0 ? sports : ['court'];
-    const searchPromises = selectedSports.map(sport => {
-        // Use a more specific query for better results
-        const query = `${sport} court`;
-        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-        return fetch(url).then(res => res.json());
-    });
-    
-    try {
-        const results = await Promise.all(searchPromises);
-        const allPlaces: any[] = [];
-        const seenPlaceIds = new Set<string>();
+  try {
+    const results = await findCourts(latitude, longitude, radiusKm, sports);
+    return results;
+  } catch (error) {
+    console.error("Error in findCourtsAction:", error);
+    return [];
+  }
+}
 
-        for (let i = 0; i < results.length; i++) {
-            const result = results[i];
-            const sport = selectedSports[i];
-            if (result.status === 'OK') {
-                for (const place of result.results) {
-                    if (!seenPlaceIds.has(place.place_id)) {
-                        seenPlaceIds.add(place.place_id);
-                         const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,url,geometry,vicinity&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-                         allPlaces.push(fetch(placeDetailsUrl).then(res => res.json()).then(detailResult => ({...detailResult.result, sport})));
-                    }
-                }
-            } else if (result.status !== 'ZERO_RESULTS') {
-                console.error(`Google Places API Error for sport "${sport}":`, result.status, result.error_message || '');
-            }
-        }
-        
-        const detailedPlaces = await Promise.all(allPlaces);
+export async function createUserDocumentAction(user: {
+  uid: string;
+  email: string;
+  username: string;
+  emailVerified: boolean;
+  avatarUrl?: string | null;
+}) {
+  const userRef = doc(db, 'users', user.uid);
+  const userDoc = await getDoc(userRef);
 
-        return detailedPlaces.map(place => ({
-            id: place.place_id,
-            name: place.name,
-            location: {
-                latitude: place.geometry.location.lat,
-                longitude: place.geometry.location.lng,
-            },
-            address: place.vicinity,
-            url: place.url,
-            supportedSports: [place.sport], // We can only be sure about the sport we searched for
-        }));
-
-    } catch (error) {
-        console.error("Failed to fetch courts from Google Maps API:", error);
-        return [];
-    }
+  if (!userDoc.exists()) {
+    await createUserDocument(user);
+  }
 }
