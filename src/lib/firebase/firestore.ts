@@ -330,7 +330,7 @@ export async function deleteFriendRequest(requestId: string) {
 export async function removeFriend(userId: string, friendId: string) {
   await adminDb.runTransaction(async (t) => {
     t.update(adminDb.collection('users').doc(userId), { friendIds: FieldValue.arrayRemove(friendId) });
-    t.update(adminDb.collection('users').doc(friendId), { friendIds: FieldValue.arrayRemove(friendId) });
+    t.update(adminDb.collection('users').doc(friendId), { friendIds: FieldValue.arrayRemove(userId) });
   });
 }
 
