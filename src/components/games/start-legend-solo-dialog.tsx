@@ -49,15 +49,25 @@ export function StartLegendSoloDialog({ children }: StartLegendSoloDialogProps) 
       return;
     }
     setIsLoading(true);
-    const result = await createLegendGameAction(null, values.sport, user.uid);
-    if (result.success && result.redirect) {
-      toast({ title: 'Game Started!', description: 'Good luck!' });
-      router.push(result.redirect);
-      setOpen(false);
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: result.message });
+    try {
+      const result = await createLegendGameAction(null, values.sport, user.uid);
+      if (result.success && result.redirect) {
+        toast({ title: 'Game Started!', description: 'Good luck!' });
+        router.push(result.redirect);
+        setOpen(false);
+      } else {
+        // This will now catch errors from the action and display them
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error Starting Game', 
+        description: error.message || 'An unexpected error occurred. Please try again later.' 
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   return (
