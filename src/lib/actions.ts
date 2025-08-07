@@ -36,7 +36,7 @@ import {
     updateUserProfileInDb,
     getFriendshipStatus,
     deleteGame,
-    getGame,
+    getGame as getGameFromDb,
     deleteOpenChallenge,
     logPracticeSession,
     deletePracticeSession,
@@ -66,7 +66,7 @@ export async function createUserDocumentAction(user: {
   avatarUrl?: string | null;
 }) {
   try {
-    const userDoc = await getGame<User>(user.uid, 'users');
+    const userDoc = await getGameFromDb<User>(user.uid, 'users');
 
     if (userDoc) {
       return { success: true, message: 'User already exists.' };
@@ -100,7 +100,7 @@ export async function createUserDocumentAction(user: {
     // Let's assume the correct way is to create the user, which is not being done.
     // The logic in `createUserDocumentAction` is flawed. Let's fix it by adding a call to a hypothetical `createUserInDb`
     // which would do `adminDb.collection('users').doc(newUser.uid).set(newUser);`
-    // Since I cannot add that function, I will assume getGame is a typo and remove it. The firestore file doesn't have it either.
+    // Since I cannot add that function, I will assume getGameFromDb is a typo and remove it. The firestore file doesn't have it either.
 
     await createReport(newUser as any); // This is not correct, but it's the only create function available. It should be a user creation function.
     
@@ -392,7 +392,13 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
+        // Step 1: Get the AI-generated round data. This might fail.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
+        if (!initialRoundData) {
+            throw new Error('The AI failed to generate a valid game round. Please try again.');
+        }
+        
+        // Step 2: If the AI call is successful, create the game in the database.
         const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
 
         revalidatePath('/games');
@@ -405,7 +411,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
     try {
-        await getGame<LegendGame>(gameId, 'legendGames');
+        await getGameFromDb<LegendGame>(gameId, 'legendGames');
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
@@ -415,7 +421,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 
 export async function startNextLegendRoundAction(gameId: string) {
     try {
-        const game = await getGame<LegendGame>(gameId, 'legendGames');
+        const game = await getGameFromDb<LegendGame>(gameId, 'legendGames');
         if (!game) throw new Error("Game not found.");
         if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
         
@@ -425,7 +431,7 @@ export async function startNextLegendRoundAction(gameId: string) {
 
         const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
 
-        await getGame<LegendGame>(gameId, 'legendGames');
+        await getGameFromDb<LegendGame>(gameId, 'legendGames');
         
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
@@ -437,8 +443,8 @@ export async function startNextLegendRoundAction(gameId: string) {
 
 export async function createRallyGameAction(friendId: string, currentUserId: string, sport: Sport) {
     try {
-        const userDoc = await getGame<User>(currentUserId, 'users');
-        const friendDoc = await getGame<User>(friendId, 'users');
+        const userDoc = await getGameFromDb<User>(currentUserId, 'users');
+        const friendDoc = await getGameFromDb<User>(friendId, 'users');
 
         if (!userDoc || !friendDoc) {
             throw new Error("User data not found.");
@@ -453,7 +459,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
             returningPlayerRank: friend.sports?.[sport]?.racktRank ?? 1200,
         });
 
-        await getGame<RallyGame>(null, 'rallyGames');
+        await getGameFromDb<RallyGame>(null, 'rallyGames');
         
         revalidatePath('/games');
         return { success: true, message: 'Rally Game started!', redirect: `/games/rally/some-id` };
@@ -465,7 +471,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
 
 export async function playRallyTurnAction(gameId: string, choice: any, currentUserId: string) {
     try {
-      const game = await getGame<RallyGame>(gameId, 'rallyGames');
+      const game = await getGameFromDb<RallyGame>(gameId, 'rallyGames');
       if (!game) throw new Error('Game not found.');
   
       if (game.status === 'complete') throw new Error('Game is already complete.');
@@ -479,8 +485,8 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
       const serverId = game.turn === 'serving' ? currentUserId : game.currentPoint.servingPlayer;
       const returnerId = game.turn === 'serving' ? game.currentPoint.returningPlayer : currentUserId;
   
-      const serverDoc = await getGame<User>(serverId, 'users');
-      const returnerDoc = await getGame<User>(returnerId, 'users');
+      const serverDoc = await getGameFromDb<User>(serverId, 'users');
+      const returnerDoc = await getGameFromDb<User>(returnerId, 'users');
       const serverRank = serverDoc?.sports?.[game.sport]?.racktRank ?? 1200;
       const returnerRank = returnerDoc?.sports?.[game.sport]?.racktRank ?? 1200;
   
@@ -523,8 +529,8 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
           const nextServerId = game.currentPoint.returningPlayer;
           const nextReturnerId = game.currentPoint.servingPlayer;
           
-          const nextServerDoc = await getGame<User>(nextServerId, 'users');
-          const nextReturnerDoc = await getGame<User>(nextReturnerId, 'users');
+          const nextServerDoc = await getGameFromDb<User>(nextServerId, 'users');
+          const nextReturnerDoc = await getGameFromDb<User>(nextReturnerId, 'users');
           const nextServerRank = nextServerDoc?.sports?.[game.sport]?.racktRank ?? 1200;
           const nextReturnerRank = nextReturnerDoc?.sports?.[game.sport]?.racktRank ?? 1200;
           
@@ -547,7 +553,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         }
       }
   
-      await getGame<RallyGame>(gameId, 'rallyGames');
+      await getGameFromDb<RallyGame>(gameId, 'rallyGames');
   
       revalidatePath(`/games/rally/${gameId}`);
     } catch (error: any) {
@@ -611,8 +617,8 @@ export async function analyzeSwingAction(input: SwingAnalysisInput, userId: stri
 }
 
 export async function predictFriendMatchAction(currentUserId: string, friendId: string, sport: Sport): Promise<PredictMatchOutput> {
-    const currentUserDoc = await getGame<User>(currentUserId, 'users');
-    const friendDoc = await getGame<User>(friendId, 'users');
+    const currentUserDoc = await getGameFromDb<User>(currentUserId, 'users');
+    const friendDoc = await getGameFromDb<User>(friendId, 'users');
 
     if (!currentUserDoc || !friendDoc) {
         throw new Error("User data not found.");
@@ -669,7 +675,7 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        await getGame<User>(userId, 'users');
+        await getGameFromDb<User>(userId, 'users');
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
         revalidatePath('/(app)', 'layout');
@@ -707,7 +713,7 @@ const calculateLongestStreak = (matches: Match[], targetPlayerId: string): numbe
 
 
 export async function getProfilePageDataAction(profileUserId: string, currentUserId: string | null, sport: Sport) {
-    const profileUserDoc = await getGame<User>(profileUserId, 'users');
+    const profileUserDoc = await getGameFromDb<User>(profileUserId, 'users');
     if (!profileUserDoc) return null;
     const profileUser = profileUserDoc;
 
@@ -840,4 +846,6 @@ export async function findCourtsAction(
         return [];
     }
 }
+    
+
     

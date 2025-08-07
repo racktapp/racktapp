@@ -1,3 +1,4 @@
+
 'use client';
 import { ReactNode, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -107,3 +108,5 @@ export function StartLegendSoloDialog({ children }: StartLegendSoloDialogProps) 
     </Dialog>
   );
 }
+
+    
