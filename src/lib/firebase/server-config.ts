@@ -5,28 +5,36 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
 function getServiceAccount() {
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccountJson) {
-    throw new Error('The FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please provide the full JSON object for your service account.');
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+  if (!projectId || !privateKey || !clientEmail) {
+    throw new Error('The FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL environment variables must be set.');
   }
-  try {
-    const serviceAccount = JSON.parse(serviceAccountJson);
-    // The private key from the environment variable might have its newlines escaped.
-    // We need to replace the literal `\\n` with actual newline characters `\n`.
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
-    return serviceAccount;
-  } catch (e: any) {
-    throw new Error(`Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: ${e.message}`);
-  }
+
+  // The private key from the environment variable might have its newlines escaped.
+  // We need to replace the literal `\\n` with actual newline characters `\n`.
+  const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+
+  return {
+    projectId,
+    privateKey: formattedPrivateKey,
+    clientEmail,
+  };
 }
 
 let adminApp: App;
 
 if (!getApps().length) {
+  const serviceAccount = getServiceAccount();
+
   adminApp = initializeApp({
-    credential: cert(getServiceAccount()),
+    credential: cert({
+        projectId: serviceAccount.projectId,
+        clientEmail: serviceAccount.clientEmail,
+        privateKey: serviceAccount.privateKey,
+    }),
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 } else {
