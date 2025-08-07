@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -41,9 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize Firebase client-side
   useEffect(() => {
-    if (getApps().length === 0) {
-        initializeFirebase();
-    }
+    initializeFirebase();
   }, []);
 
   const fetchAppUser = useCallback(async (uid: string): Promise<AppUser | null> => {
