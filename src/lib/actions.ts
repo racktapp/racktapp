@@ -388,7 +388,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
-        return { success: false, message: error.message || 'Could not start the game. Please try again.' };
+        return { success: false, message: error.message || 'Could not start the game. The AI may be experiencing issues. Please try again later.' };
     }
 }
 

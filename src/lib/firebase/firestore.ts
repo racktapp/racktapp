@@ -747,7 +747,10 @@ export async function createLegendGame(friendId: string | null, sport: Sport, cu
             newGame = {
                 id: gameRef.id, mode: 'friend', sport,
                 participantIds: [currentUserId, friendId],
-                participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
+                participantsData: { 
+                    [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, 
+                    [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } 
+                },
                 score: { [currentUserId]: 0, [friendId]: 0 },
                 currentPlayerId: currentUserId,
                 turnState: 'playing', status: 'ongoing',
@@ -772,3 +775,4 @@ export async function createLegendGame(friendId: string | null, sport: Sport, cu
     return gameId;
 }
     
+
