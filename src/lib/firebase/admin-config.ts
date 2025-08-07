@@ -1,15 +1,18 @@
-
 import * as admin from 'firebase-admin';
 
-// This prevents initialization on the client side and during hot-reloads in dev
 if (!admin.apps.length) {
-  admin.initializeApp({
-    // If you're running this on a server (e.g., Vercel),
-    // you would use environment variables for the credentials.
-    // credential: admin.credential.cert({ ... }),
-  });
+  try {
+    admin.initializeApp({
+      // The Vercel environment automatically provides the necessary
+      // service account credentials via environment variables.
+    });
+  } catch (error: any) {
+    console.error('Firebase admin initialization error', error.stack);
+  }
 }
 
-export const adminApp = admin.apps[0];
-export const adminAuth = admin.auth();
-export const adminDb = admin.firestore();
+const adminDb = admin.firestore();
+const adminAuth = admin.auth();
+const adminApp = admin.app();
+
+export { adminDb, adminAuth, adminApp };
