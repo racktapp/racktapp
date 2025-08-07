@@ -729,4 +729,46 @@ export async function findCourts(
     }
 }
 
+export async function createLegendGame(friendId: string | null, sport: Sport, currentUserId: string, initialRoundData: LegendGameOutput): Promise<string> {
+    const gameId = await db.runTransaction(async (transaction) => {
+        const userDoc = await transaction.get(db.collection('users').doc(currentUserId));
+        if (!userDoc.exists) throw new Error("Current user not found.");
+        const user = userDoc.data() as User;
+        
+        const gameRef = db.collection('legendGames').doc();
+        const now = new Date().getTime();
+        const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+        
+        let newGame: LegendGame;
+        if (friendId) {
+            const friendDoc = await transaction.get(db.collection('users').doc(friendId));
+            if (!friendDoc.exists) throw new Error("Friend not found.");
+            const friend = friendDoc.data() as User;
+            newGame = {
+                id: gameRef.id, mode: 'friend', sport,
+                participantIds: [currentUserId, friendId],
+                participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
+                score: { [currentUserId]: 0, [friendId]: 0 },
+                currentPlayerId: currentUserId,
+                turnState: 'playing', status: 'ongoing',
+                currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+                createdAt: now, updatedAt: now,
+            };
+        } else {
+            newGame = {
+                id: gameRef.id, mode: 'solo', sport,
+                participantIds: [currentUserId],
+                participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } },
+                score: { [currentUserId]: 0 },
+                currentPlayerId: currentUserId,
+                turnState: 'playing', status: 'ongoing',
+                currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+                createdAt: now, updatedAt: now,
+            };
+        }
+        transaction.set(gameRef, newGame);
+        return gameRef.id;
+    });
+    return gameId;
+}
     
