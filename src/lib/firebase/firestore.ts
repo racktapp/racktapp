@@ -23,11 +23,13 @@ import {
   GeoPoint,
 } from 'firebase/firestore';
 import * as geofire from 'geofire-common';
-import { adminDb as db } from './admin-config'; // Use server-side db
+import { getAdminDb } from './server-config'; // Use the new function
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
+
+const db = getAdminDb(); // Get the initialized DB instance
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {

@@ -1,18 +1,24 @@
 import * as admin from 'firebase-admin';
 
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      // The Vercel environment automatically provides the necessary
-      // service account credentials via environment variables.
-    });
-  } catch (error: any) {
-    console.error('Firebase admin initialization error', error.stack);
+// This function ensures the Firebase app is initialized and returns the Firestore instance.
+// This prevents race conditions and initialization errors in a serverless environment.
+export function getAdminDb() {
+  if (!admin.apps.length) {
+    try {
+      admin.initializeApp({
+        // The Vercel environment automatically provides the necessary
+        // service account credentials via environment variables.
+      });
+    } catch (error: any) {
+      console.error('Firebase admin initialization error', error.stack);
+    }
   }
+  return admin.firestore();
 }
 
-const adminDb = admin.firestore();
-const adminAuth = admin.auth();
-const adminApp = admin.app();
-
-export { adminDb, adminAuth, adminApp };
+export function getAdminAuth() {
+    if (!admin.apps.length) {
+        getAdminDb(); // Ensure app is initialized
+    }
+    return admin.auth();
+}
