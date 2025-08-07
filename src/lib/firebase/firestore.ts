@@ -21,6 +21,7 @@ import {
   addDoc,
   Transaction,
   GeoPoint,
+  collectionGroup,
 } from 'firebase/firestore';
 import * as geofire from 'geofire-common';
 import { db } from './config';
@@ -483,8 +484,8 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
 }
 
 export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
-    const q = query(adminDb.collection('tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await q.get();
+    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
 }
 
@@ -661,10 +662,14 @@ export async function getPracticeSessionsForUser(
   sport: Sport
 ): Promise<PracticeSession[]> {
   try {
-    const sessionsRef = adminDb.collectionGroup('practiceSessions');
-    const q = sessionsRef.where('sport', '==', sport).orderBy('date', 'desc');
-
-    const snapshot = await q.get();
+    const sessionsRef = collectionGroup(db, 'practiceSessions');
+    const q = query(
+      sessionsRef,
+      where('userId', '==', userId),
+      where('sport', '==', sport),
+      orderBy('date', 'desc')
+    );
+    const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => convertTimestamps(doc.data() as PracticeSession));
   } catch (error: any) {
     console.error("Error in getPracticeSessionsForUser:", error);
