@@ -28,6 +28,7 @@ import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, Op
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
+import { adminDb } from './admin-config';
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
@@ -44,71 +45,51 @@ function convertTimestamps<T extends Record<string, any>>(obj: T): T {
 
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
-  try {
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
 
-    if (!userDoc.exists()) {
-      return [];
-    }
+    if (!userDoc.exists()) return [];
 
-    const userData = userDoc.data() as User;
-    const friendIds = userData.friendIds;
-
-    if (!friendIds || friendIds.length === 0) {
-      return [];
-    }
-
+    const friendIds = userDoc.data().friendIds || [];
+    if (friendIds.length === 0) return [];
+    
     const friendsData: User[] = [];
+    // Firestore 'in' query supports a maximum of 30 elements.
     const chunkSize = 30;
     for (let i = 0; i < friendIds.length; i += chunkSize) {
-      const chunk = friendIds.slice(i, i + chunkSize);
-      if (chunk.length > 0) {
+        const chunk = friendIds.slice(i, i + chunkSize);
         const friendsQuery = query(collection(db, 'users'), where('uid', 'in', chunk));
         const querySnapshot = await getDocs(friendsQuery);
         querySnapshot.forEach((doc) => {
           friendsData.push(doc.data() as User);
         });
-      }
     }
     
     return friendsData;
-  } catch (error) {
-    console.error("Error fetching friends:", error);
-    return [];
-  }
 }
 
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
-  try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('uid', '!=', currentUserId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as User);
-  } catch (error) {
-    console.error("Error fetching all users:", error);
-    return [];
-  }
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('uid', '!=', currentUserId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => doc.data() as User);
 }
 
 export async function searchUsers(usernameQuery: string, currentUserId: string): Promise<User[]> {
-    try {
-        const lowerCaseQuery = usernameQuery.toLowerCase().trim();
-        if (!lowerCaseQuery) return [];
+    const lowerCaseQuery = usernameQuery.toLowerCase().trim();
+    if (!lowerCaseQuery) return [];
 
-        const usersRef = collection(db, 'users');
-        const querySnapshot = await getDocs(usersRef);
-        
-        return querySnapshot.docs
-            .map(doc => doc.data() as User)
-            .filter(user => 
-                user.username.toLowerCase().includes(lowerCaseQuery) && 
-                user.uid !== currentUserId
-            );
-    } catch (error) {
-        console.error("Error searching users:", error);
-        throw new Error("Failed to search for users.");
-    }
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, 
+        where('username', '>=', lowerCaseQuery),
+        where('username', '<=', lowerCaseQuery + '\uf8ff')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs
+        .map(doc => doc.data() as User)
+        .filter(user => user.uid !== currentUserId);
 }
 
 async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
@@ -248,6 +229,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             return { finalized: false };
         }
         
+        // If the match is NOT ranked, just confirm it and we're done.
         if (!match.isRanked) {
             transaction.update(matchRef, { status: 'confirmed', participantsToConfirm: [] });
             return { finalized: true };
@@ -377,7 +359,7 @@ export async function deleteFriendRequest(requestId: string) {
 export async function removeFriend(userId: string, friendId: string) {
   await runTransaction(db, async (t) => {
     t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
-    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(friendId) });
+    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
   });
 }
 
@@ -501,8 +483,8 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
 }
 
 export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
-    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
+    const q = query(adminDb.collection('tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
 }
 
@@ -591,70 +573,6 @@ export async function markChatAsRead(chatId: string, userId: string): Promise<vo
     await updateDoc(doc(db, 'chats', chatId), { [`lastRead.${userId}`]: Timestamp.now().toMillis() });
 }
 
-export async function createLegendGame(
-  friendId: string | null,
-  sport: Sport,
-  currentUserId: string,
-  initialRoundData: LegendGameOutput
-): Promise<string> {
-  const userDoc = await getDoc(doc(db, 'users', currentUserId));
-  if (!userDoc.exists()) {
-    throw new Error('Current user not found.');
-  }
-  const user = userDoc.data() as User;
-
-  const gameRef = doc(collection(db, 'legendGames'));
-  const now = new Date().getTime();
-  const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-
-  const baseGameData = {
-    id: gameRef.id,
-    sport,
-    currentPlayerId: currentUserId,
-    turnState: 'playing' as const,
-    status: 'ongoing' as const,
-    currentRound: initialRound,
-    roundHistory: [],
-    usedPlayers: [initialRound.correctAnswer],
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  if (friendId) {
-    const friendDoc = await getDoc(doc(db, 'users', friendId));
-    if (!friendDoc.exists()) {
-      throw new Error('Friend not found.');
-    }
-    const friend = friendDoc.data() as User;
-
-    const gameData: LegendGame = {
-      ...baseGameData,
-      mode: 'friend',
-      participantIds: [currentUserId, friendId],
-      participantsData: {
-        [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid },
-        [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid },
-      },
-      score: { [currentUserId]: 0, [friendId]: 0 },
-    };
-    await setDoc(gameRef, gameData);
-  } else {
-    const gameData: LegendGame = {
-      ...baseGameData,
-      mode: 'solo',
-      participantIds: [currentUserId],
-      participantsData: {
-        [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid },
-      },
-      score: { [currentUserId]: 0 },
-    };
-    await setDoc(gameRef, gameData);
-  }
-
-  return gameRef.id;
-}
-
-
 export async function getGameFromDb<T>(gameId: string, collectionName: 'rallyGames' | 'legendGames' | 'users'): Promise<T | null> {
     const docSnap = await getDoc(doc(db, collectionName, gameId));
     return docSnap.exists() ? docSnap.data() as T : null;
@@ -679,8 +597,8 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    const q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
-    const snapshot = await getDocs(q);
+    const q = query(adminDb.collection('users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => doc.data() as User).filter(user => user.sports?.[sport]);
 }
 
@@ -694,6 +612,8 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
 
 export async function deleteUserDocument(userId: string) {
     if (!userId) throw new Error("User ID is required.");
+    // This function only deletes the Firestore document.
+    // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
     const userRef = doc(db, 'users', userId);
     await deleteDoc(userRef);
 }
@@ -741,13 +661,10 @@ export async function getPracticeSessionsForUser(
   sport: Sport
 ): Promise<PracticeSession[]> {
   try {
-    const sessionsRef = collection(db, 'users', userId, 'practiceSessions');
-    const q = query(
-      sessionsRef,
-      where('sport', '==', sport),
-      orderBy('date', 'desc')
-    );
-    const snapshot = await getDocs(q);
+    const sessionsRef = adminDb.collectionGroup('practiceSessions');
+    const q = sessionsRef.where('sport', '==', sport).orderBy('date', 'desc');
+
+    const snapshot = await q.get();
     return snapshot.docs.map((doc) => convertTimestamps(doc.data() as PracticeSession));
   } catch (error: any) {
     console.error("Error in getPracticeSessionsForUser:", error);

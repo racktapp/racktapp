@@ -37,7 +37,7 @@ import {
     updateUserProfileInDb,
     getFriendshipStatus,
     deleteGame,
-    getGame as getGameFromDb,
+    getGameFromDb,
     deleteOpenChallenge,
     logPracticeSession,
     deletePracticeSession,
@@ -45,8 +45,7 @@ import {
     createReport,
     deleteUserDocument,
     findCourts,
-    createUserDocument,
-    getGameFromDb as getGame
+    createUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -57,6 +56,8 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
+import { db } from './firebase/config';
+import { doc, runTransaction, Timestamp } from 'firebase/firestore';
 
 
 // Action to report a match
@@ -357,7 +358,7 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-        const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
+        const gameId = await createLegendGameInDb(friendId, sport, currentUserId, initialRoundData);
 
         revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
@@ -886,4 +887,67 @@ export async function createUserDocumentAction(user: {
   if (!userDoc.exists()) {
     await createUserDocument(user);
   }
+}
+
+async function createLegendGameInDb(
+  friendId: string | null,
+  sport: Sport,
+  currentUserId: string,
+  initialRoundData: z.infer<typeof z.any>
+): Promise<string> {
+    const userDoc = await getDoc(doc(db, 'users', currentUserId));
+    if (!userDoc.exists()) {
+        throw new Error('Current user not found.');
+    }
+    const user = userDoc.data() as User;
+
+    const gameRef = doc(collection(db, 'legendGames'));
+    const now = new Date().getTime();
+    const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+
+    const baseGameData = {
+        id: gameRef.id,
+        sport,
+        currentPlayerId: currentUserId,
+        turnState: 'playing' as const,
+        status: 'ongoing' as const,
+        currentRound: initialRound,
+        roundHistory: [],
+        usedPlayers: [initialRound.correctAnswer],
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    if (friendId) {
+        const friendDoc = await getDoc(doc(db, 'users', friendId));
+        if (!friendDoc.exists()) {
+        throw new Error('Friend not found.');
+        }
+        const friend = friendDoc.data() as User;
+
+        const gameData: LegendGame = {
+        ...baseGameData,
+        mode: 'friend',
+        participantIds: [currentUserId, friendId],
+        participantsData: {
+            [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid },
+            [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid },
+        },
+        score: { [currentUserId]: 0, [friendId]: 0 },
+        };
+        await setDoc(gameRef, gameData);
+    } else {
+        const gameData: LegendGame = {
+        ...baseGameData,
+        mode: 'solo',
+        participantIds: [currentUserId],
+        participantsData: {
+            [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid },
+        },
+        score: { [currentUserId]: 0 },
+        };
+        await setDoc(gameRef, gameData);
+    }
+
+    return gameRef.id;
 }
