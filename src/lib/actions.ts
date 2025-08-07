@@ -775,7 +775,8 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         const sessions = await getPracticeSessionsForUser(userId, sport);
         return { success: true, data: sessions };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        console.error("Error getting practice sessions:", error);
+        return { success: false, error: "Could not load practice sessions. This may be due to a permissions issue or a missing database index." };
     }
 }
 
@@ -847,3 +848,4 @@ export async function findCourtsAction(
     
 
     
+

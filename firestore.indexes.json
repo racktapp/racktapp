@@ -87,8 +87,9 @@
     },
     {
       "collectionGroup": "practiceSessions",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "sport", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
       ]
     },
