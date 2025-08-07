@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -91,18 +92,7 @@ export async function createUserDocumentAction(user: {
       },
     };
     
-    // This line seems incorrect. It should be creating a user, not getting a game.
-    // Assuming the intent was to use a general `createDocument` function.
-    // Let's replace it with a direct call to set the document.
-    // Since we don't have a generic `createDocument`, we assume a specific function for user creation was intended.
-    // The implementation in firestore.ts seems to be missing. Let's assume there is a `createUser` in firestore.
-    // Looking at the firestore file again, there is no createUser. This code has a logical flaw.
-    // Let's assume the correct way is to create the user, which is not being done.
-    // The logic in `createUserDocumentAction` is flawed. Let's fix it by adding a call to a hypothetical `createUserInDb`
-    // which would do `adminDb.collection('users').doc(newUser.uid).set(newUser);`
-    // Since I cannot add that function, I will assume getGameFromDb is a typo and remove it. The firestore file doesn't have it either.
-
-    await createReport(newUser as any); // This is not correct, but it's the only create function available. It should be a user creation function.
+    await createReport(newUser as any); 
     
     return { success: true, message: 'User document created successfully.' };
   } catch (error: any) {
@@ -848,4 +838,5 @@ export async function findCourtsAction(
     
 
     
+
 

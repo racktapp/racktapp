@@ -574,7 +574,7 @@ export async function getLeaderboard(sport: Sport): Promise<User[]> {
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
     const gameRef = adminDb.collection(collectionName).doc(gameId);
     const gameDoc = await gameRef.get();
-    if (!gameDoc.exists) throw new Error("Game not found.");
+    if (!gameDoc.exists()) throw new Error("Game not found.");
     if (!(gameDoc.data()?.participantIds.includes(userId))) throw new Error("You are not authorized to delete this game.");
     await gameRef.delete();
 }
@@ -779,5 +779,6 @@ export async function createLegendGame(
   return gameRef.id;
 }
     
+
 
 
