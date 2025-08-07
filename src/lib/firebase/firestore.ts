@@ -22,7 +22,7 @@ import {
   GeoPoint,
 } from 'firebase/firestore';
 import * as geofire from 'geofire-common';
-import { db } from './server-config'; // Use server-side db
+import { adminDb as db } from './server-config'; // Use server-side db
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
