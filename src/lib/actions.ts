@@ -1,17 +1,13 @@
 
-
 'use server';
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, storage } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
-import { 
+import {
     reportPendingMatch,
     confirmMatchResult,
     declineMatchResult,
-    searchUsers, 
+    searchUsers,
     sendFriendRequest,
     getFriends as getFriendsFromFirestore,
     getIncomingFriendRequests,
@@ -68,12 +64,10 @@ export async function createUserDocumentAction(user: {
   avatarUrl?: string | null;
 }) {
   try {
-    const userRef = doc(db, 'users', user.uid);
-    const userDoc = await getDoc(userRef);
+    const userDoc = await db.collection('users').doc(user.uid).get();
 
-    if (userDoc.exists()) {
-      // User already exists, maybe update some fields if needed
-      await updateDoc(userRef, {
+    if (userDoc.exists) {
+      await db.collection('users').doc(user.uid).update({
           avatarUrl: user.avatarUrl,
           emailVerified: user.emailVerified,
       });
@@ -99,7 +93,7 @@ export async function createUserDocumentAction(user: {
       },
     };
     
-    await setDoc(userRef, newUser, { merge: true });
+    await db.collection('users').doc(user.uid).set(newUser, { merge: true });
     return { success: true, message: 'User document created successfully.' };
   } catch (error: any) {
     console.error("Error creating user document:", error);
@@ -107,8 +101,6 @@ export async function createUserDocumentAction(user: {
   }
 }
 
-
-// Action to report a match
 export async function handleReportMatchAction(
     values: z.infer<typeof reportMatchSchema>,
     user: User
@@ -141,7 +133,6 @@ export async function handleReportMatchAction(
     revalidatePath('/match-history');
 }
 
-// Action to get match recap
 export async function handleRecapAction(match: Match, currentUserId: string) {
     const player1Name = match.participantsData[match.teams.team1.playerIds[0]].username;
     const player2Name = match.participantsData[match.teams.team2.playerIds[0]].username;
@@ -154,13 +145,11 @@ export async function handleRecapAction(match: Match, currentUserId: string) {
     });
 }
 
-// Action to search for users
 export async function searchUsersAction(query: string, currentUserId: string): Promise<User[]> {
     if (!query) return [];
     return searchUsers(query, currentUserId);
 }
 
-// Action for sending a friend request
 export async function addFriendAction(fromUser: User, toUser: User) {
     try {
         await sendFriendRequest(fromUser, toUser);
@@ -171,8 +160,6 @@ export async function addFriendAction(fromUser: User, toUser: User) {
         return { success: false, message: error.message || "Failed to send friend request." };
     }
 }
-
-// --- Friend Management Actions ---
 
 export async function getFriendsAction(userId: string): Promise<User[]> {
     return getFriendsFromFirestore(userId);
@@ -223,8 +210,6 @@ export async function getFriendshipStatusAction(profileUserId: string, currentUs
     return getFriendshipStatus(currentUserId, profileUserId);
 }
 
-// --- Challenge System Actions ---
-
 export async function createDirectChallengeAction(values: z.infer<typeof challengeSchema>, fromUser: User, toUser: User) {
     try {
         const [hours, minutes] = values.time.split(':').map(Number);
@@ -241,6 +226,7 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
             location: values.location,
             wager: values.wager,
             matchDateTime: matchDateTime,
+            participantsData: {}
         });
         revalidatePath('/challenges');
         return { success: true, message: "Challenge sent successfully!" };
@@ -327,8 +313,6 @@ export async function deleteOpenChallengeAction(challengeId: string, userId: str
     }
 }
 
-
-// --- Tournament Actions ---
 export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
     try {
         await createTournamentInDb(values, organizer);
@@ -356,9 +340,6 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
         return { success: false, message: error.message || 'Failed to report winner.' };
     }
 }
-
-
-// --- Chat Actions ---
 
 export async function getOrCreateChatAction(friendId: string, currentUserId: string) {
     try {
@@ -390,7 +371,6 @@ export async function markChatAsReadAction(chatId: string, userId: string) {
 
 export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
     try {
-        // Validate input data
         reportUserSchema.parse(data);
         await createReport(data);
         return { success: true, message: 'User has been reported.' };
@@ -400,27 +380,22 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
     }
 }
 
-
-// --- Game Actions ---
-
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
-        // AI is called FIRST to ensure a valid round exists before creating the game.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-
-        const userDoc = await getDoc(doc(db, 'users', currentUserId));
-        if (!userDoc.exists()) throw new Error("Current user not found.");
-        const user = userDoc.data() as User;
-        
-        const gameId = await runTransaction(db, async (transaction) => {
-            const gameRef = doc(collection(db, 'legendGames')); // Always create a new game
-            const now = Timestamp.now().toMillis();
+        const gameId = await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(db.collection('users').doc(currentUserId));
+            if (!userDoc.exists) throw new Error("Current user not found.");
+            const user = userDoc.data() as User;
+            
+            const gameRef = db.collection('legendGames').doc();
+            const now = new Date().getTime();
             const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
             
             let newGame: LegendGame;
             if (friendId) {
-                const friendDoc = await getDoc(doc(db, 'users', friendId));
-                if (!friendDoc.exists()) throw new Error("Friend not found.");
+                const friendDoc = await transaction.get(db.collection('users').doc(friendId));
+                if (!friendDoc.exists) throw new Error("Friend not found.");
                 const friend = friendDoc.data() as User;
                 newGame = {
                     id: gameRef.id, mode: 'friend', sport,
@@ -456,11 +431,10 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
     }
 }
 
-
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
     try {
-        await runTransaction(db, async (transaction) => {
-            const gameRef = doc(db, 'legendGames', gameId);
+        await db.runTransaction(async (transaction) => {
+            const gameRef = db.collection('legendGames').doc(gameId);
             const gameDoc = await transaction.get(gameRef);
             if (!gameDoc.exists()) throw new Error('Game not found.');
             const game = gameDoc.data() as LegendGame;
@@ -481,24 +455,21 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 
             if (game.mode === 'solo') {
                 game.turnState = 'round_over';
-                // End game on a wrong answer in solo mode OR after 10 correct answers.
                 if (!isCorrect) {
                      game.status = 'complete';
-                     game.winnerId = null; // No winner for a loss
-                } else if ((game.score[currentUserId] || 0) >= 10) { // Win condition
+                     game.winnerId = null;
+                } else if ((game.score[currentUserId] || 0) >= 10) {
                      game.status = 'complete';
                      game.winnerId = currentUserId;
                 }
-            } else { // friend mode
+            } else {
                 if (allPlayersAnswered) {
                     game.turnState = 'round_over';
                     const p1Id = game.participantIds[0];
                     const p2Id = game.participantIds[1];
-                    
                     const p1Correct = newGuesses[p1Id] === game.currentRound!.correctAnswer;
                     const p2Correct = newGuesses[p2Id] === game.currentRound!.correctAnswer;
             
-                    // "Sudden death" win condition
                     if (p1Correct !== p2Correct) {
                         game.status = 'complete';
                         game.winnerId = p1Correct ? p1Id : p2Id;
@@ -506,7 +477,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
                 }
             }
 
-            game.updatedAt = Timestamp.now().toMillis();
+            game.updatedAt = new Date().getTime();
             transaction.set(gameRef, game);
         });
         revalidatePath(`/games/legend/${gameId}`);
@@ -517,12 +488,10 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 export async function startNextLegendRoundAction(gameId: string) {
-    // This is a best practice: fetch external data *before* the transaction
     const game = await getGame<LegendGame>(gameId, 'legendGames');
     if (!game) throw new Error("Game not found.");
     if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
     
-    // Server-side validation for turn state.
     if (game.turnState !== 'round_over') {
         throw new Error("Current round is not over.");
     }
@@ -530,14 +499,12 @@ export async function startNextLegendRoundAction(gameId: string) {
     const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
 
     try {
-        await runTransaction(db, async (transaction) => {
-            const gameRef = doc(db, 'legendGames', gameId);
-            // Re-fetch inside transaction for safety
+        await db.runTransaction(async (transaction) => {
+            const gameRef = db.collection('legendGames').doc(gameId);
             const liveGameDoc = await transaction.get(gameRef);
             if (!liveGameDoc.exists()) throw new Error("Game not found during transaction.");
             const liveGame = liveGameDoc.data() as LegendGame;
 
-            // Double-check state inside the transaction to prevent race conditions
             if (liveGame.status !== 'ongoing' || liveGame.turnState !== 'round_over') return;
             
             if (liveGame.currentRound) {
@@ -549,13 +516,12 @@ export async function startNextLegendRoundAction(gameId: string) {
 
             if (liveGame.mode === 'solo') {
                 liveGame.currentPlayerId = liveGame.participantIds[0];
-            } else { // friend mode
-                // The current player was the one who answered last, so alternate.
+            } else {
                 const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
                 liveGame.currentPlayerId = otherPlayerId!;
             }
             
-            liveGame.updatedAt = Timestamp.now().toMillis();
+            liveGame.updatedAt = new Date().getTime();
             transaction.set(gameRef, liveGame);
         });
         
@@ -569,8 +535,8 @@ export async function startNextLegendRoundAction(gameId: string) {
 
 export async function createRallyGameAction(friendId: string, currentUserId: string, sport: Sport) {
     try {
-        const userDoc = await getDoc(doc(db, 'users', currentUserId));
-        const friendDoc = await getDoc(doc(db, 'users', friendId));
+        const userDoc = await db.collection('users').doc(currentUserId).get();
+        const friendDoc = await db.collection('users').doc(friendId).get();
 
         if (!userDoc.exists() || !friendDoc.exists()) {
             throw new Error("User data not found.");
@@ -585,9 +551,9 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
             returningPlayerRank: friend.sports?.[sport]?.racktRank ?? 1200,
         });
 
-        const gameId = await runTransaction(db, async (transaction) => {
-            const gameRef = doc(collection(db, 'rallyGames'));
-            const now = Timestamp.now().toMillis();
+        const gameId = await db.runTransaction(async (transaction) => {
+            const gameRef = db.collection('rallyGames').doc();
+            const now = new Date().getTime();
             const newGame: RallyGame = {
                 id: gameRef.id,
                 sport: sport,
@@ -621,14 +587,14 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         throw new Error("It's not your turn.");
       }
   
-      let aiInput: z.infer<typeof RallyGameInput>;
+      let aiInput;
       let updatePayload: Partial<RallyGame> = {};
   
       const serverId = game.turn === 'serving' ? currentUserId : game.currentPoint.servingPlayer;
       const returnerId = game.turn === 'serving' ? game.currentPoint.returningPlayer : currentUserId;
   
-      const serverDoc = await getDoc(doc(db, 'users', serverId));
-      const returnerDoc = await getDoc(doc(db, 'users', returnerId));
+      const serverDoc = await db.collection('users').doc(serverId).get();
+      const returnerDoc = await db.collection('users').doc(returnerId).get();
       const serverRank = serverDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
       const returnerRank = returnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
   
@@ -647,7 +613,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
           currentPlayerId: game.currentPoint.returningPlayer,
           currentPoint: updatedCurrentPoint,
         };
-      } else { // returning
+      } else { 
         aiInput = { sport: game.sport, serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
         const pointEvalResponse = await playRallyPoint(aiInput);
         
@@ -668,12 +634,11 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
             turn: 'game_over',
           };
         } else {
-          // Game is not over, so set up the next point immediately.
           const nextServerId = game.currentPoint.returningPlayer;
           const nextReturnerId = game.currentPoint.servingPlayer;
           
-          const nextServerDoc = await getDoc(doc(db, 'users', nextServerId));
-          const nextReturnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
+          const nextServerDoc = await db.collection('users').doc(nextServerId).get();
+          const nextReturnerDoc = await db.collection('users').doc(nextReturnerId).get();
           const nextServerRank = nextServerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
           const nextReturnerRank = nextReturnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
           
@@ -696,9 +661,9 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         }
       }
   
-      await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'rallyGames', gameId);
-        transaction.update(gameRef, { ...updatePayload, updatedAt: Timestamp.now().toMillis() });
+      await db.runTransaction(async (transaction) => {
+        const gameRef = db.collection('rallyGames').doc(gameId);
+        transaction.update(gameRef, { ...updatePayload, updatedAt: new Date().getTime() });
       });
   
       revalidatePath(`/games/rally/${gameId}`);
@@ -707,7 +672,6 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         throw new Error(error.message || 'Failed to play turn.');
     }
 }
-
 
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
     try {
@@ -719,8 +683,6 @@ export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Lege
     }
 }
 
-
-// --- Match History Actions ---
 export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: { confirmed: Match[], pending: Match[] } } | { success: false, error: string }> {
     try {
         const [confirmed, pending] = await Promise.all([
@@ -761,18 +723,13 @@ export async function declineMatchResultAction(matchId: string, userId: string) 
     }
 }
 
-// --- AI Coach Actions ---
 export async function analyzeSwingAction(input: SwingAnalysisInput, userId: string) {
     return analyzeSwing(input);
 }
 
-// --- AI Prediction Actions ---
-
 export async function predictFriendMatchAction(currentUserId: string, friendId: string, sport: Sport): Promise<PredictMatchOutput> {
-    const [currentUserDoc, friendDoc] = await Promise.all([
-        getDoc(doc(db, 'users', currentUserId)),
-        getDoc(doc(db, 'users', friendId))
-    ]);
+    const currentUserDoc = await db.collection('users').doc(currentUserId).get();
+    const friendDoc = await db.collection('users').doc(friendId).get();
 
     if (!currentUserDoc.exists() || !friendDoc.exists()) {
         throw new Error("User data not found.");
@@ -810,12 +767,10 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
     return await predictMatchOutcome(predictionInput);
 }
 
-// --- Leaderboard Actions ---
 export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
     return await getLeaderboard(sport);
 }
 
-// --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
       await updateUserProfileInDb(userId, values);
@@ -831,13 +786,10 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        const userDocRef = doc(db, 'users', userId);
-        await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
-
+        await db.collection('users').doc(userId).update({ avatarUrl: newAvatarUrl });
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
         revalidatePath('/(app)', 'layout');
-
         return { success: true, message: 'Profile picture updated.' };
     } catch (error: any) {
         console.error("Error updating avatar in action:", error);
@@ -847,19 +799,7 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
 export async function deleteUserAccountAction(userId: string) {
     try {
-        const storageRef = ref(storage, `avatars/${userId}`);
-        try {
-            const listResult = await listAll(storageRef);
-            await Promise.all(listResult.items.map(itemRef => deleteObject(itemRef)));
-        } catch (e) {
-            console.error("Could not clean up all storage files, this is okay.", e);
-        }
-        
         await deleteUserDocument(userId);
-        
-        // This must be done on the client. We assume the client will handle it.
-        // await auth.currentUser.delete();
-
         return { success: true, message: 'Your account data has been deleted.' };
     } catch (error: any) {
         console.error("Error deleting user account action:", error);
@@ -867,12 +807,9 @@ export async function deleteUserAccountAction(userId: string) {
     }
 }
 
-
-// --- Profile Page Action ---
 const calculateLongestStreak = (matches: Match[], targetPlayerId: string): number => {
     let longestStreak = 0;
     let currentStreak = 0;
-    // Matches are sorted by date in getHeadToHeadMatches
     for (const match of matches) {
         if (match.winner.includes(targetPlayerId)) {
             currentStreak++;
@@ -881,14 +818,14 @@ const calculateLongestStreak = (matches: Match[], targetPlayerId: string): numbe
             currentStreak = 0;
         }
     }
-    longestStreak = Math.max(longestStreak, currentStreak); // Check streak at the end
+    longestStreak = Math.max(longestStreak, currentStreak);
     return longestStreak;
 };
 
 
 export async function getProfilePageDataAction(profileUserId: string, currentUserId: string | null, sport: Sport) {
-    const profileUserDoc = await getDoc(doc(db, 'users', profileUserId));
-    if (!profileUserDoc.exists()) return null;
+    const profileUserDoc = await db.collection('users').doc(profileUserId).get();
+    if (!profileUserDoc.exists) return null;
     const profileUser = profileUserDoc.data() as User;
 
     const recentMatches = await getConfirmedMatchesForUser(profileUserId, 5);
@@ -923,7 +860,6 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         };
     }
 
-    // Data for viewing own profile or when not logged in
     return {
         profileUser,
         recentMatches,
@@ -932,9 +868,6 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         achievements: [],
     };
 }
-
-
-// --- Practice Log Actions ---
 
 export async function logPracticeSessionAction(
   data: z.infer<typeof practiceSessionSchema>,
@@ -955,7 +888,6 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         const sessions = await getPracticeSessionsForUser(userId, sport);
         return { success: true, data: sessions };
     } catch (error: any) {
-        // Return the full error message, which may contain the index creation URL
         return { success: false, error: error.message };
     }
 }
@@ -970,8 +902,6 @@ export async function deletePracticeSessionAction(sessionId: string, userId: str
     }
 }
 
-
-// --- Courts Actions ---
 export async function findCourtsAction(
   latitude: number,
   longitude: number,
@@ -980,10 +910,8 @@ export async function findCourtsAction(
 ): Promise<Court[]> {
     const radiusInM = radiusKm * 1000;
     
-    // If no sports are selected, search for generic "court"
     const selectedSports = sports.length > 0 ? sports : ['court'];
     const searchPromises = selectedSports.map(sport => {
-        // Use a more specific query for better results
         const query = `${sport} court`;
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
         return fetch(url).then(res => res.json());
@@ -1021,7 +949,7 @@ export async function findCourtsAction(
             },
             address: place.vicinity,
             url: place.url,
-            supportedSports: [place.sport], // We can only be sure about the sport we searched for
+            supportedSports: [place.sport], 
         }));
 
     } catch (error) {
@@ -1029,3 +957,5 @@ export async function findCourtsAction(
         return [];
     }
 }
+
+    

@@ -1,13 +1,7 @@
 
 import { nanoid } from 'nanoid';
-import {
-  getFirestore,
-  Timestamp,
-  GeoPoint,
-  WriteBatch,
-  Transaction,
-} from 'firebase-admin/firestore';
 import * as admin from 'firebase-admin';
+import { getFirestore, Timestamp, GeoPoint, WriteBatch, Transaction } from 'firebase-admin/firestore';
 
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
@@ -19,7 +13,6 @@ if (!admin.apps.length) {
   try {
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
-      databaseURL: `https://${process.env.GCLOUD_PROJECT}.firebaseio.com`,
     });
   } catch (error: any) {
     console.error('Firebase admin initialization error', error.stack);
@@ -27,7 +20,6 @@ if (!admin.apps.length) {
 }
 
 const db = getFirestore();
-
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
@@ -118,7 +110,7 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+export async function updateUserProfileInDb(userId: string, data: z.infer<typeof profileSettingsSchema>) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
@@ -169,7 +161,9 @@ interface ReportMatchData {
 export const reportPendingMatch = async (data: ReportMatchData): Promise<string> => {
     const allPlayerIds = [...data.team1Ids, ...data.team2Ids];
     
-    const userDocs = await Promise.all(allPlayerIds.map(id => db.collection("users").doc(id).get()));
+    const userDocsPromises = allPlayerIds.map(id => db.collection("users").doc(id).get());
+    const userDocs = await Promise.all(userDocsPromises);
+
     const participantsData = userDocs.reduce((acc, doc) => {
         if (doc.exists) {
             const player = doc.data() as User;
@@ -222,7 +216,6 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             return { finalized: false };
         }
         
-        // If the match is NOT ranked, just confirm it and we're done.
         if (!match.isRanked) {
             transaction.update(matchRef, { status: 'confirmed', participantsToConfirm: [] });
             return { finalized: true };
@@ -371,10 +364,8 @@ export async function getFriendshipStatus(currentUserId: string, profileUserId: 
 
 export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' | 'createdAt' | 'status'>) {
     const ref = db.collection('challenges').doc();
-    const [fromUserDoc, toUserDoc] = await Promise.all([
-        db.collection('users').doc(challengeData.fromId).get(),
-        db.collection('users').doc(challengeData.toId).get(),
-    ]);
+    const fromUserDoc = await db.collection('users').doc(challengeData.fromId).get();
+    const toUserDoc = await db.collection('users').doc(challengeData.toId).get();
     const fromUser = fromUserDoc.data() as User;
     const toUser = toUserDoc.data() as User;
 
@@ -527,7 +518,9 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
 
     if (existingChatDoc) return existingChatDoc.id;
 
-    const [user1Doc, user2Doc] = await Promise.all([db.collection('users').doc(userId1).get(), db.collection('users').doc(userId2).get()]);
+    const user1Doc = await db.collection('users').doc(userId1).get();
+    const user2Doc = await db.collection('users').doc(userId2).get();
+
     if (!user1Doc.exists || !user2Doc.exists) throw new Error("One or both users not found.");
     const user1 = user1Doc.data() as User;
     const user2 = user2Doc.data() as User;
@@ -564,81 +557,10 @@ export async function markChatAsRead(chatId: string, userId: string): Promise<vo
     await db.collection('chats').doc(chatId).update({ [`lastRead.${userId}`]: Timestamp.now().toMillis() });
 }
 
-export async function createLegendGameInDb(currentUserId: string, friendId: string | null, sport: Sport, initialRoundData: LegendGameOutput): Promise<string> {
-    const userDoc = await db.collection('users').doc(currentUserId).get();
-    if (!userDoc.exists) throw new Error("Current user not found.");
-    const user = userDoc.data() as User;
-
-    const gameRef = db.collection('legendGames').doc();
-    const now = Timestamp.now().toMillis();
-    const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-    
-    let newGame: LegendGame;
-    if (friendId) {
-        const friendDoc = await db.collection('users').doc(friendId).get();
-        if (!friendDoc.exists) throw new Error("Friend not found.");
-        const friend = friendDoc.data() as User;
-        newGame = {
-            id: gameRef.id, mode: 'friend', sport,
-            participantIds: [currentUserId, friendId],
-            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl, uid: friend.uid } },
-            score: { [currentUserId]: 0, [friendId]: 0 },
-            currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
-            turnState: 'playing', status: 'ongoing',
-            currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
-        };
-    } else {
-        newGame = {
-            id: gameRef.id, mode: 'solo', sport,
-            participantIds: [currentUserId],
-            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid } },
-            score: { [currentUserId]: 0 },
-            currentPlayerId: currentUserId,
-            turnState: 'playing', status: 'ongoing',
-            currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
-        };
-    }
-    await gameRef.set(newGame);
-    return gameRef.id;
-}
-
-export async function createRallyGameInDb(user: User, friend: User, initialServeOptions: ServeChoice[]): Promise<string> {
-    const gameRef = db.collection('rallyGames').doc();
-    const now = Timestamp.now().toMillis();
-    const newGame: RallyGame = {
-        id: gameRef.id, sport: 'Tennis',
-        participantIds: [user.uid, friend.uid],
-        participantsData: { [user.uid]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid }, [friend.uid]: { username: friend.username, avatarUrl: friend.avatarUrl, uid: friend.uid } },
-        score: { [user.uid]: 0, [friend.uid]: 0 },
-        turn: 'serving', currentPlayerId: user.uid,
-        currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialServeOptions },
-        pointHistory: [], status: 'ongoing',
-        createdAt: now, updatedAt: now,
-    };
-    await gameRef.set(newGame);
-    return gameRef.id;
-}
-
-
 export async function getGame<T>(gameId: string, collectionName: 'rallyGames' | 'legendGames'): Promise<T | null> {
     const docSnap = await db.collection(collectionName).doc(gameId).get();
     return docSnap.exists ? docSnap.data() as T : null;
 }
-
-export async function updateLegendGame(gameId: string, updateFn: (game: LegendGame) => void): Promise<void> {
-    const gameRef = db.collection('legendGames').doc(gameId);
-    return db.runTransaction(async (transaction) => {
-        const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists) throw new Error("Game not found.");
-        const game = gameDoc.data() as LegendGame;
-        updateFn(game); // Mutate the game object directly
-        game.updatedAt = Timestamp.now().toMillis();
-        transaction.set(gameRef, game);
-    });
-}
-
 
 export async function getHeadToHeadMatches(userId1: string, userId2: string, sport: Sport): Promise<Match[]> {
     const q = db.collection('matches')
@@ -672,13 +594,9 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
 
 export async function deleteUserDocument(userId: string) {
     if (!userId) throw new Error("User ID is required.");
-    // This function only deletes the Firestore document.
-    // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
     const userRef = db.collection('users').doc(userId);
     await userRef.delete();
 }
-
-// Practice Log Functions
 
 export async function logPracticeSession(
   data: z.infer<typeof practiceSessionSchema>,
@@ -744,8 +662,6 @@ export async function deletePracticeSession(sessionId: string, userId: string): 
     await sessionRef.delete();
 }
 
-
-// User Reporting
 export async function createReport(data: z.infer<typeof reportUserSchema>) {
   const reportRef = db.collection('reports').doc();
   const newReport: UserReport = {
@@ -757,7 +673,6 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   await reportRef.set(newReport);
 }
 
-// Courts Functions
 export async function findCourts(
   latitude: number,
   longitude: number,
@@ -766,10 +681,8 @@ export async function findCourts(
 ): Promise<Court[]> {
     const radiusInM = radiusKm * 1000;
     
-    // If no sports are selected, search for generic "court"
     const selectedSports = sports.length > 0 ? sports : ['court'];
     const searchPromises = selectedSports.map(sport => {
-        // Use a more specific query for better results
         const query = `${sport} court`;
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
         return fetch(url).then(res => res.json());
@@ -807,7 +720,7 @@ export async function findCourts(
             },
             address: place.vicinity,
             url: place.url,
-            supportedSports: [place.sport], // We can only be sure about the sport we searched for
+            supportedSports: [place.sport], 
         }));
 
     } catch (error) {
@@ -815,3 +728,5 @@ export async function findCourts(
         return [];
     }
 }
+
+    
