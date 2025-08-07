@@ -10,9 +10,15 @@ function getServiceAccount() {
     throw new Error('The FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please provide the full JSON object for your service account.');
   }
   try {
-    return JSON.parse(serviceAccountJson);
-  } catch (e) {
-    throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON. Please ensure it is a valid JSON string.');
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    // The private key from the environment variable might have its newlines escaped.
+    // We need to replace the literal `\\n` with actual newline characters `\n`.
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    return serviceAccount;
+  } catch (e: any) {
+    throw new Error(`Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: ${e.message}`);
   }
 }
 
