@@ -4,11 +4,14 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import {
+import { db, storage } from '@/lib/firebase/config';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
+import { 
     reportPendingMatch,
     confirmMatchResult,
     declineMatchResult,
-    searchUsers,
+    searchUsers, 
     sendFriendRequest,
     getFriends as getFriendsFromFirestore,
     getIncomingFriendRequests,
@@ -44,7 +47,7 @@ import {
     getPracticeSessionsForUser,
     createReport,
     deleteUserDocument,
-    generateUniqueUsername,
+    createUserDocument,
     findCourts,
     createLegendGame
 } from '@/lib/firebase/firestore';
@@ -58,49 +61,8 @@ import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 
-// --- User Creation Action ---
-export async function createUserDocumentAction(user: {
-  uid: string;
-  email: string;
-  username: string;
-  emailVerified: boolean;
-  avatarUrl?: string | null;
-}) {
-  try {
-    const userDoc = await getGameFromDb<User>(user.uid, 'users');
 
-    if (userDoc) {
-      return { success: true, message: 'User already exists.' };
-    }
-
-    const finalUsername = await generateUniqueUsername(user.username);
-
-    const newUser: User = {
-      uid: user.uid,
-      email: user.email,
-      username: finalUsername,
-      emailVerified: user.emailVerified,
-      avatarUrl: user.avatarUrl || null,
-      friendIds: [],
-      preferredSports: ['Tennis'],
-      sports: {
-        Tennis: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-        Padel: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-        Badminton: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-        'Table Tennis': { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-        Pickleball: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-      },
-    };
-    
-    await createReport(newUser as any); 
-    
-    return { success: true, message: 'User document created successfully.' };
-  } catch (error: any) {
-    console.error("Error creating user document:", error);
-    return { success: false, message: error.message || "Failed to create user document." };
-  }
-}
-
+// Action to report a match
 export async function handleReportMatchAction(
     values: z.infer<typeof reportMatchSchema>,
     user: User
@@ -133,6 +95,7 @@ export async function handleReportMatchAction(
     revalidatePath('/match-history');
 }
 
+// Action to get match recap
 export async function handleRecapAction(match: Match, currentUserId: string) {
     const player1Name = match.participantsData[match.teams.team1.playerIds[0]].username;
     const player2Name = match.participantsData[match.teams.team2.playerIds[0]].username;
@@ -145,11 +108,13 @@ export async function handleRecapAction(match: Match, currentUserId: string) {
     });
 }
 
+// Action to search for users
 export async function searchUsersAction(query: string, currentUserId: string): Promise<User[]> {
     if (!query) return [];
     return searchUsers(query, currentUserId);
 }
 
+// Action for sending a friend request
 export async function addFriendAction(fromUser: User, toUser: User) {
     try {
         await sendFriendRequest(fromUser, toUser);
@@ -160,6 +125,8 @@ export async function addFriendAction(fromUser: User, toUser: User) {
         return { success: false, message: error.message || "Failed to send friend request." };
     }
 }
+
+// --- Friend Management Actions ---
 
 export async function getFriendsAction(userId: string): Promise<User[]> {
     return getFriendsFromFirestore(userId);
@@ -210,6 +177,8 @@ export async function getFriendshipStatusAction(profileUserId: string, currentUs
     return getFriendshipStatus(currentUserId, profileUserId);
 }
 
+// --- Challenge System Actions ---
+
 export async function createDirectChallengeAction(values: z.infer<typeof challengeSchema>, fromUser: User, toUser: User) {
     try {
         const [hours, minutes] = values.time.split(':').map(Number);
@@ -226,7 +195,6 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
             location: values.location,
             wager: values.wager,
             matchDateTime: matchDateTime,
-            participantsData: {}
         });
         revalidatePath('/challenges');
         return { success: true, message: "Challenge sent successfully!" };
@@ -313,6 +281,8 @@ export async function deleteOpenChallengeAction(challengeId: string, userId: str
     }
 }
 
+
+// --- Tournament Actions ---
 export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
     try {
         await createTournamentInDb(values, organizer);
@@ -340,6 +310,9 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
         return { success: false, message: error.message || 'Failed to report winner.' };
     }
 }
+
+
+// --- Chat Actions ---
 
 export async function getOrCreateChatAction(friendId: string, currentUserId: string) {
     try {
@@ -371,6 +344,7 @@ export async function markChatAsReadAction(chatId: string, userId: string) {
 
 export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
     try {
+        // Validate input data
         reportUserSchema.parse(data);
         await createReport(data);
         return { success: true, message: 'User has been reported.' };
@@ -380,12 +354,17 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
     }
 }
 
+
+// --- Game Actions ---
+
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
+        // AI is called FIRST to ensure a valid round exists before creating the game.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-        if (!initialRoundData) {
-            throw new Error('The AI failed to generate a valid game round. Please try again later.');
-        }
+
+        const userDoc = await getDoc(doc(db, 'users', currentUserId));
+        if (!userDoc.exists()) throw new Error("Current user not found.");
+        const user = userDoc.data() as User;
         
         const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
 
@@ -393,13 +372,63 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
-        return { success: false, message: error.message || 'Could not start the game. Please try again later.' };
+        return { success: false, message: error.message || 'Could not start the game. Please try again.' };
     }
 }
 
+
 export async function submitLegendAnswerAction(gameId: string, answer: string, currentUserId: string) {
     try {
-        await getGameFromDb<LegendGame>(gameId, 'legendGames');
+        await runTransaction(db, async (transaction) => {
+            const gameRef = doc(db, 'legendGames', gameId);
+            const gameDoc = await transaction.get(gameRef);
+            if (!gameDoc.exists()) throw new Error('Game not found.');
+            const game = gameDoc.data() as LegendGame;
+
+            if (game.status !== 'ongoing' || !game.currentRound) throw new Error('Game is not active.');
+            if (game.currentRound.guesses?.[currentUserId]) throw new Error('You have already answered for this round.');
+
+            const isCorrect = answer === game.currentRound.correctAnswer;
+            const newGuesses = { ...(game.currentRound.guesses || {}), [currentUserId]: answer };
+            
+            game.currentRound.guesses = newGuesses;
+
+            if (isCorrect) {
+                game.score[currentUserId] = (game.score[currentUserId] || 0) + 1;
+            }
+            
+            const allPlayersAnswered = Object.keys(newGuesses).length === game.participantIds.length;
+
+            if (game.mode === 'solo') {
+                game.turnState = 'round_over';
+                // End game on a wrong answer in solo mode OR after 10 correct answers.
+                if (!isCorrect) {
+                     game.status = 'complete';
+                     game.winnerId = null; // No winner for a loss
+                } else if ((game.score[currentUserId] || 0) >= 10) { // Win condition
+                     game.status = 'complete';
+                     game.winnerId = currentUserId;
+                }
+            } else { // friend mode
+                if (allPlayersAnswered) {
+                    game.turnState = 'round_over';
+                    const p1Id = game.participantIds[0];
+                    const p2Id = game.participantIds[1];
+                    
+                    const p1Correct = newGuesses[p1Id] === game.currentRound!.correctAnswer;
+                    const p2Correct = newGuesses[p2Id] === game.currentRound!.correctAnswer;
+            
+                    // "Sudden death" win condition
+                    if (p1Correct !== p2Correct) {
+                        game.status = 'complete';
+                        game.winnerId = p1Correct ? p1Id : p2Id;
+                    }
+                }
+            }
+
+            game.updatedAt = Timestamp.now().toMillis();
+            transaction.set(gameRef, game);
+        });
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
@@ -408,18 +437,47 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 export async function startNextLegendRoundAction(gameId: string) {
+    // This is a best practice: fetch external data *before* the transaction
+    const game = await getGameFromDb<LegendGame>(gameId, 'legendGames');
+    if (!game) throw new Error("Game not found.");
+    if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
+    
+    // Server-side validation for turn state.
+    if (game.turnState !== 'round_over') {
+        throw new Error("Current round is not over.");
+    }
+
+    const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
+
     try {
-        const game = await getGameFromDb<LegendGame>(gameId, 'legendGames');
-        if (!game) throw new Error("Game not found.");
-        if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
-        
-        if (game.turnState !== 'round_over') {
-            throw new Error("Current round is not over.");
-        }
+        await runTransaction(db, async (transaction) => {
+            const gameRef = doc(db, 'legendGames', gameId);
+            // Re-fetch inside transaction for safety
+            const liveGameDoc = await transaction.get(gameRef);
+            if (!liveGameDoc.exists()) throw new Error("Game not found during transaction.");
+            const liveGame = liveGameDoc.data() as LegendGame;
 
-        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
+            // Double-check state inside the transaction to prevent race conditions
+            if (liveGame.status !== 'ongoing' || liveGame.turnState !== 'round_over') return;
+            
+            if (liveGame.currentRound) {
+                liveGame.roundHistory.push(liveGame.currentRound);
+            }
+            liveGame.usedPlayers.push(nextRoundData.correctAnswer);
+            liveGame.currentRound = { ...nextRoundData, guesses: {} };
+            liveGame.turnState = 'playing';
 
-        await getGameFromDb<LegendGame>(gameId, 'legendGames');
+            if (liveGame.mode === 'solo') {
+                liveGame.currentPlayerId = liveGame.participantIds[0];
+            } else { // friend mode
+                // The current player was the one who answered last, so alternate.
+                const otherPlayerId = liveGame.participantIds.find(id => id !== liveGame.currentPlayerId);
+                liveGame.currentPlayerId = otherPlayerId!;
+            }
+            
+            liveGame.updatedAt = Timestamp.now().toMillis();
+            transaction.set(gameRef, liveGame);
+        });
         
         revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
@@ -431,15 +489,15 @@ export async function startNextLegendRoundAction(gameId: string) {
 
 export async function createRallyGameAction(friendId: string, currentUserId: string, sport: Sport) {
     try {
-        const userDoc = await getGameFromDb<User>(currentUserId, 'users');
-        const friendDoc = await getGameFromDb<User>(friendId, 'users');
+        const userDoc = await getDoc(doc(db, 'users', currentUserId));
+        const friendDoc = await getDoc(doc(db, 'users', friendId));
 
-        if (!userDoc || !friendDoc) {
+        if (!userDoc.exists() || !friendDoc.exists()) {
             throw new Error("User data not found.");
         }
         
-        const user = userDoc;
-        const friend = friendDoc;
+        const user = userDoc.data() as User;
+        const friend = friendDoc.data() as User;
 
         const initialAiResponse = await playRallyPoint({ 
             sport: sport,
@@ -447,10 +505,26 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
             returningPlayerRank: friend.sports?.[sport]?.racktRank ?? 1200,
         });
 
-        await getGameFromDb<RallyGame>(null, 'rallyGames');
+        const gameId = await runTransaction(db, async (transaction) => {
+            const gameRef = doc(collection(db, 'rallyGames'));
+            const now = Timestamp.now().toMillis();
+            const newGame: RallyGame = {
+                id: gameRef.id,
+                sport: sport,
+                participantIds: [user.uid, friend.uid],
+                participantsData: { [user.uid]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friend.uid]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
+                score: { [user.uid]: 0, [friend.uid]: 0 },
+                turn: 'serving', currentPlayerId: user.uid,
+                currentPoint: { servingPlayer: user.uid, returningPlayer: friend.uid, serveOptions: initialAiResponse.serveOptions },
+                pointHistory: [], status: 'ongoing',
+                createdAt: now, updatedAt: now,
+            };
+            transaction.set(gameRef, newGame);
+            return gameRef.id;
+        });
         
         revalidatePath('/games');
-        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/some-id` };
+        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
     } catch (error: any) {
         console.error("Error creating rally game:", error);
         throw new Error(error.message || 'Failed to start Rally Game.');
@@ -467,16 +541,16 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         throw new Error("It's not your turn.");
       }
   
-      let aiInput;
+      let aiInput: z.infer<typeof RallyGameInputSchema>;
       let updatePayload: Partial<RallyGame> = {};
   
       const serverId = game.turn === 'serving' ? currentUserId : game.currentPoint.servingPlayer;
       const returnerId = game.turn === 'serving' ? game.currentPoint.returningPlayer : currentUserId;
   
-      const serverDoc = await getGameFromDb<User>(serverId, 'users');
-      const returnerDoc = await getGameFromDb<User>(returnerId, 'users');
-      const serverRank = serverDoc?.sports?.[game.sport]?.racktRank ?? 1200;
-      const returnerRank = returnerDoc?.sports?.[game.sport]?.racktRank ?? 1200;
+      const serverDoc = await getDoc(doc(db, 'users', serverId));
+      const returnerDoc = await getDoc(doc(db, 'users', returnerId));
+      const serverRank = serverDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
+      const returnerRank = returnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
   
       if (game.turn === 'serving') {
         aiInput = { sport: game.sport, serveChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
@@ -493,7 +567,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
           currentPlayerId: game.currentPoint.returningPlayer,
           currentPoint: updatedCurrentPoint,
         };
-      } else { 
+      } else { // returning
         aiInput = { sport: game.sport, serveChoice: game.currentPoint.serveChoice!, returnChoice: choice, servingPlayerRank: serverRank, returningPlayerRank: returnerRank };
         const pointEvalResponse = await playRallyPoint(aiInput);
         
@@ -514,13 +588,14 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
             turn: 'game_over',
           };
         } else {
+          // Game is not over, so set up the next point immediately.
           const nextServerId = game.currentPoint.returningPlayer;
           const nextReturnerId = game.currentPoint.servingPlayer;
           
-          const nextServerDoc = await getGameFromDb<User>(nextServerId, 'users');
-          const nextReturnerDoc = await getGameFromDb<User>(nextReturnerId, 'users');
-          const nextServerRank = nextServerDoc?.sports?.[game.sport]?.racktRank ?? 1200;
-          const nextReturnerRank = nextReturnerDoc?.sports?.[game.sport]?.racktRank ?? 1200;
+          const nextServerDoc = await getDoc(doc(db, 'users', nextServerId));
+          const nextReturnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
+          const nextServerRank = nextServerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
+          const nextReturnerRank = nextReturnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
           
           const nextPointServeOptions = await playRallyPoint({ sport: game.sport, servingPlayerRank: nextServerRank, returningPlayerRank: nextReturnerRank });
           if (!nextPointServeOptions.serveOptions) throw new Error("AI failed to generate serve options for the next point.");
@@ -541,7 +616,10 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         }
       }
   
-      await getGameFromDb<RallyGame>(gameId, 'rallyGames');
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'rallyGames', gameId);
+        transaction.update(gameRef, { ...updatePayload, updatedAt: Timestamp.now().toMillis() });
+      });
   
       revalidatePath(`/games/rally/${gameId}`);
     } catch (error: any) {
@@ -549,6 +627,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         throw new Error(error.message || 'Failed to play turn.');
     }
 }
+
 
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
     try {
@@ -560,6 +639,8 @@ export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Lege
     }
 }
 
+
+// --- Match History Actions ---
 export async function getMatchHistoryAction(userId: string): Promise<{ success: true, data: { confirmed: Match[], pending: Match[] } } | { success: false, error: string }> {
     try {
         const [confirmed, pending] = await Promise.all([
@@ -600,20 +681,25 @@ export async function declineMatchResultAction(matchId: string, userId: string) 
     }
 }
 
+// --- AI Coach Actions ---
 export async function analyzeSwingAction(input: SwingAnalysisInput, userId: string) {
     return analyzeSwing(input);
 }
 
-export async function predictFriendMatchAction(currentUserId: string, friendId: string, sport: Sport): Promise<PredictMatchOutput> {
-    const currentUserDoc = await getGameFromDb<User>(currentUserId, 'users');
-    const friendDoc = await getGameFromDb<User>(friendId, 'users');
+// --- AI Prediction Actions ---
 
-    if (!currentUserDoc || !friendDoc) {
+export async function predictFriendMatchAction(currentUserId: string, friendId: string, sport: Sport): Promise<PredictMatchOutput> {
+    const [currentUserDoc, friendDoc] = await Promise.all([
+        getDoc(doc(db, 'users', currentUserId)),
+        getDoc(doc(db, 'users', friendId))
+    ]);
+
+    if (!currentUserDoc.exists() || !friendDoc.exists()) {
         throw new Error("User data not found.");
     }
     
-    const currentUserData = currentUserDoc;
-    const friendData = friendDoc;
+    const currentUserData = currentUserDoc.data() as User;
+    const friendData = friendDoc.data() as User;
 
     const currentUserStats = currentUserData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
     const friendStats = friendData.sports?.[sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] };
@@ -644,10 +730,12 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
     return await predictMatchOutcome(predictionInput);
 }
 
+// --- Leaderboard Actions ---
 export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
     return await getLeaderboard(sport);
 }
 
+// --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
       await updateUserProfileInDb(userId, values);
@@ -663,10 +751,13 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        await getGameFromDb<User>(userId, 'users');
+        const userDocRef = doc(db, 'users', userId);
+        await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
+
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
         revalidatePath('/(app)', 'layout');
+
         return { success: true, message: 'Profile picture updated.' };
     } catch (error: any) {
         console.error("Error updating avatar in action:", error);
@@ -676,7 +767,19 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
 export async function deleteUserAccountAction(userId: string) {
     try {
+        const storageRef = ref(storage, `avatars/${userId}`);
+        try {
+            const listResult = await listAll(storageRef);
+            await Promise.all(listResult.items.map(itemRef => deleteObject(itemRef)));
+        } catch (e) {
+            console.error("Could not clean up all storage files, this is okay.", e);
+        }
+        
         await deleteUserDocument(userId);
+        
+        // This must be done on the client. We assume the client will handle it.
+        // await auth.currentUser.delete();
+
         return { success: true, message: 'Your account data has been deleted.' };
     } catch (error: any) {
         console.error("Error deleting user account action:", error);
@@ -684,9 +787,12 @@ export async function deleteUserAccountAction(userId: string) {
     }
 }
 
+
+// --- Profile Page Action ---
 const calculateLongestStreak = (matches: Match[], targetPlayerId: string): number => {
     let longestStreak = 0;
     let currentStreak = 0;
+    // Matches are sorted by date in getHeadToHeadMatches
     for (const match of matches) {
         if (match.winner.includes(targetPlayerId)) {
             currentStreak++;
@@ -695,7 +801,7 @@ const calculateLongestStreak = (matches: Match[], targetPlayerId: string): numbe
             currentStreak = 0;
         }
     }
-    longestStreak = Math.max(longestStreak, currentStreak);
+    longestStreak = Math.max(longestStreak, currentStreak); // Check streak at the end
     return longestStreak;
 };
 
@@ -737,6 +843,7 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         };
     }
 
+    // Data for viewing own profile or when not logged in
     return {
         profileUser,
         recentMatches,
@@ -745,6 +852,9 @@ export async function getProfilePageDataAction(profileUserId: string, currentUse
         achievements: [],
     };
 }
+
+
+// --- Practice Log Actions ---
 
 export async function logPracticeSessionAction(
   data: z.infer<typeof practiceSessionSchema>,
@@ -765,8 +875,8 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
         const sessions = await getPracticeSessionsForUser(userId, sport);
         return { success: true, data: sessions };
     } catch (error: any) {
-        console.error("Error getting practice sessions:", error);
-        return { success: false, error: "Could not load practice sessions. This may be due to a permissions issue or a missing database index." };
+        // Return the full error message, which may contain the index creation URL
+        return { success: false, error: error.message };
     }
 }
 
@@ -780,6 +890,8 @@ export async function deletePracticeSessionAction(sessionId: string, userId: str
     }
 }
 
+
+// --- Courts Actions ---
 export async function findCourtsAction(
   latitude: number,
   longitude: number,
@@ -788,8 +900,10 @@ export async function findCourtsAction(
 ): Promise<Court[]> {
     const radiusInM = radiusKm * 1000;
     
+    // If no sports are selected, search for generic "court"
     const selectedSports = sports.length > 0 ? sports : ['court'];
     const searchPromises = selectedSports.map(sport => {
+        // Use a more specific query for better results
         const query = `${sport} court`;
         const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
         return fetch(url).then(res => res.json());
@@ -827,7 +941,7 @@ export async function findCourtsAction(
             },
             address: place.vicinity,
             url: place.url,
-            supportedSports: [place.sport], 
+            supportedSports: [place.sport], // We can only be sure about the sport we searched for
         }));
 
     } catch (error) {
@@ -835,8 +949,3 @@ export async function findCourtsAction(
         return [];
     }
 }
-    
-
-    
-
-

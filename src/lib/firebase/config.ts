@@ -4,16 +4,14 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
   authDomain: "rackt-the-social-sports-hub.firebaseapp.com",
   projectId: "rackt-the-social-sports-hub",
   storageBucket: "rackt-the-social-sports-hub.appspot.com",
   messagingSenderId: "1080946592753",
-  appId: "1:1080946592753:web:2b518f181c5936ebdad250"
+  appId: "1:1080946592753:web:b02a7c131d35f9dbdad250"
 };
-
 
 // Initialize Firebase on the client side
 let app: FirebaseApp;
