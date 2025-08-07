@@ -1,26 +1,12 @@
 
 import { nanoid } from 'nanoid';
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  runTransaction,
+  getFirestore,
   Timestamp,
-  where,
-  setDoc,
-  deleteDoc,
-  arrayUnion,
-  arrayRemove,
-  writeBatch,
-  updateDoc,
-  orderBy,
-  limit,
-  addDoc,
-  Transaction,
   GeoPoint,
-} from 'firebase/firestore';
+  WriteBatch,
+  Transaction,
+} from 'firebase-admin/firestore';
 import * as admin from 'firebase-admin';
 
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
@@ -40,7 +26,7 @@ if (!admin.apps.length) {
   }
 }
 
-const db = admin.firestore();
+const db = getFirestore();
 
 
 // Helper to convert Firestore Timestamps to numbers
@@ -59,10 +45,10 @@ function convertTimestamps<T extends Record<string, any>>(obj: T): T {
 // Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
   try {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
 
-    if (!userDoc.exists()) {
+    if (!userDoc.exists) {
       return [];
     }
 
@@ -78,8 +64,8 @@ export async function getFriends(userId: string): Promise<User[]> {
     for (let i = 0; i < friendIds.length; i += chunkSize) {
       const chunk = friendIds.slice(i, i + chunkSize);
       if (chunk.length > 0) {
-        const friendsQuery = query(collection(db, 'users'), where('uid', 'in', chunk));
-        const querySnapshot = await getDocs(friendsQuery);
+        const friendsQuery = db.collection('users').where('uid', 'in', chunk);
+        const querySnapshot = await friendsQuery.get();
         querySnapshot.forEach((doc) => {
           friendsData.push(doc.data() as User);
         });
@@ -95,9 +81,9 @@ export async function getFriends(userId: string): Promise<User[]> {
 
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
   try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('uid', '!=', currentUserId));
-    const querySnapshot = await getDocs(q);
+    const usersRef = db.collection('users');
+    const q = usersRef.where('uid', '!=', currentUserId);
+    const querySnapshot = await q.get();
     return querySnapshot.docs.map(doc => doc.data() as User);
   } catch (error) {
     console.error("Error fetching all users:", error);
@@ -110,8 +96,8 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
         const lowerCaseQuery = usernameQuery.toLowerCase().trim();
         if (!lowerCaseQuery) return [];
 
-        const usersRef = collection(db, 'users');
-        const querySnapshot = await getDocs(usersRef);
+        const usersRef = db.collection('users');
+        const querySnapshot = await usersRef.get();
         
         return querySnapshot.docs
             .map(doc => doc.data() as User)
@@ -126,8 +112,8 @@ export async function searchUsers(usernameQuery: string, currentUserId: string):
 }
 
 async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
-  const q = query(collection(db, 'users'), where('username', '==', username.toLowerCase()));
-  const snapshot = await getDocs(q);
+  const q = db.collection('users').where('username', '==', username.toLowerCase());
+  const snapshot = await q.get();
   if (snapshot.empty) return true;
   return snapshot.docs[0].data().uid === userId;
 }
@@ -141,7 +127,7 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
         username: data.username,
         preferredSports: data.preferredSports,
     }
-    await updateDoc(doc(db, 'users', userId), updateData);
+    await db.collection('users').doc(userId).update(updateData);
 }
 
 export async function generateUniqueUsername(baseUsername: string): Promise<string> {
@@ -153,9 +139,9 @@ export async function generateUniqueUsername(baseUsername: string): Promise<stri
     let attempts = 0;
     
     while(!isUnique && attempts < 10) {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('username', '==', finalUsername));
-        const snapshot = await getDocs(q);
+        const usersRef = db.collection('users');
+        const q = usersRef.where('username', '==', finalUsername);
+        const snapshot = await q.get();
         if (snapshot.empty) {
             isUnique = true;
         } else {
@@ -183,16 +169,16 @@ interface ReportMatchData {
 export const reportPendingMatch = async (data: ReportMatchData): Promise<string> => {
     const allPlayerIds = [...data.team1Ids, ...data.team2Ids];
     
-    const userDocs = await Promise.all(allPlayerIds.map(id => getDoc(doc(db, "users", id))));
+    const userDocs = await Promise.all(allPlayerIds.map(id => db.collection("users").doc(id).get()));
     const participantsData = userDocs.reduce((acc, doc) => {
-        if (doc.exists()) {
+        if (doc.exists) {
             const player = doc.data() as User;
             acc[player.uid] = { uid: player.uid, username: player.username, avatarUrl: player.avatarUrl || null };
         }
         return acc;
     }, {} as Match['participantsData']);
     
-    const matchRef = doc(collection(db, 'matches'));
+    const matchRef = db.collection('matches').doc();
     const newMatch: Match = {
         id: matchRef.id,
         type: data.matchType,
@@ -213,16 +199,16 @@ export const reportPendingMatch = async (data: ReportMatchData): Promise<string>
         participantsToConfirm: allPlayerIds.filter(id => id !== data.reportedById),
         rankChange: [],
     };
-    await setDoc(matchRef, newMatch);
+    await matchRef.set(newMatch);
     return matchRef.id;
 };
 
 export async function confirmMatchResult(matchId: string, userId: string) {
-    return runTransaction(db, async (transaction) => {
-        const matchRef = doc(db, 'matches', matchId);
+    return db.runTransaction(async (transaction) => {
+        const matchRef = db.collection('matches').doc(matchId);
         const matchDoc = await transaction.get(matchRef);
 
-        if (!matchDoc.exists()) throw new Error("Match not found.");
+        if (!matchDoc.exists) throw new Error("Match not found.");
         const match = matchDoc.data() as Match;
 
         if (match.status !== 'pending') throw new Error("This match is not pending confirmation.");
@@ -243,10 +229,10 @@ export async function confirmMatchResult(matchId: string, userId: string) {
         }
 
         const allPlayerIds = match.participants;
-        const playerRefs = allPlayerIds.map(id => doc(db, "users", id));
-        const playerDocs = await Promise.all(playerRefs.map(ref => transaction.get(ref)));
+        const playerRefs = allPlayerIds.map(id => db.collection("users").doc(id));
+        const playerDocs = await transaction.getAll(...playerRefs);
         const players = playerDocs.map(pDoc => {
-            if (!pDoc.exists()) throw new Error(`User document for ID ${pDoc.id} not found.`);
+            if (!pDoc.exists) throw new Error(`User document for ID ${pDoc.id} not found.`);
             return pDoc.data() as User;
         });
 
@@ -281,7 +267,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
             const newRank = oldRank + eloChange;
             const newEloHistory = [...(currentSportStats.eloHistory || []), { date: match.date, elo: newRank }].slice(-30);
 
-            transaction.update(doc(db, 'users', player.uid), {
+            transaction.update(db.collection('users').doc(player.uid), {
                 [`sports.${match.sport}.racktRank`]: newRank,
                 [`sports.${match.sport}.wins`]: currentSportStats.wins + (isWinner ? 1 : 0),
                 [`sports.${match.sport}.losses`]: currentSportStats.losses + (isWinner ? 0 : 1),
@@ -299,39 +285,37 @@ export async function confirmMatchResult(matchId: string, userId: string) {
 
 
 export async function declineMatchResult(matchId: string, userId: string) {
-    await updateDoc(doc(db, 'matches', matchId), { status: 'declined', declinedBy: userId });
+    await db.collection('matches').doc(matchId).update({ status: 'declined', declinedBy: userId });
 }
 
 export async function getConfirmedMatchesForUser(userId: string, matchLimit?: number): Promise<Match[]> {
-    let q = query(
-        collection(db, 'matches'), 
-        where('participants', 'array-contains', userId), 
-        where('status', '==', 'confirmed'), 
-        orderBy('date', 'desc')
-    );
+    let q = db.collection('matches')
+        .where('participants', 'array-contains', userId)
+        .where('status', '==', 'confirmed')
+        .orderBy('date', 'desc');
     if (matchLimit) {
-        q = query(q, limit(matchLimit));
+        q = q.limit(matchLimit);
     }
-    const snapshot = await getDocs(q);
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => convertTimestamps(doc.data() as Match));
 }
 
 export async function getPendingMatchesForUser(userId: string): Promise<Match[]> {
-    const q = query(collection(db, 'matches'), where('participants', 'array-contains', userId), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
+    const q = db.collection('matches').where('participants', 'array-contains', userId).where('status', '==', 'pending').orderBy('createdAt', 'desc');
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => convertTimestamps(doc.data() as Match));
 }
 
 export async function sendFriendRequest(fromUser: User, toUser: User) {
   if (toUser.friendIds?.includes(fromUser.uid)) throw new Error("You are already friends.");
   
-  const q1 = query(collection(db, 'friendRequests'), where('fromId', '==', fromUser.uid), where('toId', '==', toUser.uid));
-  const q2 = query(collection(db, 'friendRequests'), where('fromId', '==', toUser.uid), where('toId', '==', fromUser.uid));
-  const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+  const q1 = db.collection('friendRequests').where('fromId', '==', fromUser.uid).where('toId', '==', toUser.uid);
+  const q2 = db.collection('friendRequests').where('fromId', '==', toUser.uid).where('toId', '==', fromUser.uid);
+  const [s1, s2] = await Promise.all([q1.get(), q2.get()]);
   if ([...s1.docs, ...s2.docs].some(d => d.data().status === 'pending')) throw new Error('Friend request already pending.');
 
-  const newRequestRef = doc(collection(db, 'friendRequests'));
-  await setDoc(newRequestRef, {
+  const newRequestRef = db.collection('friendRequests').doc();
+  await newRequestRef.set({
     id: newRequestRef.id,
     fromId: fromUser.uid, fromUsername: fromUser.username, fromAvatarUrl: fromUser.avatarUrl,
     toId: toUser.uid, toUsername: toUser.username, toAvatarUrl: toUser.avatarUrl,
@@ -340,61 +324,61 @@ export async function sendFriendRequest(fromUser: User, toUser: User) {
 }
 
 export async function getIncomingFriendRequests(userId: string): Promise<FriendRequest[]> {
-  const q = query(collection(db, 'friendRequests'), where('toId', '==', userId), where('status', '==', 'pending'));
-  const snapshot = await getDocs(q);
+  const q = db.collection('friendRequests').where('toId', '==', userId).where('status', '==', 'pending');
+  const snapshot = await q.get();
   return snapshot.docs.map(doc => doc.data() as FriendRequest);
 }
 
 export async function getSentFriendRequests(userId: string): Promise<FriendRequest[]> {
-    const q = query(collection(db, 'friendRequests'), where('fromId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
+    const q = db.collection('friendRequests').where('fromId', '==', userId).where('status', '==', 'pending');
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => doc.data() as FriendRequest);
 }
 
 export async function acceptFriendRequest(requestId: string, fromId: string, toId: string) {
-  await runTransaction(db, async (t) => {
-    t.update(doc(db, 'users', fromId), { friendIds: arrayUnion(toId) });
-    t.update(doc(db, 'users', toId), { friendIds: arrayUnion(fromId) });
-    t.delete(doc(db, 'friendRequests', requestId));
+  await db.runTransaction(async (t) => {
+    t.update(db.collection('users').doc(fromId), { friendIds: admin.firestore.FieldValue.arrayUnion(toId) });
+    t.update(db.collection('users').doc(toId), { friendIds: admin.firestore.FieldValue.arrayUnion(fromId) });
+    t.delete(db.collection('friendRequests').doc(requestId));
   });
 }
 
 export async function deleteFriendRequest(requestId: string) {
-  await deleteDoc(doc(db, 'friendRequests', requestId));
+  await db.collection('friendRequests').doc(requestId).delete();
 }
 
 export async function removeFriend(userId: string, friendId: string) {
-  await runTransaction(db, async (t) => {
-    t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
-    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
+  await db.runTransaction(async (t) => {
+    t.update(db.collection('users').doc(userId), { friendIds: admin.firestore.FieldValue.arrayRemove(friendId) });
+    t.update(db.collection('users').doc(friendId), { friendIds: admin.firestore.FieldValue.arrayRemove(userId) });
   });
 }
 
 export async function getFriendshipStatus(currentUserId: string, profileUserId: string) {
-    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
+    const currentUserDoc = await db.collection('users').doc(currentUserId).get();
     if (currentUserDoc.data()?.friendIds?.includes(profileUserId)) return { status: 'friends' };
 
-    const qSent = query(collection(db, 'friendRequests'), where('fromId', '==', currentUserId), where('toId', '==', profileUserId), where('status', '==', 'pending'));
-    const sentSnapshot = await getDocs(qSent);
+    const qSent = db.collection('friendRequests').where('fromId', '==', currentUserId).where('toId', '==', profileUserId).where('status', '==', 'pending');
+    const sentSnapshot = await qSent.get();
     if (!sentSnapshot.empty) return { status: 'request_sent', requestId: sentSnapshot.docs[0].id };
     
-    const qReceived = query(collection(db, 'friendRequests'), where('fromId', '==', profileUserId), where('toId', '==', currentUserId), where('status', '==', 'pending'));
-    const receivedSnapshot = await getDocs(qReceived);
+    const qReceived = db.collection('friendRequests').where('fromId', '==', profileUserId).where('toId', '==', currentUserId).where('status', '==', 'pending');
+    const receivedSnapshot = await qReceived.get();
     if (!receivedSnapshot.empty) return { status: 'request_received', requestId: receivedSnapshot.docs[0].id };
     
     return { status: 'not_friends' };
 }
 
 export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' | 'createdAt' | 'status'>) {
-    const ref = doc(collection(db, 'challenges'));
+    const ref = db.collection('challenges').doc();
     const [fromUserDoc, toUserDoc] = await Promise.all([
-        getDoc(doc(db, 'users', challengeData.fromId)),
-        getDoc(doc(db, 'users', challengeData.toId)),
+        db.collection('users').doc(challengeData.fromId).get(),
+        db.collection('users').doc(challengeData.toId).get(),
     ]);
     const fromUser = fromUserDoc.data() as User;
     const toUser = toUserDoc.data() as User;
 
-    await setDoc(ref, { 
+    await ref.set({ 
         ...challengeData, 
         id: ref.id, 
         status: 'pending', 
@@ -407,8 +391,8 @@ export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' 
 }
 
 export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id' | 'createdAt'>) {
-    const ref = doc(collection(db, 'openChallenges'));
-    await setDoc(ref, { 
+    const ref = db.collection('openChallenges').doc();
+    await ref.set({ 
         ...challengeData, 
         id: ref.id, 
         createdAt: Timestamp.now().toMillis(),
@@ -416,49 +400,49 @@ export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id
 }
 
 export async function getChallengeById(id: string): Promise<Challenge | null> {
-    const docSnap = await getDoc(doc(db, 'challenges', id));
-    return docSnap.exists() ? docSnap.data() as Challenge : null;
+    const docSnap = await db.collection('challenges').doc(id).get();
+    return docSnap.exists ? docSnap.data() as Challenge : null;
 }
 
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('toId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
+    const q = db.collection('challenges').where('toId', '==', userId).where('status', '==', 'pending');
+    const snapshot = await q.get();
     const challenges = snapshot.docs.map(d => d.data() as Challenge);
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('fromId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
+    const q = db.collection('challenges').where('fromId', '==', userId).where('status', '==', 'pending');
+    const snapshot = await q.get();
     const challenges = snapshot.docs.map(d => d.data() as Challenge);
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
-    const snapshot = await getDocs(q);
+    const q = db.collection('openChallenges').where('sport', '==', sport);
+    const snapshot = await q.get();
     const challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
     return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
 }
 
 
 export async function deleteOpenChallenge(challengeId: string, userId: string) {
-    const challengeRef = doc(db, 'openChallenges', challengeId);
-    const challengeDoc = await getDoc(challengeRef);
+    const challengeRef = db.collection('openChallenges').doc(challengeId);
+    const challengeDoc = await challengeRef.get();
 
-    if (!challengeDoc.exists()) {
+    if (!challengeDoc.exists) {
         throw new Error("Challenge not found.");
     }
 
-    if (challengeDoc.data().posterId !== userId) {
+    if (challengeDoc.data()?.posterId !== userId) {
         throw new Error("You are not authorized to delete this challenge.");
     }
 
-    await deleteDoc(challengeRef);
+    await challengeRef.delete();
 }
 
 export async function updateChallengeStatus(id: string, status: ChallengeStatus) {
-    await updateDoc(doc(db, 'challenges', id), { status });
+    await db.collection('challenges').doc(id).update({ status });
 }
 
 export async function challengeFromOpen(openChallenge: OpenChallenge, challenger: User) {
@@ -476,12 +460,12 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
     const participantIds = [organizer.uid, ...values.participantIds];
     if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
 
-    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+    const userDocs = await db.collection('users').where('uid', 'in', participantIds).get();
     const participantsData = userDocs.docs.map(doc => doc.data() as User);
     if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
 
-    const newTournamentRef = doc(collection(db, 'tournaments'));
-    await setDoc(newTournamentRef, {
+    const newTournamentRef = db.collection('tournaments').doc();
+    await newTournamentRef.set({
         id: newTournamentRef.id, name: values.name, sport: values.sport,
         organizerId: organizer.uid, participantIds: participantIds,
         participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
@@ -490,21 +474,21 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
 }
 
 export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
-    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
+    const q = db.collection('tournaments').where('participantIds', 'array-contains', userId).orderBy('createdAt', 'desc');
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
 }
 
 export async function getTournamentById(id: string): Promise<Tournament | null> {
-    const docSnap = await getDoc(doc(db, 'tournaments', id));
-    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
+    const docSnap = await db.collection('tournaments').doc(id).get();
+    return docSnap.exists ? convertTimestamps(docSnap.data() as Tournament) : null;
 }
 
 export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
-    await runTransaction(db, async (t) => {
-        const tournamentRef = doc(db, 'tournaments', tournamentId);
+    await db.runTransaction(async (t) => {
+        const tournamentRef = db.collection('tournaments').doc(tournamentId);
         const tournamentDoc = await t.get(tournamentRef);
-        if (!tournamentDoc.exists()) throw new Error("Tournament not found.");
+        if (!tournamentDoc.exists) throw new Error("Tournament not found.");
 
         const tournament = tournamentDoc.data() as Tournament;
         const { bracket } = tournament;
@@ -537,20 +521,20 @@ export async function reportTournamentWinner(tournamentId: string, matchId: stri
 }
 
 export async function getOrCreateChat(userId1: string, userId2: string): Promise<string> {
-    const q = query(collection(db, 'chats'), where('participantIds', 'array-contains', userId1));
-    const snapshot = await getDocs(q);
-    const existingChat = snapshot.docs.find(d => d.data().participantIds.includes(userId2));
+    const q = db.collection('chats').where('participantIds', 'array-contains', userId1);
+    const snapshot = await q.get();
+    const existingChatDoc = snapshot.docs.find(d => d.data().participantIds.includes(userId2));
 
-    if (existingChat) return existingChat.id;
+    if (existingChatDoc) return existingChatDoc.id;
 
-    const [user1Doc, user2Doc] = await Promise.all([getDoc(doc(db, 'users', userId1)), getDoc(doc(db, 'users', userId2))]);
-    if (!user1Doc.exists() || !user2Doc.exists()) throw new Error("One or both users not found.");
+    const [user1Doc, user2Doc] = await Promise.all([db.collection('users').doc(userId1).get(), db.collection('users').doc(userId2).get()]);
+    if (!user1Doc.exists || !user2Doc.exists) throw new Error("One or both users not found.");
     const user1 = user1Doc.data() as User;
     const user2 = user2Doc.data() as User;
     
-    const newChatRef = doc(collection(db, 'chats'));
+    const newChatRef = db.collection('chats').doc();
     const now = Timestamp.now().toMillis();
-    await setDoc(newChatRef, {
+    await newChatRef.set({
         id: newChatRef.id, participantIds: [userId1, userId2],
         participantsData: { [userId1]: { username: user1.username, avatarUrl: user1.avatarUrl || null }, [userId2]: { username: user2.username, avatarUrl: user2.avatarUrl || null } },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
@@ -559,40 +543,40 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
 }
 
 export async function getChatsForUser(userId: string): Promise<Chat[]> {
-    const q = query(collection(db, 'chats'), where('participantIds', 'array-contains', userId), orderBy('updatedAt', 'desc'));
-    const snapshot = await getDocs(q);
+    const q = db.collection('chats').where('participantIds', 'array-contains', userId).orderBy('updatedAt', 'desc');
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => doc.data() as Chat);
 }
 
 export async function sendMessage(chatId: string, senderId: string, text: string): Promise<void> {
-    const chatRef = doc(db, 'chats', chatId);
-    const msgRef = doc(collection(chatRef, 'messages'));
+    const chatRef = db.collection('chats').doc(chatId);
+    const msgRef = chatRef.collection('messages').doc();
     const now = Timestamp.now().toMillis();
     const newMessage: Message = { id: msgRef.id, chatId, senderId, text, createdAt: now };
 
-    const batch = writeBatch(db);
+    const batch = db.batch();
     batch.set(msgRef, newMessage);
     batch.update(chatRef, { lastMessage: newMessage, updatedAt: now });
     await batch.commit();
 }
 
 export async function markChatAsRead(chatId: string, userId: string): Promise<void> {
-    await updateDoc(doc(db, 'chats', chatId), { [`lastRead.${userId}`]: Timestamp.now().toMillis() });
+    await db.collection('chats').doc(chatId).update({ [`lastRead.${userId}`]: Timestamp.now().toMillis() });
 }
 
 export async function createLegendGameInDb(currentUserId: string, friendId: string | null, sport: Sport, initialRoundData: LegendGameOutput): Promise<string> {
-    const userDoc = await getDoc(doc(db, 'users', currentUserId));
-    if (!userDoc.exists()) throw new Error("Current user not found.");
+    const userDoc = await db.collection('users').doc(currentUserId).get();
+    if (!userDoc.exists) throw new Error("Current user not found.");
     const user = userDoc.data() as User;
 
-    const gameRef = doc(collection(db, 'legendGames'));
+    const gameRef = db.collection('legendGames').doc();
     const now = Timestamp.now().toMillis();
     const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
     
     let newGame: LegendGame;
     if (friendId) {
-        const friendDoc = await getDoc(doc(db, 'users', friendId));
-        if (!friendDoc.exists()) throw new Error("Friend not found.");
+        const friendDoc = await db.collection('users').doc(friendId).get();
+        if (!friendDoc.exists) throw new Error("Friend not found.");
         const friend = friendDoc.data() as User;
         newGame = {
             id: gameRef.id, mode: 'friend', sport,
@@ -616,12 +600,12 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
             createdAt: now, updatedAt: now,
         };
     }
-    await setDoc(gameRef, newGame);
+    await gameRef.set(newGame);
     return gameRef.id;
 }
 
 export async function createRallyGameInDb(user: User, friend: User, initialServeOptions: ServeChoice[]): Promise<string> {
-    const gameRef = doc(collection(db, 'rallyGames'));
+    const gameRef = db.collection('rallyGames').doc();
     const now = Timestamp.now().toMillis();
     const newGame: RallyGame = {
         id: gameRef.id, sport: 'Tennis',
@@ -633,21 +617,21 @@ export async function createRallyGameInDb(user: User, friend: User, initialServe
         pointHistory: [], status: 'ongoing',
         createdAt: now, updatedAt: now,
     };
-    await setDoc(gameRef, newGame);
+    await gameRef.set(newGame);
     return gameRef.id;
 }
 
 
 export async function getGame<T>(gameId: string, collectionName: 'rallyGames' | 'legendGames'): Promise<T | null> {
-    const docSnap = await getDoc(doc(db, collectionName, gameId));
-    return docSnap.exists() ? docSnap.data() as T : null;
+    const docSnap = await db.collection(collectionName).doc(gameId).get();
+    return docSnap.exists ? docSnap.data() as T : null;
 }
 
 export async function updateLegendGame(gameId: string, updateFn: (game: LegendGame) => void): Promise<void> {
-    const gameRef = doc(db, 'legendGames', gameId);
-    return runTransaction(db, async (transaction) => {
+    const gameRef = db.collection('legendGames').doc(gameId);
+    return db.runTransaction(async (transaction) => {
         const gameDoc = await transaction.get(gameRef);
-        if (!gameDoc.exists()) throw new Error("Game not found.");
+        if (!gameDoc.exists) throw new Error("Game not found.");
         const game = gameDoc.data() as LegendGame;
         updateFn(game); // Mutate the game object directly
         game.updatedAt = Timestamp.now().toMillis();
@@ -657,13 +641,11 @@ export async function updateLegendGame(gameId: string, updateFn: (game: LegendGa
 
 
 export async function getHeadToHeadMatches(userId1: string, userId2: string, sport: Sport): Promise<Match[]> {
-    const q = query(
-        collection(db, 'matches'), 
-        where('sport', '==', sport),
-        where('status', '==', 'confirmed'),
-        where('participants', 'array-contains', userId1)
-    );
-    const snapshot = await getDocs(q);
+    const q = db.collection('matches')
+        .where('sport', '==', sport)
+        .where('status', '==', 'confirmed')
+        .where('participants', 'array-contains', userId1);
+    const snapshot = await q.get();
     const matches: Match[] = [];
     snapshot.forEach(doc => {
         const match = doc.data() as Match;
@@ -675,25 +657,25 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    const q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
-    const snapshot = await getDocs(q);
+    const q = db.collection('users').orderBy(`sports.${sport}.racktRank`, 'desc').limit(100);
+    const snapshot = await q.get();
     return snapshot.docs.map(doc => doc.data() as User).filter(user => user.sports?.[sport]);
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
-    const gameRef = doc(db, collectionName, gameId);
-    const gameDoc = await getDoc(gameRef);
-    if (!gameDoc.exists()) throw new Error("Game not found.");
-    if (!gameDoc.data().participantIds.includes(userId)) throw new Error("You are not authorized to delete this game.");
-    await deleteDoc(gameRef);
+    const gameRef = db.collection(collectionName).doc(gameId);
+    const gameDoc = await gameRef.get();
+    if (!gameDoc.exists) throw new Error("Game not found.");
+    if (!(gameDoc.data()?.participantIds.includes(userId))) throw new Error("You are not authorized to delete this game.");
+    await gameRef.delete();
 }
 
 export async function deleteUserDocument(userId: string) {
     if (!userId) throw new Error("User ID is required.");
     // This function only deletes the Firestore document.
     // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
-    const userRef = doc(db, 'users', userId);
-    await deleteDoc(userRef);
+    const userRef = db.collection('users').doc(userId);
+    await userRef.delete();
 }
 
 // Practice Log Functions
@@ -702,13 +684,13 @@ export async function logPracticeSession(
   data: z.infer<typeof practiceSessionSchema>,
   userId: string
 ): Promise<void> {
-  await runTransaction(db, async (transaction) => {
-    const userRef = doc(db, 'users', userId);
+  await db.runTransaction(async (transaction) => {
+    const userRef = db.collection('users').doc(userId);
     
     const userDoc = await transaction.get(userRef);
-    if (!userDoc.exists()) throw new Error('User not found.');
+    if (!userDoc.exists) throw new Error('User not found.');
     
-    const sessionRef = doc(collection(userRef, 'practiceSessions'));
+    const sessionRef = userRef.collection('practiceSessions').doc();
     const newSession: PracticeSession = {
       id: sessionRef.id,
       userId,
@@ -739,13 +721,11 @@ export async function getPracticeSessionsForUser(
   sport: Sport
 ): Promise<PracticeSession[]> {
   try {
-    const sessionsRef = collection(db, 'users', userId, 'practiceSessions');
-    const q = query(
-      sessionsRef,
-      where('sport', '==', sport),
-      orderBy('date', 'desc')
-    );
-    const snapshot = await getDocs(q);
+    const sessionsRef = db.collection('users').doc(userId).collection('practiceSessions');
+    const q = sessionsRef
+      .where('sport', '==', sport)
+      .orderBy('date', 'desc');
+    const snapshot = await q.get();
     return snapshot.docs.map((doc) => convertTimestamps(doc.data() as PracticeSession));
   } catch (error: any) {
     console.error("Error in getPracticeSessionsForUser:", error);
@@ -754,27 +734,27 @@ export async function getPracticeSessionsForUser(
 }
 
 export async function deletePracticeSession(sessionId: string, userId: string): Promise<void> {
-    const sessionRef = doc(db, 'users', userId, 'practiceSessions', sessionId);
-    const sessionDoc = await getDoc(sessionRef);
+    const sessionRef = db.collection('users').doc(userId).collection('practiceSessions').doc(sessionId);
+    const sessionDoc = await sessionRef.get();
 
-    if (!sessionDoc.exists()) {
+    if (!sessionDoc.exists) {
         throw new Error('Session not found.');
     }
 
-    await deleteDoc(sessionRef);
+    await sessionRef.delete();
 }
 
 
 // User Reporting
 export async function createReport(data: z.infer<typeof reportUserSchema>) {
-  const reportRef = doc(collection(db, 'reports'));
+  const reportRef = db.collection('reports').doc();
   const newReport: UserReport = {
     id: reportRef.id,
     ...data,
     createdAt: Timestamp.now().toMillis(),
     status: 'pending',
   };
-  await setDoc(reportRef, newReport);
+  await reportRef.set(newReport);
 }
 
 // Courts Functions
