@@ -56,7 +56,7 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
-import { db } from './firebase/config';
+import { adminDb as db } from './firebase/firestore';
 
 // --- User Creation Action ---
 export async function createUserDocumentAction(user: {
@@ -453,17 +453,17 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
 }
 
 export async function startNextLegendRoundAction(gameId: string) {
-    const game = await getGame<LegendGame>(gameId, 'legendGames');
-    if (!game) throw new Error("Game not found.");
-    if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
-    
-    if (game.turnState !== 'round_over') {
-        throw new Error("Current round is not over.");
-    }
-
-    const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
-
     try {
+        const game = await getGame<LegendGame>(gameId, 'legendGames');
+        if (!game) throw new Error("Game not found.");
+        if (game.status !== 'ongoing') throw new Error('Game is not ongoing.');
+        
+        if (game.turnState !== 'round_over') {
+            throw new Error("Current round is not over.");
+        }
+
+        const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
+
         await db.runTransaction(async (transaction) => {
             const gameRef = db.collection('legendGames').doc(gameId);
             const liveGameDoc = await transaction.get(gameRef);
