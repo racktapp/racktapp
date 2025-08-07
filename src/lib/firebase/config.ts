@@ -23,8 +23,8 @@ export function initializeFirebase() {
     if (typeof window !== 'undefined') {
         if (getApps().length === 0) {
             // Check if all config keys are present
-            if (Object.values(firebaseConfig).some(value => !value)) {
-                console.error("Firebase config is incomplete. Please check your .env.local file.");
+            if (Object.values(firebaseConfig).some(value => !value || value.includes('your_'))) {
+                console.error("Firebase config is incomplete. Please check your .env.local file and replace placeholders.");
                 return;
             }
             app = initializeApp(firebaseConfig);
@@ -41,3 +41,4 @@ export function initializeFirebase() {
 }
 
 export { app, auth, db, storage };
+
