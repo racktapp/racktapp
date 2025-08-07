@@ -3,7 +3,8 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { initializeFirebase, auth, db } from '@/lib/firebase/config';
+import { initializeApp, getApps } from 'firebase/app';
+import { auth, db, initializeFirebase } from '@/lib/firebase/config';
 import type { User as AppUser } from '@/lib/types';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 
@@ -40,10 +41,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize Firebase client-side
   useEffect(() => {
-    initializeFirebase();
+    if (getApps().length === 0) {
+        initializeFirebase();
+    }
   }, []);
 
   const fetchAppUser = useCallback(async (uid: string): Promise<AppUser | null> => {
+    if (!db) { // Guard against db not being initialized
+        console.error("Firestore not initialized for fetchAppUser");
+        return null;
+    }
     const userRef = doc(db, 'users', uid);
     const userDoc = await getDoc(userRef);
     if (!userDoc.exists()) return null;
