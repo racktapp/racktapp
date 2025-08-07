@@ -5,12 +5,10 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
-  authDomain: "rackt-the-social-sports-hub.firebaseapp.com",
-  projectId: "rackt-the-social-sports-hub",
-  storageBucket: "rackt-the-social-sports-hub.appspot.com",
-  messagingSenderId: "1080946592753",
-  appId: "1:1080946592753:web:b02a7c131d35f9dbdad250"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
 };
 
 // Initialize Firebase on the client side
