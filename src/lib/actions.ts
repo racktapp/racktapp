@@ -33,7 +33,7 @@ import {
     getPendingMatchesForUser,
     getHeadToHeadMatches,
     getLeaderboard,
-    updateUserProfile as updateUserProfileInDb,
+    updateUserProfileInDb,
     getFriendshipStatus,
     deleteGame,
     getGame,
@@ -44,6 +44,7 @@ import {
     createReport,
     deleteUserDocument,
     generateUniqueUsername,
+    findCourts
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -54,6 +55,8 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
+import { auth } from './firebase/config';
+import { db } from './firebase/config';
 
 // --- User Creation Action ---
 export async function createUserDocumentAction(user: {
@@ -957,5 +960,3 @@ export async function findCourtsAction(
         return [];
     }
 }
-
-    
