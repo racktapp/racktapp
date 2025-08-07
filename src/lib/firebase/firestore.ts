@@ -725,7 +725,7 @@ export async function createLegendGame(friendId: string | null, sport: Sport, cu
     const now = new Date().getTime();
     const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
     
-    let newGame: LegendGame;
+    let newGame: Omit<LegendGame, 'id'> & { id: string };
     
     if (friendId) {
         const friendDoc = await adminDb.collection('users').doc(friendId).get();
@@ -761,3 +761,4 @@ export async function createLegendGame(friendId: string | null, sport: Sport, cu
     return gameRef.id;
 }
     
+

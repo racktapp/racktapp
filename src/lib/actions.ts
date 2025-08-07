@@ -392,13 +392,8 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
-        // Step 1: Get the AI-generated round data. This might fail.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-        if (!initialRoundData) {
-            throw new Error('The AI failed to generate a valid game round. Please try again.');
-        }
         
-        // Step 2: If the AI call is successful, create the game in the database.
         const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
 
         revalidatePath('/games');

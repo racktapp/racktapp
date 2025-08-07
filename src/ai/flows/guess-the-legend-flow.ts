@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Generates a trivia round for the "Guess the Legend" game.
@@ -10,6 +11,9 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { SPORTS } from '@/lib/constants';
+import { LegendGameOutputSchema } from '@/lib/types';
+import type { LegendGameOutput } from '@/lib/types';
+
 
 const LegendGameInputSchema = z.object({
   sport: z.enum(SPORTS),
@@ -17,18 +21,9 @@ const LegendGameInputSchema = z.object({
 });
 export type LegendGameInput = z.infer<typeof LegendGameInputSchema>;
 
-const LegendGameOutputSchema = z.object({
-  clue: z.string().describe("A clever, one-sentence, slightly cryptic clue about a famous player."),
-  correctAnswer: z.string().describe("The name of the correct player."),
-  options: z.array(z.string()).length(4).describe("An array of four player names, including the correct answer and three plausible distractors."),
-  justification: z.string().describe("A short, fun justification for why the clue points to the correct player."),
-});
-export type LegendGameOutput = z.infer<typeof LegendGameOutputSchema>;
-
 
 export async function getLegendGameRound(input: LegendGameInput): Promise<LegendGameOutput> {
   const output = await legendGameFlow(input);
-  // The flow now handles retries, so if it returns, it's either a valid output or it has failed definitively.
   if (!output) {
     throw new Error('The AI failed to generate a valid game round. Please try again.');
   }
@@ -73,19 +68,19 @@ const legendGameFlow = ai.defineFlow(
   async (input) => {
     let attempts = 0;
     while (attempts < 3) {
-      const { output } = await prompt(input);
-      // The definePrompt's outputSchema will handle parsing and validation.
-      // If output is defined, it's valid according to the schema.
-      if (output && output.options && output.options.length === 4 && output.correctAnswer) {
-        return output;
+      try {
+        const { output } = await prompt(input);
+        if (output && output.options?.length === 4 && output.correctAnswer && output.clue) {
+          return output;
+        }
+      } catch (error) {
+        console.error(`Legend game AI attempt ${attempts + 1} failed:`, error);
       }
       attempts++;
-      // Optional: wait a moment before retrying
       if (attempts < 3) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retrying
       }
     }
-    // If all attempts fail, return null. The calling action will handle this.
-    return null;
+    return null; // Return null if all attempts fail
   }
 );
