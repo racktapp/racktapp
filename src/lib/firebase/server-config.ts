@@ -5,27 +5,22 @@ import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
 function getServiceAccount() {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccount) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!serviceAccountJson) {
+    throw new Error('The FIREBASE_SERVICE_ACCOUNT_JSON environment variable is not set. Please provide the full JSON object for your service account.');
   }
-  return JSON.parse(serviceAccount);
+  try {
+    return JSON.parse(serviceAccountJson);
+  } catch (e) {
+    throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON. Please ensure it is a valid JSON string.');
+  }
 }
-
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT 
-  ? getServiceAccount() 
-  : {
-      "project_id": process.env.FIREBASE_PROJECT_ID,
-      "private_key": process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      "client_email": process.env.FIREBASE_CLIENT_EMAIL,
-    };
-
 
 let adminApp: App;
 
 if (!getApps().length) {
   adminApp = initializeApp({
-    credential: cert(serviceAccount),
+    credential: cert(getServiceAccount()),
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 } else {
