@@ -1,5 +1,4 @@
 
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -22,14 +21,27 @@ import {
   Transaction,
   GeoPoint,
 } from 'firebase/firestore';
-import * as geofire from 'geofire-common';
-import { getAdminDb } from './server-config'; // Use the new function
+import * as admin from 'firebase-admin';
+
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
 
-const db = getAdminDb(); // Get the initialized DB instance
+// --- Firebase Admin Initialization ---
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      databaseURL: `https://${process.env.GCLOUD_PROJECT}.firebaseio.com`,
+    });
+  } catch (error: any) {
+    console.error('Firebase admin initialization error', error.stack);
+  }
+}
+
+const db = admin.firestore();
+
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
