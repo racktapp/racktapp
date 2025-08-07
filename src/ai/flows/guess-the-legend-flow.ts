@@ -37,6 +37,7 @@ export async function getLegendGameRound(input: LegendGameInput): Promise<Legend
 
 const prompt = ai.definePrompt({
   name: 'legendGamePrompt',
+  model: 'googleai/gemini-1.5-flash-latest',
   input: { schema: LegendGameInputSchema },
   output: { schema: LegendGameOutputSchema },
   prompt: `Generate a single, high-quality trivia question about a famous player from the sport of **{{{sport}}}**.
