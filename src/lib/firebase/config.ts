@@ -35,4 +35,19 @@ export function initializeFirebase() {
     }
 }
 
-export { app, auth, db, storage };
+// This needs to be available for server-side actions, but it might not be initialized there.
+// A better approach is to initialize it once in a server-side context.
+if (getApps().length === 0) {
+    initializeApp(firebaseConfig);
+}
+
+// Export a function to get the initialized db, to avoid race conditions.
+const getDb = () => {
+    if (!db) {
+        initializeFirebase();
+    }
+    return db;
+}
+
+
+export { app, auth, db, storage, getDb };

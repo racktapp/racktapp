@@ -87,12 +87,12 @@
       ]
     },
     {
-      "collectionGroup": "practiceSessions",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "sport", "order": "ASCENDING" },
-        { "fieldPath": "date", "order": "DESCENDING" }
-      ]
+        "collectionGroup": "practiceSessions",
+        "queryScope": "COLLECTION_GROUP",
+        "fields": [
+          { "fieldPath": "sport", "order": "ASCENDING" },
+          { "fieldPath": "date", "order": "DESCENDING" }
+        ]
     },
     {
       "collectionGroup": "rallyGames",

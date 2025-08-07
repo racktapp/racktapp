@@ -4,9 +4,6 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, storage } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -47,7 +44,9 @@ import {
     getPracticeSessionsForUser,
     createReport,
     deleteUserDocument,
-    findCourts
+    findCourts,
+    createUserDocument,
+    getGameFromDb as getGame
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -357,48 +356,8 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
-        // AI is called FIRST to ensure a valid round exists before creating the game.
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
-
-        const userDoc = await getDoc(doc(db, 'users', currentUserId));
-        if (!userDoc.exists()) throw new Error("Current user not found.");
-        const user = userDoc.data() as User;
-        
-        const gameId = await runTransaction(db, async (transaction) => {
-            const gameRef = doc(collection(db, 'legendGames')); // Always create a new game
-            const now = Timestamp.now().toMillis();
-            const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-            
-            let newGame: LegendGame;
-            if (friendId) {
-                const friendDoc = await getDoc(doc(db, 'users', friendId));
-                if (!friendDoc.exists()) throw new Error("Friend not found.");
-                const friend = friendDoc.data() as User;
-                newGame = {
-                    id: gameRef.id, mode: 'friend', sport,
-                    participantIds: [currentUserId, friendId],
-                    participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } },
-                    score: { [currentUserId]: 0, [friendId]: 0 },
-                    currentPlayerId: currentUserId,
-                    turnState: 'playing', status: 'ongoing',
-                    currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-                    createdAt: now, updatedAt: now,
-                };
-            } else {
-                newGame = {
-                    id: gameRef.id, mode: 'solo', sport,
-                    participantIds: [currentUserId],
-                    participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } },
-                    score: { [currentUserId]: 0 },
-                    currentPlayerId: currentUserId,
-                    turnState: 'playing', status: 'ongoing',
-                    currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-                    createdAt: now, updatedAt: now,
-                };
-            }
-            transaction.set(gameRef, newGame);
-            return gameRef.id;
-        });
+        const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
 
         revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
@@ -771,8 +730,7 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        const userDocRef = doc(db, 'users', userId);
-        await updateDoc(userDocRef, { avatarUrl: newAvatarUrl });
+        await updateUserProfileInDb(userId, { avatarUrl: newAvatarUrl });
 
         revalidatePath('/settings');
         revalidatePath(`/profile/${userId}`);
@@ -787,19 +745,7 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
 
 export async function deleteUserAccountAction(userId: string) {
     try {
-        const storageRef = ref(storage, `avatars/${userId}`);
-        try {
-            const listResult = await listAll(storageRef);
-            await Promise.all(listResult.items.map(itemRef => deleteObject(itemRef)));
-        } catch (e) {
-            console.error("Could not clean up all storage files, this is okay.", e);
-        }
-        
         await deleteUserDocument(userId);
-        
-        // This must be done on the client. We assume the client will handle it.
-        // await auth.currentUser.delete();
-
         return { success: true, message: 'Your account data has been deleted.' };
     } catch (error: any) {
         console.error("Error deleting user account action:", error);
