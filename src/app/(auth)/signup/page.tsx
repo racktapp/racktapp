@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -8,15 +9,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { auth, db } from '@/lib/firebase/config';
+import { auth } from '@/lib/firebase/config';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { createUserDocument } from '@/lib/firebase/firestore';
+import { createUserDocumentAction } from '@/lib/actions';
 import { getAuthErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -69,17 +69,12 @@ export default function SignupPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      const userRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userRef);
-
-      if (!userDoc.exists()) {
-        await createUserDocument({
-          uid: user.uid,
-          email: user.email!,
-          username: user.displayName || 'New User',
-          emailVerified: user.emailVerified,
-        });
-      }
+      await createUserDocumentAction({
+        uid: user.uid,
+        email: user.email!,
+        username: user.displayName || 'New User',
+        emailVerified: user.emailVerified,
+      });
 
       router.push('/dashboard');
     } catch (error: any) {
@@ -99,7 +94,7 @@ export default function SignupPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
-      await createUserDocument({
+      await createUserDocumentAction({
         uid: userCredential.user.uid,
         email: values.email,
         username: values.username,

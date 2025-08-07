@@ -46,7 +46,8 @@ import {
     deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    deleteUserDocument
+    deleteUserDocument,
+    generateUniqueUsername,
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -57,6 +58,54 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
+
+// --- User Creation Action ---
+export async function createUserDocumentAction(user: {
+  uid: string;
+  email: string;
+  username: string;
+  emailVerified: boolean;
+  avatarUrl?: string | null;
+}) {
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
+
+    if (userDoc.exists()) {
+      // User already exists, maybe update some fields if needed
+      await updateDoc(userRef, {
+          avatarUrl: user.avatarUrl,
+          emailVerified: user.emailVerified,
+      });
+      return { success: true, message: 'User already exists.' };
+    }
+
+    const finalUsername = await generateUniqueUsername(user.username);
+
+    const newUser: User = {
+      uid: user.uid,
+      email: user.email,
+      username: finalUsername,
+      emailVerified: user.emailVerified,
+      avatarUrl: user.avatarUrl || null,
+      friendIds: [],
+      preferredSports: ['Tennis'],
+      sports: {
+        Tennis: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+        Padel: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+        Badminton: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+        'Table Tennis': { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+        Pickleball: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
+      },
+    };
+    
+    await setDoc(userRef, newUser, { merge: true });
+    return { success: true, message: 'User document created successfully.' };
+  } catch (error: any) {
+    console.error("Error creating user document:", error);
+    return { success: false, message: error.message || "Failed to create user document." };
+  }
+}
 
 
 // Action to report a match
@@ -572,7 +621,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         throw new Error("It's not your turn.");
       }
   
-      let aiInput: z.infer<typeof RallyGameInputSchema>;
+      let aiInput: z.infer<typeof RallyGameInput>;
       let updatePayload: Partial<RallyGame> = {};
   
       const serverId = game.turn === 'serving' ? currentUserId : game.currentPoint.servingPlayer;

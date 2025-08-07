@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -129,7 +130,7 @@ export async function updateUserProfile(userId: string, data: z.infer<typeof pro
     await updateDoc(doc(db, 'users', userId), updateData);
 }
 
-async function generateUniqueUsername(baseUsername: string): Promise<string> {
+export async function generateUniqueUsername(baseUsername: string): Promise<string> {
     let username = baseUsername.toLowerCase().replace(/\s/g, '').replace(/[^a-z0-9_]/g, '');
     if (username.length < 3) username = `${username}user`;
     
@@ -152,37 +153,6 @@ async function generateUniqueUsername(baseUsername: string): Promise<string> {
     return finalUsername;
 }
 
-export const createUserDocument = async (user: {
-  uid: string;
-  email: string;
-  username: string;
-  emailVerified: boolean;
-  avatarUrl?: string | null;
-}) => {
-  const userRef = doc(db, 'users', user.uid);
-  const finalUsername = await generateUniqueUsername(user.username);
-
-  const newUser: User = {
-    uid: user.uid,
-    email: user.email,
-    username: finalUsername,
-    emailVerified: user.emailVerified,
-    avatarUrl: user.avatarUrl || null,
-    friendIds: [],
-    preferredSports: ['Tennis'],
-    sports: {
-      Tennis: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-      Padel: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-      Badminton: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-      'Table Tennis': { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-      Pickleball: { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] },
-    },
-  };
-  
-  await setDoc(userRef, newUser, { merge: true });
-
-  return newUser;
-};
 
 interface ReportMatchData {
     sport: Sport;
