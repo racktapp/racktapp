@@ -716,49 +716,68 @@ export async function findCourts(
     }
 }
 
-export async function createLegendGame(friendId: string | null, sport: Sport, currentUserId: string, initialRoundData: LegendGameOutput): Promise<string> {
-    const userDoc = await adminDb.collection('users').doc(currentUserId).get();
-    if (!userDoc.exists) throw new Error("Current user not found.");
-    const user = userDoc.data() as User;
-    
-    const gameRef = adminDb.collection('legendGames').doc();
-    const now = new Date().getTime();
-    const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
-    
-    let newGame: Omit<LegendGame, 'id'> & { id: string };
-    
-    if (friendId) {
-        const friendDoc = await adminDb.collection('users').doc(friendId).get();
-        if (!friendDoc.exists) throw new Error("Friend not found.");
-        const friend = friendDoc.data() as User;
-        newGame = {
-            id: gameRef.id, mode: 'friend', sport,
-            participantIds: [currentUserId, friendId],
-            participantsData: { 
-                [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, 
-                [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } 
-            },
-            score: { [currentUserId]: 0, [friendId]: 0 },
-            currentPlayerId: currentUserId,
-            turnState: 'playing', status: 'ongoing',
-            currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
-        };
-    } else {
-        newGame = {
-            id: gameRef.id, mode: 'solo', sport,
-            participantIds: [currentUserId],
-            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } },
-            score: { [currentUserId]: 0 },
-            currentPlayerId: currentUserId,
-            turnState: 'playing', status: 'ongoing',
-            currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
-            createdAt: now, updatedAt: now,
-        };
-    }
+export async function createLegendGame(
+  friendId: string | null,
+  sport: Sport,
+  currentUserId: string,
+  initialRoundData: LegendGameOutput
+): Promise<string> {
+  const userDoc = await adminDb.collection('users').doc(currentUserId).get();
+  if (!userDoc.exists) {
+    throw new Error('Current user not found.');
+  }
+  const user = userDoc.data() as User;
 
-    await gameRef.set(newGame);
-    return gameRef.id;
+  const gameRef = adminDb.collection('legendGames').doc();
+  const now = new Date().getTime();
+  const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+
+  const baseGameData = {
+    id: gameRef.id,
+    sport,
+    currentPlayerId: currentUserId,
+    turnState: 'playing' as const,
+    status: 'ongoing' as const,
+    currentRound: initialRound,
+    roundHistory: [],
+    usedPlayers: [initialRound.correctAnswer],
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (friendId) {
+    const friendDoc = await adminDb.collection('users').doc(friendId).get();
+    if (!friendDoc.exists) {
+      throw new Error('Friend not found.');
+    }
+    const friend = friendDoc.data() as User;
+
+    const gameData: LegendGame = {
+      ...baseGameData,
+      mode: 'friend',
+      participantIds: [currentUserId, friendId],
+      participantsData: {
+        [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid },
+        [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid },
+      },
+      score: { [currentUserId]: 0, [friendId]: 0 },
+    };
+    await gameRef.set(gameData);
+  } else {
+    const gameData: LegendGame = {
+      ...baseGameData,
+      mode: 'solo',
+      participantIds: [currentUserId],
+      participantsData: {
+        [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid },
+      },
+      score: { [currentUserId]: 0 },
+    };
+    await gameRef.set(gameData);
+  }
+
+  return gameRef.id;
 }
     
+
 

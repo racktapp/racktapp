@@ -393,6 +393,9 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
+        if (!initialRoundData) {
+            throw new Error('The AI failed to generate a valid game round. Please try again later.');
+        }
         
         const gameId = await createLegendGame(friendId, sport, currentUserId, initialRoundData);
 
@@ -400,7 +403,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
-        return { success: false, message: error.message || 'Could not start the game. The AI may be experiencing issues. Please try again later.' };
+        return { success: false, message: error.message || 'Could not start the game. Please try again later.' };
     }
 }
 
