@@ -106,7 +106,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-sm" suppressHydrationWarning>
+    <div className="w-full max-w-sm">
       <div className="text-center">
         <h1 className="text-3xl font-bold">Welcome Back</h1>
         <p className="text-muted-foreground mt-2">Enter your email below to sign in to your account.</p>
