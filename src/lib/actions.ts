@@ -1,10 +1,6 @@
 
-
-'use server';
-
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
-import { 
+import {
     reportPendingMatch,
     confirmMatchResult,
     declineMatchResult,
@@ -83,6 +79,9 @@ import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { db } from './firebase/config';
 import { doc, runTransaction, Timestamp, getDoc, collection } from 'firebase/firestore';
+
+// Stub revalidatePath for static export build
+function revalidatePath(_path: string) {}
 
 
 // Action to report a match
