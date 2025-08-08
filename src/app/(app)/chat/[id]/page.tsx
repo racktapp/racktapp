@@ -1,15 +1,15 @@
-import { adminDb } from "@/lib/firebase/admin-config";
 import ClientView from "./ClientView";
 
-export const dynamicParams = false;
 
 export async function generateStaticParams() {
   try {
+    const { adminDb } = await import("@/lib/firebase/admin-config");
     const snapshot = await adminDb.collection("chats").get();
-    return snapshot.docs.map((doc) => ({ id: doc.id }));
+    const ids = snapshot.docs.map((doc) => ({ id: doc.id }));
+    return ids.length ? ids : [{ id: "stub" }];
   } catch (error) {
     console.error("Failed to fetch chat IDs", error);
-    return [];
+    return [{ id: "stub" }];
   }
 }
 
