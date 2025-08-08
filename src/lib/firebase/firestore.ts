@@ -578,6 +578,47 @@ export async function getGameFromDb<T>(gameId: string, collectionName: 'rallyGam
     return docSnap.exists() ? docSnap.data() as T : null;
 }
 
+export async function createLegendGameInDb(currentUserId: string, friendId: string | null, sport: Sport, initialRoundData: LegendGameOutput): Promise<string> {
+    const userDoc = await getDoc(doc(db, 'users', currentUserId));
+    if (!userDoc.exists()) throw new Error("Current user not found.");
+    const user = userDoc.data() as User;
+
+    const gameRef = doc(collection(db, 'legendGames'));
+    const now = Timestamp.now().toMillis();
+    const initialRound: LegendGameRound = { ...initialRoundData, guesses: {} };
+    
+    let newGame: LegendGame;
+    if (friendId) {
+        const friendDoc = await getDoc(doc(db, 'users', friendId));
+        if (!friendDoc.exists()) throw new Error("Friend not found.");
+        const friend = friendDoc.data() as User;
+        newGame = {
+            id: gameRef.id, mode: 'friend', sport,
+            participantIds: [currentUserId, friendId],
+            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl, uid: friend.uid } },
+            score: { [currentUserId]: 0, [friendId]: 0 },
+            currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
+            turnState: 'playing', status: 'ongoing',
+            currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+            createdAt: now, updatedAt: now,
+        };
+    } else {
+        newGame = {
+            id: gameRef.id, mode: 'solo', sport,
+            participantIds: [currentUserId],
+            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid } },
+            score: { [currentUserId]: 0 },
+            currentPlayerId: currentUserId,
+            turnState: 'playing', status: 'ongoing',
+            currentRound: initialRound, roundHistory: [], usedPlayers: [initialRound.correctAnswer],
+            createdAt: now, updatedAt: now,
+        };
+    }
+    await setDoc(gameRef, newGame);
+    return gameRef.id;
+}
+
+
 export async function getHeadToHeadMatches(userId1: string, userId2: string, sport: Sport): Promise<Match[]> {
     const q = query(
         collection(db, 'matches'), 

@@ -192,19 +192,28 @@ export function LegendGameView({ game, currentUser }: LegendGameViewProps) {
       />
 
       <Card className="mb-8">
-        <CardContent className="p-4 flex justify-around items-center">
-            <div className="flex flex-col items-center gap-2">
-                <UserAvatar user={currentUser} className="h-16 w-16" />
-                <p className="font-bold text-2xl">{game.score[currentUser.uid]}</p>
-            </div>
-            {opponent && (
-                <>
-                    <p className="text-4xl font-bold text-muted-foreground">vs</p>
+        <CardContent className="p-4">
+            {game.mode === 'solo' ? (
+                 <div className="flex flex-col items-center gap-2">
+                    <p className="text-sm font-medium text-muted-foreground">Your Score</p>
+                    <p className="text-4xl font-bold">{game.score[currentUser.uid]}</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-3 items-center gap-4 text-center">
                     <div className="flex flex-col items-center gap-2">
-                        <UserAvatar user={opponent} className="h-16 w-16" />
-                        <p className="font-bold text-2xl">{game.score[opponentId!]}</p>
+                        <UserAvatar user={currentUser} className="h-14 w-14" />
+                        <p className="font-semibold truncate">@{currentUser.username}</p>
+                        <p className="text-3xl font-bold">{game.score[currentUser.uid]}</p>
                     </div>
-                </>
+                    
+                    <p className="text-4xl font-bold text-muted-foreground">vs</p>
+
+                    <div className="flex flex-col items-center gap-2">
+                        <UserAvatar user={opponent} className="h-14 w-14" />
+                        <p className="font-semibold truncate">@{opponent?.username}</p>
+                        <p className="text-3xl font-bold">{game.score[opponentId!]}</p>
+                    </div>
+                </div>
             )}
         </CardContent>
       </Card>
