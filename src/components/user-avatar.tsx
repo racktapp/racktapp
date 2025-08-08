@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useSport } from './providers/sport-provider';
 
 interface UserAvatarProps {
-  user?: User | null;
+  user?: Partial<User> | null;
   className?: string;
 }
 

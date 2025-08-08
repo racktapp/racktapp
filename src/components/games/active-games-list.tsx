@@ -66,7 +66,7 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
     setIsDeleting(false);
   };
   
-  if (!opponent && game.mode !== 'solo') {
+  if (!opponent && gameType === 'Legend' && 'mode' in game && game.mode !== 'solo') {
     return (
         <Card>
             <CardContent className="p-4 flex items-center gap-4">

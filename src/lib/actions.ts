@@ -52,13 +52,37 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import type { Sport, User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
+import {
+  reportMatchSchema,
+  challengeSchema,
+  openChallengeSchema,
+  createTournamentSchema,
+  profileSettingsSchema,
+  practiceSessionSchema,
+  reportUserSchema,
+  RallyGameInputSchema,
+  type Sport,
+  type User,
+  type Challenge,
+  type OpenChallenge,
+  type Tournament,
+  type Chat,
+  type Message,
+  type Match,
+  type PredictMatchOutput,
+  type LegendGame,
+  type LegendGameRound,
+  type RallyGame,
+  type RallyGamePoint,
+  type UserReport,
+  type Court,
+} from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { db } from './firebase/config';
-import { doc, runTransaction, Timestamp, getDoc } from 'firebase/firestore';
+import { doc, runTransaction, Timestamp, getDoc, collection } from 'firebase/firestore';
 
 
 // Action to report a match
@@ -194,6 +218,10 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
             location: values.location,
             wager: values.wager,
             matchDateTime: matchDateTime,
+            participantsData: {
+                [fromUser.uid]: { username: fromUser.username, avatarUrl: fromUser.avatarUrl || null, uid: fromUser.uid },
+                [toUser.uid]: { username: toUser.username, avatarUrl: toUser.avatarUrl || null, uid: toUser.uid },
+            },
         });
         revalidatePath('/challenges');
         return { success: true, message: "Challenge sent successfully!" };
@@ -557,7 +585,13 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         const winnerId = pointEvalResponse.pointWinner === 'server' ? game.currentPoint.servingPlayer : game.currentPoint.returningPlayer;
         const newScore = { ...game.score, [winnerId]: (game.score[winnerId] || 0) + 1 };
   
-        const completedPoint: RallyGamePoint = { ...game.currentPoint, returnChoice: choice, winner: winnerId, narrative: pointEvalResponse.narrative! };
+        const completedPoint: RallyGamePoint = {
+            ...game.currentPoint,
+            serveChoice: game.currentPoint.serveChoice!,
+            returnChoice: choice,
+            winner: winnerId,
+            narrative: pointEvalResponse.narrative!,
+        };
         const newPointHistory = [...game.pointHistory, completedPoint];
   
         if (newScore[winnerId] >= 5) {

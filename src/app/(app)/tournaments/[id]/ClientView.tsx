@@ -86,7 +86,7 @@ export default function TournamentPage() {
         <div className="mb-8 flex flex-col items-center justify-center rounded-lg border-2 border-yellow-500 bg-yellow-500/10 p-6">
           <Trophy className="h-12 w-12 text-yellow-500" />
           <h2 className="mt-4 text-xl font-bold">Champion</h2>
-          <p className="text-2xl font-bold text-yellow-600">{champion.name}</p>
+          <p className="text-2xl font-bold text-yellow-600">{champion.username}</p>
         </div>
       )}
 

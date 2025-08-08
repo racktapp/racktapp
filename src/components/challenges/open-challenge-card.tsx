@@ -68,9 +68,9 @@ export function OpenChallengeCard({ challenge, challenger, onAction, className, 
     <Card className={cn(className)} style={style}>
       <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-1">
-          <UserAvatar user={{ uid: challenge.posterId, username: challenge.posterName, avatarUrl: challenge.posterAvatarUrl } as User} className="h-12 w-12" />
+          <UserAvatar user={{ uid: challenge.posterId, username: challenge.posterUsername, avatarUrl: challenge.posterAvatarUrl } as User} className="h-12 w-12" />
           <div className="space-y-1">
-            <p className="font-semibold text-lg">@{challenge.posterName}</p>
+            <p className="font-semibold text-lg">@{challenge.posterUsername}</p>
             <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
               <span className="flex items-center gap-1.5">
                  <Image src={SPORT_ICONS[challenge.sport]} alt={challenge.sport} width={16} height={16} unoptimized/>
