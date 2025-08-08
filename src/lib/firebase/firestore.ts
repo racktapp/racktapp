@@ -597,17 +597,23 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    const usersCollection = adminDb.collection('users');
-    const q = usersCollection.orderBy(`sports.${sport}.racktRank`, 'desc').limit(100);
-    const snapshot = await q.get();
-    
-    if (snapshot.empty) {
-        return [];
-    }
-    
-    return snapshot.docs
+    // This approach fetches all users and sorts them in memory.
+    // It's less efficient for very large user bases but avoids needing a composite index.
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
+
+    const users = snapshot.docs
         .map(doc => doc.data() as User)
-        .filter(user => user.sports?.[sport]);
+        .filter(user => user.sports?.[sport]); // Ensure the user has played the sport
+
+    // Sort by racktRank for the given sport in descending order
+    users.sort((a, b) => {
+        const rankA = a.sports?.[sport]?.racktRank ?? 0;
+        const rankB = b.sports?.[sport]?.racktRank ?? 0;
+        return rankB - rankA;
+    });
+
+    return users.slice(0, 100); // Return the top 100
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
