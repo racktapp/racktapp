@@ -118,48 +118,42 @@
         { "fieldPath": "participantIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    }
-  ],
-  "fieldOverrides": [
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sports.Tennis.racktRank", "order": "DESCENDING" }
+      ]
+    },
      {
       "collectionGroup": "users",
-      "fieldPath": "sports.Tennis.racktRank",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sports.Padel.racktRank", "order": "DESCENDING" }
       ]
     },
-    {
+     {
       "collectionGroup": "users",
-      "fieldPath": "sports.Padel.racktRank",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sports.Badminton.racktRank", "order": "DESCENDING" }
       ]
     },
-    {
+     {
       "collectionGroup": "users",
-      "fieldPath": "sports.Badminton.racktRank",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sports.Table Tennis.racktRank", "order": "DESCENDING" }
       ]
     },
-    {
+     {
       "collectionGroup": "users",
-      "fieldPath": "sports.Table Tennis.racktRank",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "fieldPath": "sports.Pickleball.racktRank",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sports.Pickleball.racktRank", "order": "DESCENDING" }
       ]
     }
-  ]
+  ],
+  "fieldOverrides": []
 }
