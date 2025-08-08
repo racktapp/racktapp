@@ -1,8 +1,8 @@
 export type PredictMatchInput = any;
 
 export type PredictMatchOutput = {
-  predictedWinner: string;
-  confidence: string;
+  predictedWinner: 'player1' | 'player2';
+  confidence: 'High' | 'Medium' | 'Slight Edge';
   analysis: string;
 };
 

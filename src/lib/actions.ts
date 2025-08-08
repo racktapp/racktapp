@@ -81,7 +81,7 @@ import { db } from './firebase/config';
 import { doc, runTransaction, Timestamp, getDoc, collection } from 'firebase/firestore';
 
 // Stub revalidatePath for static export build
-function revalidatePath(_path: string) {}
+function revalidatePath(_path: string, _type?: string) {}
 
 
 // Action to report a match
