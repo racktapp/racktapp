@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
+import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
 
 
 const getRankDisplay = (rank: number) => {
@@ -39,24 +40,21 @@ export default function LeaderboardPage() {
 
   const [leaderboard, setLeaderboard] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchLeaderboard = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    
+    setError(null);
     try {
         const users = await getLeaderboardAction(sport);
         setLeaderboard(users || []);
     } catch (error: any) {
-         toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Could not load leaderboard. This may be due to a missing database index.'
-        })
+        setError(error.message || 'An unexpected error occurred.');
     }
     
     setIsLoading(false);
-  }, [user, sport, toast]);
+  }, [user, sport]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -97,6 +95,10 @@ export default function LeaderboardPage() {
           <LoadingSpinner className="h-8 w-8" />
         </div>
       );
+    }
+
+    if (error) {
+        return <FirestoreIndexAlert message={error} />;
     }
 
     if (rankedUsers.length > 0) {
