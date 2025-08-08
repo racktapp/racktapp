@@ -57,7 +57,7 @@ export function ChallengeCard({ challenge, currentUserId, type, onAction, classN
 
     if (result.success) {
       toast({ title: 'Success', description: result.message });
-      if (action === 'accept' && result.chatId) {
+      if (action === 'accept' && 'chatId' in result && result.chatId) {
         router.push(`/chat/${result.chatId}`);
       } else {
         onAction();

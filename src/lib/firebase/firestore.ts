@@ -33,7 +33,7 @@ import { adminDb } from './admin-config';
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
     for (const key in obj) {
-        if (obj[key] instanceof Timestamp) {
+        if ((obj[key] as any) instanceof Timestamp) {
             obj[key] = obj[key].toMillis() as any;
         } else if (typeof obj[key] === 'object' && obj[key] !== null) {
             convertTimestamps(obj[key]);
@@ -99,7 +99,10 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfileInDb(userId: string, data: Partial<z.infer<typeof profileSettingsSchema>>) {
+export async function updateUserProfileInDb(
+  userId: string,
+  data: Partial<z.infer<typeof profileSettingsSchema>> & { avatarUrl?: string | null }
+) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
@@ -246,7 +249,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
         const getKFactor = (playerStats: SportStats) => ((playerStats.wins || 0) + (playerStats.losses || 0) < 30 ? 40 : 20);
         const getMatchKFactor = (pIds: string[]) => pIds.reduce((sum, pId) => {
             const player = players.find(pl => pl.uid === pId);
-            return sum + getKFactor(player?.sports?.[match.sport] ?? { wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
+            return sum + getKFactor(player?.sports?.[match.sport] ?? { racktRank: 0, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
         }, 0) / pIds.length;
         const matchKFactor = getMatchKFactor(allPlayerIds);
 

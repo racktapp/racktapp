@@ -39,7 +39,7 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
       try {
         const result = await getFriendshipStatusAction(profileUser.uid, currentUser.uid);
         if (result && result.status) {
-          setStatus(result.status);
+          setStatus(result.status as FriendshipStatus);
           setRequestId(result.requestId);
         } else {
           console.error("Invalid response from getFriendshipStatusAction", result);
@@ -59,7 +59,7 @@ export function FriendshipButton({ profileUser, currentUser }: FriendshipButtonP
         await action();
         const result = await getFriendshipStatusAction(profileUser.uid, currentUser.uid);
         if (result && result.status) {
-          setStatus(result.status);
+          setStatus(result.status as FriendshipStatus);
           setRequestId(result.requestId);
         } else {
             setStatus('not_friends');

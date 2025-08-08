@@ -38,7 +38,7 @@ export function MatchHistoryCard({ match, currentUserId, className, style }: Mat
   const partner = myTeamIds.find(id => id !== currentUserId);
   const opponents = opponentTeamIds;
 
-  const opponentDisplay = opponents.map(id => `@${match.participantsData[id]?.name}` || 'Unknown').join(' & ');
+  const opponentDisplay = opponents.map(id => `@${match.participantsData[id]?.username}` || 'Unknown').join(' & ');
 
   const handleGenerateRecap = async () => {
     setIsLoading(true);
@@ -85,7 +85,7 @@ export function MatchHistoryCard({ match, currentUserId, className, style }: Mat
                     <div><span className="font-medium text-foreground">Sport:</span> <span className="inline-flex items-center gap-1.5">{match.sport} <Image src={SPORT_ICONS[match.sport]} alt={match.sport} width={16} height={16} unoptimized/></span></div>
                     <div><span className="font-medium text-foreground">Type:</span> {match.type}</div>
                     <div><span className="font-medium text-foreground">Mode:</span> {match.isRanked ? "Ranked" : "Unranked"}</div>
-                    {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> @{match.participantsData[partner]?.name || 'Unknown'}</div>}
+                    {!isSingles && partner && <div><span className="font-medium text-foreground">Partner:</span> @{match.participantsData[partner]?.username || 'Unknown'}</div>}
                 </div>
 
                 {!recap && !isLoading && (
