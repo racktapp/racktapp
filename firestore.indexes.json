@@ -118,42 +118,48 @@
         { "fieldPath": "participantIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    }
+  ],
+  "fieldOverrides": [
+     {
+      "collectionGroup": "users",
+      "fieldPath": "sports.Tennis.racktRank",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
+      ]
     },
     {
       "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sports.Tennis.racktRank", "order": "DESCENDING" }
+      "fieldPath": "sports.Padel.racktRank",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
       ]
     },
-     {
+    {
       "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sports.Padel.racktRank", "order": "DESCENDING" }
+      "fieldPath": "sports.Badminton.racktRank",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
       ]
     },
-     {
+    {
       "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sports.Badminton.racktRank", "order": "DESCENDING" }
+      "fieldPath": "sports.Table Tennis.racktRank",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
       ]
     },
-     {
+    {
       "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sports.Table Tennis.racktRank", "order": "DESCENDING" }
-      ]
-    },
-     {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sports.Pickleball.racktRank", "order": "DESCENDING" }
+      "fieldPath": "sports.Pickleball.racktRank",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION" }
       ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }

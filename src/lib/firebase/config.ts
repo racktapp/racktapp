@@ -1,8 +1,8 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
@@ -13,41 +13,19 @@ const firebaseConfig = {
   appId: "1:1080946592753:web:b02a7c131d35f9dbdad250"
 };
 
-// Initialize Firebase on the client side
-let app: FirebaseApp;
-let auth: ReturnType<typeof getAuth>;
-let db: ReturnType<typeof getFirestore>;
-let storage: ReturnType<typeof getStorage>;
+// Initialize Firebase
+const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// This is a client-side only initialization function for components that need it.
+// The top-level export handles initialization for both client and server.
 export function initializeFirebase() {
-    if (typeof window !== 'undefined') {
-        if (getApps().length === 0) {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            storage = getStorage(app);
-        } else {
-            app = getApp();
-            auth = getAuth(app);
-            db = getFirestore(app);
-            storage = getStorage(app);
-        }
+    if (getApps().length === 0) {
+        initializeApp(firebaseConfig);
     }
 }
 
-// This needs to be available for server-side actions, but it might not be initialized there.
-// A better approach is to initialize it once in a server-side context.
-if (getApps().length === 0) {
-    initializeApp(firebaseConfig);
-}
-
-// Export a function to get the initialized db, to avoid race conditions.
-const getDb = () => {
-    if (!db) {
-        initializeFirebase();
-    }
-    return db;
-}
-
-
-export { app, auth, db, storage, getDb };
+export { app, auth, db, storage };
