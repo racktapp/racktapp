@@ -597,9 +597,17 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    const q = query(adminDb.collection('users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
+    const usersCollection = adminDb.collection('users');
+    const q = usersCollection.orderBy(`sports.${sport}.racktRank`, 'desc').limit(100);
     const snapshot = await q.get();
-    return snapshot.docs.map(doc => doc.data() as User).filter(user => user.sports?.[sport]);
+    
+    if (snapshot.empty) {
+        return [];
+    }
+    
+    return snapshot.docs
+        .map(doc => doc.data() as User)
+        .filter(user => user.sports?.[sport]);
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
