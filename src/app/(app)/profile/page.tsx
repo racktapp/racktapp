@@ -1,20 +1,20 @@
 'use client';
-import { useAuth } from '@/hooks/use-auth';
+
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase/config';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function ProfileRedirectPage() {
-  const { user, loading } = useAuth();
+  const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && user) {
-      router.replace(`/profile/${user.uid}`);
-    }
-    if (!loading && !user) {
-        router.replace('/login');
-    }
-  }, [user, loading, router]);
+  if (!loading && !user) {
+    router.replace('/login');
+    return null;
+  }
 
+  if (loading || !user) return <div className="p-4">Loading…</div>;
+
+  router.replace(`/profile/${user.uid}`);
   return null;
 }
