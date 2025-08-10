@@ -2,18 +2,26 @@
 import { PageHeader } from '@/components/page-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase/config';
 import { ActiveGamesList } from '@/components/games/active-games-list';
 import { StartLegendSoloDialog } from '@/components/games/start-legend-solo-dialog';
 import { Gamepad2, Brain, Swords, ArrowRight, Users } from 'lucide-react';
 import { StartRallyFriendDialog } from '@/components/games/start-rally-friend-dialog';
 import { Badge } from '@/components/ui/badge';
 import { StartLegendFriendDialog } from '@/components/games/start-legend-friend-dialog';
+import { useRouter } from 'next/navigation';
 
 export default function GamesPage() {
-  const { user } = useAuth();
+  const [user, loading] = useAuthState(auth);
+  const router = useRouter();
 
-  if (!user) return null;
+  if (!loading && !user) {
+    router.replace('/login');
+    return null;
+  }
+
+  if (loading || !user) return <div className="p-4">Loading…</div>;
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
