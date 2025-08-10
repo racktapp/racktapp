@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
-import { Plus, Swords, Trophy, Gamepad2, BrainCircuit, ChevronRight, BarChart, Target, User as UserIcon } from 'lucide-react';
+import { Swords, Trophy, Gamepad2, BrainCircuit, BarChart, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getMatchHistoryAction } from '@/lib/actions';
-import { Match, EloDataPoint } from '@/lib/types';
+import { Match } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/page-header';
 import { StatsHighlightCard } from '@/components/dashboard/stats-highlight-card';
 import { RecentMatches } from '@/components/dashboard/recent-matches';
 import { MatchPredictorDialog } from '@/components/ai/match-predictor-dialog';
@@ -115,23 +114,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
-      <PageHeader
-        title={`Welcome back, ${user.username}`}
-        description="Here's your dashboard overview."
-        actions={
-            <Button asChild variant="outline">
-                <Link href="/profile">
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    My Profile
-                </Link>
-            </Button>
-        }
-      />
+    <main className="mx-auto w-full max-w-[420px] px-3 text-[15px] sm:max-w-[640px] sm:px-4 sm:text-base space-y-4 sm:space-y-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-xl sm:text-2xl font-semibold leading-tight">Welcome back, {user.username}</h1>
+          <p className="text-muted-foreground">Here's your dashboard overview.</p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/profile">
+            <UserIcon className="mr-2 h-4 w-4" />
+            My Profile
+          </Link>
+        </Button>
+      </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-4">
-          <StatsHighlightCard 
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <StatsHighlightCard
             title={`${sport} RacktRank`}
             value={currentElo}
             description={skillLevel}
@@ -154,16 +153,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Report a Match Section */}
-       <Button asChild size="lg" className="w-full font-semibold">
+       <Button asChild className="h-11 sm:h-12 text-sm sm:text-base w-full">
           <Link href="/report-match">Report a Match</Link>
        </Button>
-      
+
       {/* Quick Actions */}
       <Card>
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-6">
             <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 p-4 sm:p-6">
             <ActionCard href="/challenges" icon={Swords} title="Challenges" description="Find an opponent" />
             <ActionCard href="/tournaments" icon={Trophy} title="Tournaments" description="Compete in brackets" />
             <ActionCard href="/games" icon={Gamepad2} title="AI Games" description="Test your skills" />
@@ -189,6 +188,6 @@ export default function DashboardPage() {
       {/* RacktRank Progression Graph */}
       <EloChart data={eloHistoryData} />
 
-    </div>
+    </main>
   );
 }
