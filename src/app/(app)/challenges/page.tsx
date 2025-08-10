@@ -61,6 +61,14 @@ export default function ChallengesPage() {
     }
   }, [fetchChallenges, authLoading, user, latitude, longitude]);
 
+  // Refetch when radius changes
+  useEffect(() => {
+    if (latitude && longitude) {
+      const t = setTimeout(() => fetchChallenges(latitude, longitude), 200);
+      return () => clearTimeout(t);
+    }
+  }, [radius, latitude, longitude, fetchChallenges]);
+
   if (authLoading) {
     return (
         <div className="flex h-64 items-center justify-center">
@@ -106,14 +114,20 @@ export default function ChallengesPage() {
         <label className="text-sm font-medium">Show challenges within {radius} km</label>
         <Slider value={[radius]} onValueChange={(v) => setRadius(v[0])} min={1} max={100} step={1} />
       </div>
-      <Tabs defaultValue="incoming">
+      <Tabs defaultValue="open">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="incoming">
               Incoming
               {incoming.length > 0 && <Badge className="ml-2">{incoming.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="sent">Sent</TabsTrigger>
-            <TabsTrigger value="open">Open</TabsTrigger>
+            <TabsTrigger value="sent">
+              Sent
+              {sent.length > 0 && <Badge className="ml-2">{sent.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="open">
+              Open
+              {open.length > 0 && <Badge className="ml-2">{open.length}</Badge>}
+            </TabsTrigger>
              <TabsTrigger value="my-posts">
               My Posts
               {myOpen.length > 0 && <Badge className="ml-2">{myOpen.length}</Badge>}

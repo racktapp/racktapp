@@ -203,7 +203,7 @@ const AppSidebar = ({ user }: { user: User }) => {
               </DropdownMenuPortal>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/profile')}>
+            <DropdownMenuItem onClick={() => user && router.push(`/profile/${user.uid}`)}>
               <UserIcon size={16} className="mr-2" />
               Profile
             </DropdownMenuItem>
