@@ -71,7 +71,7 @@ export function AvatarSelector({ user }: AvatarSelectorProps) {
                   isSaving && !isBeingProcessed ? "opacity-50 cursor-not-allowed" : ""
                 )}
               >
-                <Image src={avatar.url} alt="Stock Avatar" width={100} height={100} className="rounded-full object-cover w-full h-full" />
+                <Image src={avatar.url} alt="Stock Avatar" width={100} height={100} className="rounded-full object-cover w-full h-full" unoptimized />
                 {isBeingProcessed && (
                   <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full">
                     <LoadingSpinner />
