@@ -1,10 +1,10 @@
 
+"use client";
+
 import ClientView from "./ClientView";
 
 export default function Page() {
   return <ClientView />;
 }
 
-export function generateStaticParams() {
-  return [{ id: 'placeholder' }];
-}
+export const dynamic = 'force-dynamic';

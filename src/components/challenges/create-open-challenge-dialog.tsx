@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,6 +23,7 @@ import { SPORTS } from '@/lib/constants';
 import { type User, openChallengeSchema } from '@/lib/types';
 import { createOpenChallengeAction } from '@/lib/actions';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useUserLocation } from '@/hooks/use-user-location';
 
 interface CreateOpenChallengeDialogProps {
   user: User;
@@ -40,9 +41,20 @@ export function CreateOpenChallengeDialog({ user, children, onChallengeCreated }
     defaultValues: {
       sport: user.preferredSports[0] || SPORTS[0],
       location: '',
+      latitude: undefined,
+      longitude: undefined,
       note: '',
     },
   });
+
+  const { latitude, longitude } = useUserLocation();
+
+  useEffect(() => {
+    if (latitude && longitude) {
+        form.setValue('latitude', latitude);
+        form.setValue('longitude', longitude);
+    }
+  }, [latitude, longitude, form]);
 
   async function onSubmit(values: z.infer<typeof openChallengeSchema>) {
     setIsLoading(true);
@@ -85,6 +97,8 @@ export function CreateOpenChallengeDialog({ user, children, onChallengeCreated }
               )}
             />
             <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="e.g. City Park Courts" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <input type="hidden" {...form.register('latitude', { valueAsNumber: true })} />
+            <input type="hidden" {...form.register('longitude', { valueAsNumber: true })} />
             <FormField control={form.control} name="note" render={({ field }) => (<FormItem><FormLabel>Note (optional)</FormLabel><FormControl><Textarea placeholder="e.g. Looking for a friendly match after 5pm." {...field} /></FormControl><FormMessage /></FormItem>)} />
             <DialogFooter>
               <Button type="submit" disabled={isLoading}>

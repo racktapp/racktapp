@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 import { useUserLocation } from '@/hooks/use-user-location';
+import LocationGate from '@/components/location-gate';
 import { findCourtsAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -76,7 +77,7 @@ const FilterPanel = ({
 
 
 export default function CourtsMapPage() {
-  const { latitude, longitude, error: locationError, loading: locationLoading } = useUserLocation();
+  const { latitude, longitude, error: locationError, loading: locationLoading, requestLocation } = useUserLocation();
   const { user } = useAuth();
   
   const [courts, setCourts] = useState<Court[]>([]);
@@ -197,6 +198,20 @@ export default function CourtsMapPage() {
     );
   }
 
+  if (!latitude || !longitude) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+        <PageHeader title="Find Courts" description="Search for nearby courts." />
+        <LocationGate
+          title="Enable location to find nearby courts."
+          onEnable={requestLocation}
+          onManual={() => {}}
+          onSkip={() => {}}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full flex flex-col">
         <div className="p-4 md:p-6 lg:p-8">
@@ -233,8 +248,8 @@ export default function CourtsMapPage() {
                     No courts found. Try expanding the radius.
                 </div>
             )}
-             {locationError && (
-                <Alert variant="destructive" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-auto">
+            {locationError && (
+                <Alert variant="destructive" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-auto">
                   <AlertTitle>Location Error</AlertTitle>
                   <AlertDescription>{locationError}</AlertDescription>
                 </Alert>

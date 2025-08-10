@@ -113,6 +113,8 @@ export interface OpenChallenge {
   posterAvatarUrl?: string | null;
   sport: Sport;
   location: string;
+  latitude?: number;
+  longitude?: number;
   note?: string;
   createdAt: number;
 }
@@ -360,6 +362,8 @@ export const challengeSchema = z.object({
 export const openChallengeSchema = z.object({
     sport: SportEnum,
     location: z.string().min(1, 'Location is required.'),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
     note: z.string().max(100, "Note must be 100 characters or less.").optional(),
 });
 

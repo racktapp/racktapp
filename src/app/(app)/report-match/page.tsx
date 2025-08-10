@@ -20,14 +20,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { Switch } from '@/components/ui/switch';
 
 import { useAuth } from '@/hooks/use-auth';
-import { getAllUsers } from '@/lib/firebase/firestore';
 import { User, Sport, reportMatchSchema } from '@/lib/types';
 import { SPORTS } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
-import { handleReportMatchAction } from '@/lib/actions';
+import { handleReportMatchAction, getFriendsAction } from '@/lib/actions';
 import { cn } from "@/lib/utils";
 import { useSport } from '@/components/providers/sport-provider';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { FriendCombobox } from '@/components/friend-combobox';
 
 
 export default function ReportMatchPage() {
@@ -41,7 +41,7 @@ export default function ReportMatchPage() {
 
   useEffect(() => {
     if (user) {
-      getAllUsers(user.uid).then(data => {
+      getFriendsAction(user.uid).then(data => {
         setAvailablePlayers(data);
         setIsFetchingPlayers(false);
       });
@@ -50,6 +50,7 @@ export default function ReportMatchPage() {
 
   const form = useForm<z.infer<typeof reportMatchSchema>>({
     resolver: zodResolver(reportMatchSchema),
+    mode: 'onChange',
     defaultValues: {
       matchType: 'Singles',
       sport: sport,
@@ -104,14 +105,25 @@ export default function ReportMatchPage() {
     }
   }
 
-  const availablePartners = availablePlayers.filter(p => p.uid !== opponent1Id && p.uid !== opponent2Id);
-  const availableOpponent1 = availablePlayers.filter(p => p.uid !== partnerId);
-  const availableOpponent2 = availablePlayers.filter(p => p.uid !== opponent1Id && p.uid !== partnerId);
-
   if (!user || isFetchingPlayers) {
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8 flex h-full w-full items-center justify-center">
         <LoadingSpinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (availablePlayers.length === 0) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+        <PageHeader title="Report Match Result" description="Enter the details of your completed match." />
+        <div className="mt-8 text-center space-y-4">
+          <p className="text-muted-foreground">You don’t have any friends yet.</p>
+          <div className="flex justify-center gap-2">
+            <Button asChild variant="outline"><a href="/friends">Find friends</a></Button>
+            <Button asChild><a href="/invite">Invite via link</a></Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -167,10 +179,9 @@ export default function ReportMatchPage() {
                 <FormField control={form.control} name="opponent1" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Opponent</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                        <SelectContent>{availableOpponent1.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <FormControl>
+                      <FriendCombobox value={field.value} onChange={field.onChange} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -181,20 +192,18 @@ export default function ReportMatchPage() {
                     <FormField control={form.control} name="partner" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Your Partner</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger></FormControl>
-                            <SelectContent>{availablePartners.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <FormControl>
+                          <FriendCombobox value={field.value} onChange={field.onChange} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="opponent2" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Second Opponent</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select opponent" /></SelectTrigger></FormControl>
-                            <SelectContent>{availableOpponent2.map(p => <SelectItem key={p.uid} value={p.uid}>{p.username}</SelectItem>)}</SelectContent>
-                        </Select>
+                        <FormControl>
+                          <FriendCombobox value={field.value} onChange={field.onChange} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -291,7 +300,7 @@ export default function ReportMatchPage() {
             </CardContent>
           </Card>
           
-          <Button type="submit" disabled={isLoading} className="w-full">
+          <Button type="submit" disabled={isLoading || !form.formState.isValid} className="w-full">
             {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
             Submit for Confirmation
           </Button>
