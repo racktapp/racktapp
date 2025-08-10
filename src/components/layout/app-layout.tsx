@@ -14,6 +14,7 @@ import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import { NAV_ITEMS_MAIN, NAV_ITEMS_MOBILE_MAIN, NAV_ITEMS_MOBILE_MORE } from '@/lib/navigation';
 import { auth } from '@/lib/firebase/config';
 import { useUnreadChats } from '@/hooks/use-unread-chats';
+import { useAuth } from '@/hooks/use-auth';
 
 import {
   SidebarProvider,
@@ -226,6 +227,7 @@ const BottomNav = () => {
     const pathname = usePathname();
     const router = useRouter();
     const hasUnreadChats = useUnreadChats();
+    const { user } = useAuth();
 
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
@@ -256,16 +258,19 @@ const BottomNav = () => {
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
             <div className="grid h-16 grid-cols-5">
-                {NAV_ITEMS_MOBILE_MAIN.map((item) => (
-                    <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex flex-col items-center justify-center gap-1 text-xs ${pathname.startsWith(item.href) ? 'text-primary' : 'text-muted-foreground'}`}
-                    >
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.label}</span>
-                    </Link>
-                ))}
+                {NAV_ITEMS_MOBILE_MAIN.map((item) => {
+                    const href = item.href === '/profile' && user ? `/profile/${user.uid}` : item.href;
+                    return (
+                        <Link
+                            key={item.href}
+                            href={href}
+                            className={`flex flex-col items-center justify-center gap-1 text-xs ${pathname.startsWith(item.href) ? 'text-primary' : 'text-muted-foreground'}`}
+                        >
+                            <item.icon className="h-5 w-5" />
+                            <span>{item.label}</span>
+                        </Link>
+                    );
+                })}
                 
                 <Sheet open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
                     <SheetTrigger asChild>

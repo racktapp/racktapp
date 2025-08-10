@@ -237,6 +237,8 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
             posterAvatarUrl: poster.avatarUrl || null,
             sport: values.sport,
             location: values.location,
+            latitude: values.latitude,
+            longitude: values.longitude,
             note: values.note,
         });
         revalidatePath('/challenges');
@@ -246,11 +248,17 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
     }
 }
 
-export async function getChallengesAction(userId: string, sport: Sport) {
+export async function getChallengesAction(
+    userId: string,
+    sport: Sport,
+    latitude?: number,
+    longitude?: number,
+    radiusKm: number = 25
+) {
     const [incoming, sent, open] = await Promise.all([
         getIncomingChallenges(userId),
         getSentChallenges(userId),
-        getOpenChallenges(sport)
+        getOpenChallenges(sport, latitude, longitude, radiusKm)
     ]);
     return { incoming, sent, open };
 }

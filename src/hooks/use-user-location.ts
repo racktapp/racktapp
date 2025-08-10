@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface LocationState {
   latitude: number | null;
@@ -11,16 +11,16 @@ interface LocationState {
 }
 
 export function useUserLocation() {
-  const [location, setLocation] = useState<LocationState>({
+  const [state, setState] = useState<LocationState>({
     latitude: null,
     longitude: null,
     error: null,
-    loading: true,
+    loading: false,
   });
 
-  useEffect(() => {
+  const requestLocation = async () => {
     if (!navigator.geolocation) {
-      setLocation({
+      setState({
         latitude: null,
         longitude: null,
         error: 'Geolocation is not supported by your browser.',
@@ -29,30 +29,32 @@ export function useUserLocation() {
       return;
     }
 
-    const successHandler = (position: GeolocationPosition) => {
-      setLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        error: null,
-        loading: false,
-      });
-    };
+    setState((prev) => ({ ...prev, loading: true }));
 
-    const errorHandler = (error: GeolocationPositionError) => {
-      setLocation({
-        latitude: null,
-        longitude: null,
-        error: error.message,
-        loading: false,
-      });
-    };
-
-    navigator.geolocation.getCurrentPosition(successHandler, errorHandler, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+    return new Promise<void>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position: GeolocationPosition) => {
+          setState({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            error: null,
+            loading: false,
+          });
+          resolve();
+        },
+        (error: GeolocationPositionError) => {
+          setState({
+            latitude: null,
+            longitude: null,
+            error: error.message,
+            loading: false,
+          });
+          resolve();
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
     });
-  }, []);
+  };
 
-  return location;
+  return { ...state, requestLocation };
 }

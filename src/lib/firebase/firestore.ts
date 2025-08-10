@@ -21,6 +21,7 @@ import {
   Transaction,
   GeoPoint,
   collectionGroup,
+  documentId,
 } from 'firebase/firestore';
 import * as geofire from 'geofire-common';
 import { db } from './config';
@@ -43,29 +44,24 @@ function convertTimestamps<T extends Record<string, any>>(obj: T): T {
 }
 
 
-// Fetches a user's friends from Firestore
+// Fetches a user's accepted friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-
-    if (!userDoc.exists()) return [];
-
-    const friendIds = userDoc.data().friendIds || [];
+    const friendsRef = collection(db, 'users', userId, 'friends');
+    const q = query(friendsRef, where('status', '==', 'accepted'));
+    const snapshot = await getDocs(q);
+    const friendIds = snapshot.docs.map((d) => d.id);
     if (friendIds.length === 0) return [];
-    
-    const friendsData: User[] = [];
-    // Firestore 'in' query supports a maximum of 30 elements.
-    const chunkSize = 30;
+
+    const friends: User[] = [];
+    const chunkSize = 10;
     for (let i = 0; i < friendIds.length; i += chunkSize) {
         const chunk = friendIds.slice(i, i + chunkSize);
-        const friendsQuery = query(collection(db, 'users'), where('uid', 'in', chunk));
-        const querySnapshot = await getDocs(friendsQuery);
-        querySnapshot.forEach((doc) => {
-          friendsData.push(doc.data() as User);
-        });
+        const usersQ = query(collection(db, 'users'), where(documentId(), 'in', chunk));
+        const usersSnap = await getDocs(usersQ);
+        usersSnap.forEach((doc) => friends.push(doc.data() as User));
     }
-    
-    return friendsData;
+
+    return friends;
 }
 
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
@@ -361,23 +357,35 @@ export async function deleteFriendRequest(requestId: string) {
 
 export async function removeFriend(userId: string, friendId: string) {
   await runTransaction(db, async (t) => {
-    t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
-    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
+    t.delete(doc(db, 'users', userId, 'friends', friendId));
+    t.delete(doc(db, 'users', friendId, 'friends', userId));
   });
 }
 
 export async function getFriendshipStatus(currentUserId: string, profileUserId: string) {
-    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
-    if (currentUserDoc.data()?.friendIds?.includes(profileUserId)) return { status: 'friends' };
+    const friendDoc = await getDoc(doc(db, 'users', currentUserId, 'friends', profileUserId));
+    if (friendDoc.exists() && friendDoc.data()?.status === 'accepted') {
+        return { status: 'friends' };
+    }
 
-    const qSent = query(collection(db, 'friendRequests'), where('fromId', '==', currentUserId), where('toId', '==', profileUserId), where('status', '==', 'pending'));
+    const qSent = query(
+        collection(db, 'friendRequests'),
+        where('fromId', '==', currentUserId),
+        where('toId', '==', profileUserId),
+        where('status', '==', 'pending')
+    );
     const sentSnapshot = await getDocs(qSent);
     if (!sentSnapshot.empty) return { status: 'request_sent', requestId: sentSnapshot.docs[0].id };
-    
-    const qReceived = query(collection(db, 'friendRequests'), where('fromId', '==', profileUserId), where('toId', '==', currentUserId), where('status', '==', 'pending'));
+
+    const qReceived = query(
+        collection(db, 'friendRequests'),
+        where('fromId', '==', profileUserId),
+        where('toId', '==', currentUserId),
+        where('status', '==', 'pending')
+    );
     const receivedSnapshot = await getDocs(qReceived);
     if (!receivedSnapshot.empty) return { status: 'request_received', requestId: receivedSnapshot.docs[0].id };
-    
+
     return { status: 'not_friends' };
 }
 
@@ -430,10 +438,33 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export async function getOpenChallenges(sport: Sport): Promise<OpenChallenge[]> {
+function distanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+export async function getOpenChallenges(
+    sport: Sport,
+    latitude?: number,
+    longitude?: number,
+    radiusKm: number = 25
+): Promise<OpenChallenge[]> {
     const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
     const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+    let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+    if (latitude !== undefined && longitude !== undefined) {
+        challenges = challenges.filter(c => {
+            if (c.latitude == null || c.longitude == null) return false;
+            return distanceInKm(latitude, longitude, c.latitude, c.longitude) <= radiusKm;
+        });
+    }
     return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
 }
 

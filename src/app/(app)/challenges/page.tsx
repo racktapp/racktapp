@@ -16,6 +16,9 @@ import { ChallengeCard } from '@/components/challenges/challenge-card';
 import { OpenChallengeCard } from '@/components/challenges/open-challenge-card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Slider } from '@/components/ui/slider';
+import { useUserLocation } from '@/hooks/use-user-location';
+import LocationGate from '@/components/location-gate';
 
 export default function ChallengesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -27,13 +30,15 @@ export default function ChallengesPage() {
   const [sent, setSent] = useState<Challenge[]>([]);
   const [open, setOpen] = useState<OpenChallenge[]>([]);
   const [myOpen, setMyOpen] = useState<OpenChallenge[]>([]);
+  const [radius, setRadius] = useState(25);
+  const { latitude, longitude, requestLocation } = useUserLocation();
 
-  const fetchChallenges = useCallback(async () => {
+  const fetchChallenges = useCallback(async (lat?: number, lng?: number) => {
     if (!user) return;
     setIsLoading(true);
-    
+
     try {
-        const result = await getChallengesAction(user.uid, sport);
+        const result = await getChallengesAction(user.uid, sport, lat, lng, radius);
         setIncoming(result.incoming || []);
         setSent(result.sent || []);
         setOpen(result.open?.filter(c => c.posterId !== user.uid) || []);
@@ -45,16 +50,16 @@ export default function ChallengesPage() {
             description: 'Could not load challenges. This may be due to a missing database index.'
         })
     }
-    
+
     setIsLoading(false);
-  }, [user, sport, toast]);
+  }, [user, sport, toast, radius]);
 
 
   useEffect(() => {
-    if (!authLoading && user) {
-        fetchChallenges();
+    if (!authLoading && user && latitude && longitude) {
+        fetchChallenges(latitude, longitude);
     }
-  }, [fetchChallenges, authLoading, user]);
+  }, [fetchChallenges, authLoading, user, latitude, longitude]);
 
   if (authLoading) {
     return (
@@ -65,6 +70,23 @@ export default function ChallengesPage() {
   }
 
   if (!user) return null;
+
+  if (!latitude || !longitude) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+        <PageHeader
+          title="Challenges"
+          description="Accept incoming challenges or create an open one."
+        />
+        <LocationGate
+          title="Enable location to see nearby challenges."
+          onEnable={requestLocation}
+          onManual={() => fetchChallenges()}
+          onSkip={() => fetchChallenges()}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
@@ -80,7 +102,11 @@ export default function ChallengesPage() {
           </CreateOpenChallengeDialog>
         }
       />
-        <Tabs defaultValue="incoming">
+      <div className="mb-6">
+        <label className="text-sm font-medium">Show challenges within {radius} km</label>
+        <Slider value={[radius]} onValueChange={(v) => setRadius(v[0])} min={1} max={100} step={1} />
+      </div>
+      <Tabs defaultValue="incoming">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="incoming">
               Incoming
