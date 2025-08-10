@@ -103,9 +103,9 @@ export function RallyCourt({ game, currentUser }: RallyCourtProps) {
       setBallPos(nextServerStartPosition);
     }
   }, [
-    game.turn, 
-    game.pointHistory.length, // More stable dependency than the array reference
-    currentUser.uid, 
+    game.turn,
+    game.pointHistory,
+    currentUser.uid,
     myBaseline, 
     opponentBaseline, 
     myServeBox, 
