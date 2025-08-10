@@ -31,7 +31,7 @@ export default function ChallengesPage() {
   const [open, setOpen] = useState<OpenChallenge[]>([]);
   const [myOpen, setMyOpen] = useState<OpenChallenge[]>([]);
   const [radius, setRadius] = useState(25);
-  const { latitude, longitude, requestLocation } = useUserLocation();
+  const { latitude, longitude, enableLocation } = useUserLocation();
 
   const fetchChallenges = useCallback(async (lat?: number, lng?: number) => {
     if (!user) return;
@@ -88,7 +88,7 @@ export default function ChallengesPage() {
         />
         <LocationGate
           title="Enable location to see nearby challenges."
-          onEnable={requestLocation}
+          onEnable={enableLocation}
           onManual={() => fetchChallenges()}
           onSkip={() => fetchChallenges()}
         />

@@ -196,7 +196,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
 
         <div className="flex justify-center items-center h-40 bg-muted rounded-md my-4">
             {previewSrc ? (
-                 <Image src={previewSrc} alt="Avatar preview" width={160} height={160} className="h-full w-auto object-contain rounded-md" />
+                 <Image src={previewSrc} alt="Avatar preview" width={160} height={160} className="h-full w-auto object-contain rounded-md" unoptimized />
             ) : (
                 <UserAvatar user={user} className="h-24 w-24" />
             )}
@@ -254,7 +254,7 @@ export function EditProfileDialog({ children, user }: EditProfileDialogProps) {
                             previewUrl === avatar.url ? "border-primary" : "border-transparent"
                         )}
                     >
-                        <Image src={avatar.url} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" />
+                        <Image src={avatar.url} alt="Stock Avatar" width={100} height={100} className="rounded-md aspect-square object-cover" unoptimized />
                     </button>
                 ))}
             </div>

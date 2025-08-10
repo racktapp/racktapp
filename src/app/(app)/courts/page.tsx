@@ -77,7 +77,7 @@ const FilterPanel = ({
 
 
 export default function CourtsMapPage() {
-  const { latitude, longitude, error: locationError, loading: locationLoading, requestLocation } = useUserLocation();
+  const { latitude, longitude, error: locationError, loading: locationLoading, enableLocation } = useUserLocation();
   const { user } = useAuth();
   
   const [courts, setCourts] = useState<Court[]>([]);
@@ -204,7 +204,7 @@ export default function CourtsMapPage() {
         <PageHeader title="Find Courts" description="Search for nearby courts." />
         <LocationGate
           title="Enable location to find nearby courts."
-          onEnable={requestLocation}
+          onEnable={enableLocation}
           onManual={() => {}}
           onSkip={() => {}}
         />

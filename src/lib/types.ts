@@ -39,6 +39,8 @@ export interface User {
   avatarUrl?: string | null;
   friendIds: string[];
   location?: string;
+  latitude?: number;
+  longitude?: number;
   handPreference?: 'left' | 'right';
   preferredSports: Sport[];
   socials?: Socials;
