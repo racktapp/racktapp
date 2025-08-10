@@ -29,7 +29,7 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
 
     if (!opponentData || opponentData.length === 0) {
         return (
-             <div className={cn("flex items-center gap-4", className)}>
+             <div className={cn("flex items-center gap-3 sm:gap-4", className)}>
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-1/2" />
@@ -44,7 +44,7 @@ const MatchItem = ({ match, currentUserId, className, ...props }: { match: Match
 
 
     return (
-        <div className={cn("flex items-center gap-4", className)} {...props}>
+        <div className={cn("flex items-center gap-3 sm:gap-4", className)} {...props}>
             <UserAvatar user={firstOpponent as User} className="h-10 w-10" />
             <div className="flex-1">
                 <p className="font-medium">vs {opponentDisplay}</p>
@@ -83,7 +83,7 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
   
     return (
       <ScrollArea className="h-[280px] pr-4">
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {matches.map((match, i) => (
               <div key={match.id}>
                   <MatchItem 
@@ -101,7 +101,7 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
   
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6">
         <div>
             <CardTitle>Recent Matches</CardTitle>
             <CardDescription>Your last few games.</CardDescription>
@@ -110,7 +110,7 @@ export function RecentMatches({ matches, currentUserId, isLoading }: RecentMatch
             <Link href="/match-history">View All <ArrowRight className='ml-2 h-4 w-4' /></Link>
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-4 sm:p-6">
         {renderContent()}
       </CardContent>
     </Card>
