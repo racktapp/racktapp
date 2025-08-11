@@ -203,7 +203,7 @@ const AppSidebar = ({ user }: { user: User }) => {
               </DropdownMenuPortal>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => user && router.push(`/profile/${user.uid}`)}>
+            <DropdownMenuItem onClick={() => user && router.push(`/profile?id=${user.uid}`)}>
               <UserIcon size={16} className="mr-2" />
               Profile
             </DropdownMenuItem>
@@ -233,7 +233,8 @@ const BottomNav = () => {
 
     const handleMoreMenuLinkClick = (href: string) => {
         setIsMoreMenuOpen(false);
-        router.push(href);
+        const finalHref = href === '/profile' && user ? `/profile?id=${user.uid}` : href;
+        router.push(finalHref);
     };
     
     const MoreMenuSection = ({ title, items }: { title: string, items: typeof NAV_ITEMS_MOBILE_MORE }) => (
@@ -259,7 +260,7 @@ const BottomNav = () => {
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
             <div className="grid h-16 grid-cols-5">
                 {NAV_ITEMS_MOBILE_MAIN.map((item) => {
-                    const href = item.href === '/profile' && user ? `/profile/${user.uid}` : item.href;
+                    const href = item.href === '/profile' && user ? `/profile?id=${user.uid}` : item.href;
                     return (
                         <Link
                             key={item.href}

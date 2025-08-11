@@ -103,9 +103,9 @@ export function RallyCourt({ game, currentUser }: RallyCourtProps) {
       setBallPos(nextServerStartPosition);
     }
   }, [
-    game.turn,
+    game.turn, 
     game.pointHistory,
-    currentUser.uid,
+    currentUser.uid, 
     myBaseline, 
     opponentBaseline, 
     myServeBox, 

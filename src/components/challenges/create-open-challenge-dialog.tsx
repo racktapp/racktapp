@@ -29,9 +29,10 @@ interface CreateOpenChallengeDialogProps {
   user: User;
   children: ReactNode;
   onChallengeCreated: () => void;
+  friends: User[]; // This prop is needed for the dialog to function.
 }
 
-export function CreateOpenChallengeDialog({ user, children, onChallengeCreated }: CreateOpenChallengeDialogProps) {
+export function CreateOpenChallengeDialog({ user, children, onChallengeCreated, friends }: CreateOpenChallengeDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();

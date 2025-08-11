@@ -1,6 +1,5 @@
 
 'use client';
-import { useParams } from 'next/navigation';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
@@ -10,16 +9,17 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { LegendGameView } from '@/components/games/legend-game-view';
 
-export default function LegendGamePage() {
+export default function ClientView({ gameId }: { gameId: string }) {
   const { user, loading: authLoading } = useAuth();
-  const params = useParams();
-  const gameId = params.id as string;
 
   const [game, setGame] = useState<LegendGame | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!gameId || !user) return;
+    if (!gameId || !user) {
+        setLoading(false);
+        return;
+    };
 
     const gameRef = doc(db, 'legendGames', gameId);
     const unsubscribe = onSnapshot(gameRef, (doc) => {
@@ -51,6 +51,13 @@ export default function LegendGamePage() {
   }
 
   if (!game) {
+    if (loading) {
+         return (
+          <div className="flex h-full flex-col items-center justify-center p-4">
+            <LoadingSpinner className="h-8 w-8" />
+          </div>
+        );
+    }
     return (
         <div className="container mx-auto p-4 md:p-6 lg:p-8">
             <PageHeader title="Game Not Found" description="This game does not exist or you don't have access." />

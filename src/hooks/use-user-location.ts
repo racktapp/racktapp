@@ -1,17 +1,14 @@
 
 "use client";
 
-import { useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
-import { auth, db } from '@/lib/firebase/config';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
 
 interface LocationState {
   latitude: number | null;
   longitude: number | null;
   error: string | null;
   loading: boolean;
+  manualLocation: boolean;
 }
 
 export function useUserLocation() {
@@ -19,83 +16,74 @@ export function useUserLocation() {
     latitude: null,
     longitude: null,
     error: null,
-    loading: false,
+    loading: true,
+    manualLocation: false,
   });
 
-  const saveUserLocation = async (lat: number, lng: number) => {
-    const user = auth.currentUser;
-    if (!user) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        latitude: lat,
-        longitude: lng,
-      });
-    } catch (e) {
-      console.error('Failed to save user location', e);
-    }
-  };
+  const setManualLocation = useCallback(() => {
+    setState((prev) => ({ ...prev, manualLocation: true, loading: false, error: null }));
+  }, []);
 
-  const enableLocation = async () => {
-    setState((prev) => ({ ...prev, loading: true }));
+  const enableLocation = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null, manualLocation: false }));
+
+    if (!navigator.geolocation) {
+      setState((prev) => ({
+        ...prev,
+        error: 'Geolocation is not supported by your browser.',
+        loading: false,
+      }));
+      return;
+    }
+
     try {
-      if (Capacitor.isNativePlatform()) {
-        const perm = await Geolocation.checkPermissions();
-        if (perm.location !== 'granted' && perm.coarseLocation !== 'granted') {
-          await Geolocation.requestPermissions();
-        }
-        const pos = await Geolocation.getCurrentPosition({
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
           timeout: 10000,
+          maximumAge: 0,
         });
-        await saveUserLocation(pos.coords.latitude, pos.coords.longitude);
-        setState({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          error: null,
-          loading: false,
-        });
-      } else if (navigator.geolocation) {
-        await new Promise<void>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (position: GeolocationPosition) => {
-              saveUserLocation(position.coords.latitude, position.coords.longitude);
-              setState({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                error: null,
-                loading: false,
-              });
-              resolve();
-            },
-            (error: GeolocationPositionError) => {
-              setState({
-                latitude: null,
-                longitude: null,
-                error: error.message,
-                loading: false,
-              });
-              resolve();
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-          );
-        });
-      } else {
-        setState({
-          latitude: null,
-          longitude: null,
-          error: 'Geolocation is not supported by your browser.',
-          loading: false,
-        });
-      }
-    } catch (e: any) {
-      setState({
-        latitude: null,
-        longitude: null,
-        error: e.message ?? String(e),
-        loading: false,
       });
-    }
-  };
 
-  return { ...state, enableLocation };
+      setState({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        error: null,
+        loading: false,
+        manualLocation: false,
+      });
+    } catch (error: any) {
+      setState((prev) => ({
+        ...prev,
+        error: error.message || 'Failed to get location.',
+        loading: false,
+        manualLocation: true, // Fallback to manual on error
+      }));
+    }
+  }, []);
+
+  // On initial mount, check permission status and fetch if already granted.
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+        if (permissionStatus.state === 'granted') {
+          enableLocation();
+        } else {
+          // If not granted, we just stop loading and wait for user action.
+          setState(prev => ({ ...prev, loading: false }));
+        }
+        permissionStatus.onchange = () => {
+           if (permissionStatus.state === 'granted') {
+              enableLocation();
+           }
+        };
+      });
+    } else {
+        // Geolocation not supported
+        setState(prev => ({ ...prev, loading: false, error: 'Geolocation is not supported.' }));
+    }
+  }, [enableLocation]);
+
+
+  return { ...state, enableLocation, setManualLocation };
 }

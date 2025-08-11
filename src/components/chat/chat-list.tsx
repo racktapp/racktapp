@@ -27,7 +27,7 @@ function ChatListItem({ chat, currentUserId }: ChatListItemProps) {
     const hasUnread = (chat.lastRead?.[currentUserId] ?? 0) < chat.updatedAt;
 
     return (
-        <Link href={`/chat/${chat.id}`} className="block">
+        <Link href={`/chat?id=${chat.id}`} className="block">
             <Card className="hover:bg-muted/50 transition-colors">
                 <CardContent className="p-4 flex items-center gap-4">
                     <div className="relative">

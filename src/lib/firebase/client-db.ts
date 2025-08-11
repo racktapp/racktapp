@@ -1,4 +1,3 @@
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -21,13 +20,14 @@ import {
   Transaction,
   GeoPoint,
   collectionGroup,
+  documentId,
 } from 'firebase/firestore';
 import * as geofire from 'geofire-common';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court, FriendGroup, createFriendGroupSchema } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
-import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
+
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
@@ -42,73 +42,48 @@ function convertTimestamps<T extends Record<string, any>>(obj: T): T {
 }
 
 
-// Fetches a user's friends from Firestore
+// Fetches a user's accepted friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
-  try {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
+    const friendsRef = collection(db, 'users', userId, 'friends');
+    const q = query(friendsRef, where('status', '==', 'accepted'));
+    const snapshot = await getDocs(q);
+    const friendIds = snapshot.docs.map((d) => d.id);
+    if (friendIds.length === 0) return [];
 
-    if (!userDoc.exists()) {
-      return [];
-    }
-
-    const userData = userDoc.data() as User;
-    const friendIds = userData.friendIds;
-
-    if (!friendIds || friendIds.length === 0) {
-      return [];
-    }
-
-    const friendsData: User[] = [];
-    const chunkSize = 30;
+    const friends: User[] = [];
+    const chunkSize = 10;
     for (let i = 0; i < friendIds.length; i += chunkSize) {
-      const chunk = friendIds.slice(i, i + chunkSize);
-      if (chunk.length > 0) {
-        const friendsQuery = query(collection(db, 'users'), where('uid', 'in', chunk));
-        const querySnapshot = await getDocs(friendsQuery);
-        querySnapshot.forEach((doc) => {
-          friendsData.push(doc.data() as User);
-        });
-      }
+        const chunk = friendIds.slice(i, i + chunkSize);
+        const usersQ = query(collection(db, 'users'), where(documentId(), 'in', chunk));
+        const usersSnap = await getDocs(usersQ);
+        usersSnap.forEach((doc) => friends.push(doc.data() as User));
     }
-    
-    return friendsData;
-  } catch (error) {
-    console.error("Error fetching friends:", error);
-    return [];
-  }
+
+    return friends;
 }
 
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
-  try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('uid', '!=', currentUserId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => doc.data() as User);
-  } catch (error) {
-    console.error("Error fetching all users:", error);
-    return [];
-  }
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('uid', '!=', currentUserId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => doc.data() as User);
 }
 
 export async function searchUsers(usernameQuery: string, currentUserId: string): Promise<User[]> {
-    try {
-        const lowerCaseQuery = usernameQuery.toLowerCase().trim();
-        if (!lowerCaseQuery) return [];
+    const lowerCaseQuery = usernameQuery.toLowerCase().trim();
+    if (!lowerCaseQuery) return [];
 
-        const usersRef = collection(db, 'users');
-        const querySnapshot = await getDocs(usersRef);
-        
-        return querySnapshot.docs
-            .map(doc => doc.data() as User)
-            .filter(user => 
-                user.username.toLowerCase().includes(lowerCaseQuery) && 
-                user.uid !== currentUserId
-            );
-    } catch (error) {
-        console.error("Error searching users:", error);
-        throw new Error("Failed to search for users.");
-    }
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, 
+        where('username', '>=', lowerCaseQuery),
+        where('username', '<=', lowerCaseQuery + '\uf8ff')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs
+        .map(doc => doc.data() as User)
+        .filter(user => user.uid !== currentUserId);
 }
 
 async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
@@ -268,7 +243,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
         const getKFactor = (playerStats: SportStats) => ((playerStats.wins || 0) + (playerStats.losses || 0) < 30 ? 40 : 20);
         const getMatchKFactor = (pIds: string[]) => pIds.reduce((sum, pId) => {
             const player = players.find(pl => pl.uid === pId);
-            return sum + getKFactor(player?.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
+            return sum + getKFactor(player?.sports?.[match.sport] ?? { racktRank: 0, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
         }, 0) / pIds.length;
         const matchKFactor = getMatchKFactor(allPlayerIds);
 
@@ -338,9 +313,7 @@ export async function getPendingMatchesForUser(userId: string): Promise<Match[]>
 }
 
 export async function sendFriendRequest(fromUser: User, toUser: User) {
-  if (toUser.friendIds?.includes(fromUser.uid) || fromUser.friendIds?.includes(toUser.uid)) {
-    throw new Error("You are already friends.");
-  }
+  if (toUser.friendIds?.includes(fromUser.uid)) throw new Error("You are already friends.");
   
   const q1 = query(collection(db, 'friendRequests'), where('fromId', '==', fromUser.uid), where('toId', '==', toUser.uid));
   const q2 = query(collection(db, 'friendRequests'), where('fromId', '==', toUser.uid), where('toId', '==', fromUser.uid));
@@ -370,8 +343,8 @@ export async function getSentFriendRequests(userId: string): Promise<FriendReque
 
 export async function acceptFriendRequest(requestId: string, fromId: string, toId: string) {
   await runTransaction(db, async (t) => {
-    t.update(doc(db, 'users', fromId), { friendIds: arrayUnion(toId) });
-    t.update(doc(db, 'users', toId), { friendIds: arrayUnion(fromId) });
+    t.set(doc(db, 'users', fromId, 'friends', toId), { status: 'accepted', since: Timestamp.now() });
+    t.set(doc(db, 'users', toId, 'friends', fromId), { status: 'accepted', since: Timestamp.now() });
     t.delete(doc(db, 'friendRequests', requestId));
   });
 }
@@ -382,23 +355,35 @@ export async function deleteFriendRequest(requestId: string) {
 
 export async function removeFriend(userId: string, friendId: string) {
   await runTransaction(db, async (t) => {
-    t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
-    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
+    t.delete(doc(db, 'users', userId, 'friends', friendId));
+    t.delete(doc(db, 'users', friendId, 'friends', userId));
   });
 }
 
 export async function getFriendshipStatus(currentUserId: string, profileUserId: string) {
-    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
-    if (currentUserDoc.data()?.friendIds?.includes(profileUserId)) return { status: 'friends' };
+    const friendDoc = await getDoc(doc(db, 'users', currentUserId, 'friends', profileUserId));
+    if (friendDoc.exists() && friendDoc.data()?.status === 'accepted') {
+        return { status: 'friends' };
+    }
 
-    const qSent = query(collection(db, 'friendRequests'), where('fromId', '==', currentUserId), where('toId', '==', profileUserId), where('status', '==', 'pending'));
+    const qSent = query(
+        collection(db, 'friendRequests'),
+        where('fromId', '==', currentUserId),
+        where('toId', '==', profileUserId),
+        where('status', '==', 'pending')
+    );
     const sentSnapshot = await getDocs(qSent);
     if (!sentSnapshot.empty) return { status: 'request_sent', requestId: sentSnapshot.docs[0].id };
-    
-    const qReceived = query(collection(db, 'friendRequests'), where('fromId', '==', profileUserId), where('toId', '==', currentUserId), where('status', '==', 'pending'));
+
+    const qReceived = query(
+        collection(db, 'friendRequests'),
+        where('fromId', '==', profileUserId),
+        where('toId', '==', currentUserId),
+        where('status', '==', 'pending')
+    );
     const receivedSnapshot = await getDocs(qReceived);
     if (!receivedSnapshot.empty) return { status: 'request_received', requestId: receivedSnapshot.docs[0].id };
-    
+
     return { status: 'not_friends' };
 }
 
@@ -451,25 +436,34 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
+function distanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
 export async function getOpenChallenges(
     sport: Sport,
     latitude?: number,
     longitude?: number,
     radiusKm: number = 25
 ): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
     const snapshot = await getDocs(q);
     let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
-    
     if (latitude !== undefined && longitude !== undefined) {
         challenges = challenges.filter(c => {
-            if (c.latitude == null || c.longitude == null) return false; // Exclude challenges without coordinates
-            const distanceInKmVal = geofire.distanceBetween([c.latitude, c.longitude], [latitude, longitude]);
-            return distanceInKmVal <= radiusKm;
+            if (c.latitude == null || c.longitude == null) return false;
+            return distanceInKm(latitude, longitude, c.latitude, c.longitude) <= radiusKm;
         });
     }
-
-    return challenges;
+    return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
 }
 
 
@@ -503,29 +497,6 @@ export async function challengeFromOpen(openChallenge: OpenChallenge, challenger
     });
 }
 
-export async function createTournamentInDb(values: z.infer<typeof createTournamentSchema>, organizer: User) {
-    const participantIds = [organizer.uid, ...values.participantIds];
-    if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
-
-    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
-    const participantsData = userDocs.docs.map(doc => doc.data() as User);
-    if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
-
-    const newTournamentRef = doc(collection(db, 'tournaments'));
-    await setDoc(newTournamentRef, {
-        id: newTournamentRef.id, name: values.name, sport: values.sport,
-        organizerId: organizer.uid, participantIds: participantIds,
-        participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
-        status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
-    } as Omit<Tournament, 'winnerId'>);
-}
-
-export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
-    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
-}
-
 export async function getOrCreateChat(userId1: string, userId2: string): Promise<string> {
     const q = query(collection(db, 'chats'), where('participantIds', 'array-contains', userId1));
     const snapshot = await getDocs(q);
@@ -542,10 +513,7 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     await setDoc(newChatRef, {
         id: newChatRef.id, participantIds: [userId1, userId2],
-        participantsData: { 
-            [userId1]: { uid: user1.uid, username: user1.username, avatarUrl: user1.avatarUrl || null }, 
-            [userId2]: { uid: user2.uid, username: user2.username, avatarUrl: user2.avatarUrl || null } 
-        },
+        participantsData: { [userId1]: { username: user1.username, avatarUrl: user1.avatarUrl || null }, [userId2]: { username: user2.username, avatarUrl: user2.avatarUrl || null } },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
     } as Omit<Chat, 'lastMessage'>);
     return newChatRef.id;
@@ -590,10 +558,7 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
         newGame = {
             id: gameRef.id, mode: 'friend', sport,
             participantIds: [currentUserId, friendId],
-            participantsData: { 
-                [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, 
-                [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } 
-            },
+            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl, uid: friend.uid } },
             score: { [currentUserId]: 0, [friendId]: 0 },
             currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
             turnState: 'playing', status: 'ongoing',
@@ -604,9 +569,7 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
         newGame = {
             id: gameRef.id, mode: 'solo', sport,
             participantIds: [currentUserId],
-            participantsData: { 
-                [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } 
-            },
+            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid } },
             score: { [currentUserId]: 0 },
             currentPlayerId: currentUserId,
             turnState: 'playing', status: 'ongoing',
@@ -643,29 +606,24 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
     return matches.sort((a, b) => a.date - b.date).map(m => convertTimestamps(m));
 }
 
-export async function getLeaderboard(sport: Sport, limitNum: number = 100, userIds?: string[] | null): Promise<User[]> {
-    let q;
-    if (userIds && userIds.length > 0) {
-        // We can only do 'in' queries for up to 30 items at a time.
-        // For this app, we'll assume friend groups are smaller than 30.
-        if (userIds.length > 30) {
-            userIds = userIds.slice(0, 30);
-        }
-        q = query(collection(db, 'users'), where('uid', 'in', userIds));
-    } else {
-        q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(limitNum));
-    }
+export async function getLeaderboard(sport: Sport): Promise<User[]> {
+    // This approach fetches all users and sorts them in memory.
+    // It's less efficient for very large user bases but avoids needing a composite index.
+    const usersCollection = collection(db, 'users');
+    const snapshot = await getDocs(usersCollection);
 
-    const snapshot = await getDocs(q);
-    
     const users = snapshot.docs
         .map(doc => doc.data() as User)
         .filter(user => user.sports?.[sport]); // Ensure the user has played the sport
 
-    // Sort by rank, because 'in' queries don't support ordering by a different field.
-    users.sort((a, b) => (b.sports?.[sport]?.racktRank ?? 0) - (a.sports?.[sport]?.racktRank ?? 0));
-    
-    return users;
+    // Sort by racktRank for the given sport in descending order
+    users.sort((a, b) => {
+        const rankA = a.sports?.[sport]?.racktRank ?? 0;
+        const rankB = b.sports?.[sport]?.racktRank ?? 0;
+        return rankB - rankA;
+    });
+
+    return users.slice(0, 100); // Return the top 100
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
@@ -806,39 +764,12 @@ export async function findCourts(
     });
   }
 
-export async function deleteUserDocument(userId: string) {
-    if (!userId) throw new Error("User ID is required.");
-    // This function only deletes the Firestore document.
-    // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
-    const userRef = doc(db, 'users', userId);
-    await deleteDoc(userRef);
-}
-
-// Friend Group Functions
-export async function createFriendGroup(values: z.infer<typeof createFriendGroupSchema>, creatorId: string) {
-    const groupRef = doc(collection(db, 'friendGroups'));
-    const newGroup: FriendGroup = {
-        id: groupRef.id,
-        name: values.name,
-        creatorId: creatorId,
-        memberIds: [creatorId, ...values.memberIds],
-        createdAt: Timestamp.now().toMillis(),
-    };
-    await setDoc(groupRef, newGroup);
-}
-
-export async function getFriendGroups(userId: string) {
-    const q = query(collection(db, 'friendGroups'), where('memberIds', 'array-contains', userId));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as FriendGroup);
-}
-
-export async function getTournamentById(id: string): Promise<Tournament | null> {
+  export async function getTournamentById(id: string): Promise<Tournament | null> {
     const docSnap = await getDoc(doc(db, 'tournaments', id));
     return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
-}
-
-export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
+  }
+  
+  export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
     await runTransaction(db, async (t) => {
         const tournamentRef = doc(db, 'tournaments', tournamentId);
         const tournamentDoc = await t.get(tournamentRef);

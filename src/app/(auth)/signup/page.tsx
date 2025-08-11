@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, OAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +52,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,9 +63,7 @@ export default function SignupPage() {
     },
   });
 
-  async function handleGoogleSignIn() {
-    setIsGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
+   const handleProviderSignIn = async (provider: GoogleAuthProvider | OAuthProvider) => {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -74,6 +73,7 @@ export default function SignupPage() {
         email: user.email!,
         username: user.displayName || 'New User',
         emailVerified: user.emailVerified,
+        avatarUrl: user.photoURL,
       });
 
       router.push('/dashboard');
@@ -83,9 +83,24 @@ export default function SignupPage() {
         title: 'Sign Up Failed',
         description: getAuthErrorMessage(error.code),
       });
-    } finally {
-      setIsGoogleLoading(false);
     }
+  };
+
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    await handleProviderSignIn(new GoogleAuthProvider());
+    setIsGoogleLoading(false);
+  }
+
+  async function handleAppleSignIn() {
+    setIsAppleLoading(true);
+    // IMPORTANT: Apple Sign-In must be enabled in the Firebase console for this to work.
+    // Go to Authentication -> Sign-in method -> Add new provider -> Apple.
+    const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    await handleProviderSignIn(provider);
+    setIsAppleLoading(false);
   }
 
 
@@ -130,9 +145,13 @@ export default function SignupPage() {
         </div>
 
         <div className="mt-8 space-y-4">
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading || isAppleLoading}>
                  {isGoogleLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
                 Continue with Google
+            </Button>
+            <Button variant="outline" className="w-full" onClick={handleAppleSignIn} disabled={isLoading || isGoogleLoading || isAppleLoading}>
+                {isAppleLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Image src="/AppleLogo.png" alt="Apple Logo" width={20} height={20} className="mr-2" unoptimized />}
+                Continue with Apple
             </Button>
             
             <div className="relative my-4">
@@ -187,7 +206,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isAppleLoading}>
                 {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Sign Up
               </Button>

@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { UserAvatar } from '@/components/user-avatar';
 import { Button } from '@/components/ui/button';
@@ -48,13 +47,11 @@ const AchievementCard = ({ achievement }: { achievement: Achievement }) => {
     )
 }
 
-export default function ProfileClientView() {
+export default function ProfileClientView({ id }: { id: string }) {
   const { user: authUser, loading: authLoading } = useAuth();
   const { sport } = useSport();
   const router = useRouter();
-  const params = useParams();
   const { toast } = useToast();
-  const id = params.id as string;
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);

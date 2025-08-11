@@ -9,8 +9,8 @@ import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
 import { useToast } from '@/hooks/use-toast';
-import { getChallengesAction } from '@/lib/actions';
-import { Challenge, OpenChallenge } from '@/lib/types';
+import { getChallengesAction, getFriendsAction } from '@/lib/actions';
+import { Challenge, OpenChallenge, User } from '@/lib/types';
 import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
 import { ChallengeCard } from '@/components/challenges/challenge-card';
 import { OpenChallengeCard } from '@/components/challenges/open-challenge-card';
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Slider } from '@/components/ui/slider';
 import { useUserLocation } from '@/hooks/use-user-location';
-import LocationGate from '@/components/location-gate';
+import { LocationGate } from '@/components/location-gate';
 
 export default function ChallengesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -30,19 +30,27 @@ export default function ChallengesPage() {
   const [sent, setSent] = useState<Challenge[]>([]);
   const [open, setOpen] = useState<OpenChallenge[]>([]);
   const [myOpen, setMyOpen] = useState<OpenChallenge[]>([]);
+  const [friends, setFriends] = useState<User[]>([]);
   const [radius, setRadius] = useState(25);
-  const { latitude, longitude, enableLocation } = useUserLocation();
+  const { latitude, longitude, enableLocation, manualLocation, setManualLocation } = useUserLocation();
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchChallenges = useCallback(async (lat?: number, lng?: number) => {
     if (!user) return;
     setIsLoading(true);
+    setHasFetched(true);
 
     try {
-        const result = await getChallengesAction(user.uid, sport, lat, lng, radius);
-        setIncoming(result.incoming || []);
-        setSent(result.sent || []);
-        setOpen(result.open?.filter(c => c.posterId !== user.uid) || []);
-        setMyOpen(result.open?.filter(c => c.posterId === user.uid) || []);
+        const [friendsData, challengesResult] = await Promise.all([
+            getFriendsAction(user.uid),
+            getChallengesAction(user.uid, sport, lat, lng, radius)
+        ]);
+
+        setFriends(friendsData);
+        setIncoming(challengesResult.incoming || []);
+        setSent(challengesResult.sent || []);
+        setOpen(challengesResult.open?.filter(c => c.posterId !== user.uid) || []);
+        setMyOpen(challengesResult.open?.filter(c => c.posterId === user.uid) || []);
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -56,18 +64,18 @@ export default function ChallengesPage() {
 
 
   useEffect(() => {
-    if (!authLoading && user && latitude && longitude) {
-        fetchChallenges(latitude, longitude);
+    if (!authLoading && user && (latitude || manualLocation) && !hasFetched) {
+        fetchChallenges(latitude ?? undefined, longitude ?? undefined);
     }
-  }, [fetchChallenges, authLoading, user, latitude, longitude]);
+  }, [fetchChallenges, authLoading, user, latitude, longitude, manualLocation, hasFetched]);
 
-  // Refetch when radius changes
+  // Refetch when radius changes and we have a location
   useEffect(() => {
-    if (latitude && longitude) {
-      const t = setTimeout(() => fetchChallenges(latitude, longitude), 200);
+    if ((latitude && longitude) || manualLocation) {
+      const t = setTimeout(() => fetchChallenges(latitude ?? undefined, longitude ?? undefined), 200);
       return () => clearTimeout(t);
     }
-  }, [radius, latitude, longitude, fetchChallenges]);
+  }, [radius, latitude, longitude, fetchChallenges, manualLocation]);
 
   if (authLoading) {
     return (
@@ -79,7 +87,7 @@ export default function ChallengesPage() {
 
   if (!user) return null;
 
-  if (!latitude || !longitude) {
+  if (!latitude && !longitude && !manualLocation) {
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
         <PageHeader
@@ -89,8 +97,8 @@ export default function ChallengesPage() {
         <LocationGate
           title="Enable location to see nearby challenges."
           onEnable={enableLocation}
-          onManual={() => fetchChallenges()}
-          onSkip={() => fetchChallenges()}
+          onManual={() => setManualLocation(true)}
+          onSkip={() => setManualLocation(true)}
         />
       </div>
     );
@@ -102,7 +110,7 @@ export default function ChallengesPage() {
         title="Challenges"
         description="Accept incoming challenges or create an open one."
         actions={
-          <CreateOpenChallengeDialog user={user} onChallengeCreated={fetchChallenges}>
+          <CreateOpenChallengeDialog user={user} friends={friends} onChallengeCreated={() => fetchChallenges(latitude ?? undefined, longitude ?? undefined)}>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Post Open Challenge
@@ -148,7 +156,7 @@ export default function ChallengesPage() {
                         challenge={challenge}
                         currentUserId={user.uid}
                         type="incoming"
-                        onAction={fetchChallenges}
+                        onAction={() => fetchChallenges(latitude ?? undefined, longitude ?? undefined)}
                         className="opacity-0 animate-fade-in-slide-up"
                         style={{ animationDelay: `${i * 100}ms` }}
                       />
@@ -169,7 +177,7 @@ export default function ChallengesPage() {
                         challenge={challenge}
                         currentUserId={user.uid}
                         type="sent"
-                        onAction={fetchChallenges}
+                        onAction={() => fetchChallenges(latitude ?? undefined, longitude ?? undefined)}
                         className="opacity-0 animate-fade-in-slide-up"
                         style={{ animationDelay: `${i * 100}ms` }}
                       />
@@ -189,7 +197,7 @@ export default function ChallengesPage() {
                         key={challenge.id}
                         challenge={challenge}
                         challenger={user}
-                        onAction={fetchChallenges}
+                        onAction={() => fetchChallenges(latitude ?? undefined, longitude ?? undefined)}
                         className="opacity-0 animate-fade-in-slide-up"
                         style={{ animationDelay: `${i * 100}ms` }}
                       />
@@ -209,7 +217,7 @@ export default function ChallengesPage() {
                         key={challenge.id}
                         challenge={challenge}
                         challenger={user}
-                        onAction={fetchChallenges}
+                        onAction={() => fetchChallenges(latitude ?? undefined, longitude ?? undefined)}
                         className="opacity-0 animate-fade-in-slide-up"
                         style={{ animationDelay: `${i * 100}ms` }}
                       />
@@ -227,3 +235,5 @@ export default function ChallengesPage() {
     </div>
   );
 }
+
+    

@@ -6,13 +6,15 @@ import { Plus, Trophy } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { getTournamentsForUserAction } from '@/lib/actions';
 import { Tournament } from '@/lib/types';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { CreateTournamentDialog } from '@/components/tournaments/create-tournament-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
+import { useSearchParams } from 'next/navigation';
+import ClientView from './[id]/ClientView';
 
 function TournamentListItem({ tournament, className, ...props }: { tournament: Tournament, className?: string, [key:string]: any }) {
     return (
@@ -30,7 +32,7 @@ function TournamentListItem({ tournament, className, ...props }: { tournament: T
             </CardHeader>
             <CardFooter>
                 <Button asChild>
-                    <Link href={`/tournaments/${tournament.id}`}>
+                    <Link href={`/tournaments?id=${tournament.id}`}>
                         View Bracket
                     </Link>
                 </Button>
@@ -39,7 +41,7 @@ function TournamentListItem({ tournament, className, ...props }: { tournament: T
     );
 }
 
-export default function TournamentsPage() {
+function TournamentsListPage() {
     const { user } = useAuth();
     const [tournaments, setTournaments] = useState<Tournament[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -96,4 +98,23 @@ export default function TournamentsPage() {
             )}
         </div>
     );
+}
+
+function TournamentsPageContent() {
+    const searchParams = useSearchParams();
+    const tournamentId = searchParams.get('id');
+
+    if (tournamentId) {
+        return <ClientView tournamentId={tournamentId} />;
+    }
+
+    return <TournamentsListPage />;
+}
+
+export default function TournamentsPage() {
+    return (
+        <Suspense fallback={<div className="h-full w-full flex items-center justify-center"><LoadingSpinner /></div>}>
+            <TournamentsPageContent />
+        </Suspense>
+    )
 }
