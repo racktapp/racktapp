@@ -7,6 +7,6 @@ export function generateStaticParams() {
   return [{ id: 'placeholder' }];
 }
 
-export default function RallyGameClientPage({ params }: { params: { id: string } }) {
+export default function Page({ params }: { params: { id: string } }) {
   return <ClientView gameId={params.id} />;
 }

@@ -15,7 +15,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
 
-export default function TournamentClientView({ tournamentId }: { tournamentId: string }) {
+export default function ClientView({ tournamentId }: { tournamentId: string }) {
   const router = useRouter();
   
   const { user } = useAuth();
@@ -23,7 +23,12 @@ export default function TournamentClientView({ tournamentId }: { tournamentId: s
   const [loading, setLoading] = useState(true);
 
   const fetchTournament = useCallback(async () => {
-    if (!tournamentId) return;
+    if (!tournamentId || tournamentId === 'placeholder') {
+        if (tournamentId !== 'placeholder') {
+            setLoading(false);
+        }
+        return;
+    }
     setLoading(true);
     const tournamentData = await getTournamentByIdAction(tournamentId);
     setTournament(tournamentData);
@@ -43,6 +48,13 @@ export default function TournamentClientView({ tournamentId }: { tournamentId: s
   }
 
   if (!tournament) {
+     if (tournamentId === 'placeholder' || loading) {
+         return (
+          <div className="flex h-full flex-col items-center justify-center p-4">
+            <LoadingSpinner className="h-8 w-8" />
+          </div>
+        );
+    }
     return (
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
         <PageHeader title="Tournament Not Found" description="This tournament does not exist." />
