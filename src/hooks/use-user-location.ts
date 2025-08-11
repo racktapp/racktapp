@@ -21,20 +21,18 @@ export function useUserLocation() {
   });
 
   const setManualLocation = useCallback(() => {
-    setState((prev) => ({ ...prev, manualLocation: true, loading: false }));
+    setState((prev) => ({ ...prev, manualLocation: true, loading: false, error: null }));
   }, []);
 
   const enableLocation = useCallback(async () => {
     setState((prev) => ({ ...prev, loading: true, error: null, manualLocation: false }));
 
     if (!navigator.geolocation) {
-      setState({
-        latitude: null,
-        longitude: null,
+      setState((prev) => ({
+        ...prev,
         error: 'Geolocation is not supported by your browser.',
         loading: false,
-        manualLocation: false,
-      });
+      }));
       return;
     }
 
@@ -55,20 +53,37 @@ export function useUserLocation() {
         manualLocation: false,
       });
     } catch (error: any) {
-      setState({
-        latitude: null,
-        longitude: null,
+      setState((prev) => ({
+        ...prev,
         error: error.message || 'Failed to get location.',
         loading: false,
         manualLocation: true, // Fallback to manual on error
-      });
+      }));
     }
   }, []);
 
-  // On initial mount, just set loading to false.
+  // On initial mount, check permission status and fetch if already granted.
   useEffect(() => {
-    setState(prev => ({ ...prev, loading: false }));
-  }, []);
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+        if (permissionStatus.state === 'granted') {
+          enableLocation();
+        } else {
+          // If not granted, we just stop loading and wait for user action.
+          setState(prev => ({ ...prev, loading: false }));
+        }
+        permissionStatus.onchange = () => {
+           if (permissionStatus.state === 'granted') {
+              enableLocation();
+           }
+        };
+      });
+    } else {
+        // Geolocation not supported
+        setState(prev => ({ ...prev, loading: false, error: 'Geolocation is not supported.' }));
+    }
+  }, [enableLocation]);
+
 
   return { ...state, enableLocation, setManualLocation };
 }
