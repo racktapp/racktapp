@@ -1,12 +1,12 @@
 
 import ClientView from "./ClientView";
 
-export default function Page() {
-  return <ClientView />;
-}
-
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export function generateStaticParams() {
-  return [{ id: 'placeholder' }];
+  return [];
+}
+
+export default function LegendGameClientPage({ params }: { params: { id: string } }) {
+  return <ClientView gameId={params.id} />;
 }

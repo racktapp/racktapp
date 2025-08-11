@@ -1,13 +1,12 @@
 
-'use client';
-import ProfileClientView from './ClientView';
+import ClientView from './ClientView';
 
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return [];
 }
 
-export default function Page() {
-    return <ProfileClientView />
+export default function ProfilePage({ params }: { params: { id: string } }) {
+    return <ClientView id={params.id} />
 }

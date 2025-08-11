@@ -1,6 +1,5 @@
 
 'use client';
-import { useParams } from 'next/navigation';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase/config';
@@ -10,10 +9,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { PageHeader } from '@/components/page-header';
 import { LegendGameView } from '@/components/games/legend-game-view';
 
-export default function LegendGamePage() {
+export default function LegendGamePage({ gameId }: { gameId: string }) {
   const { user, loading: authLoading } = useAuth();
-  const params = useParams();
-  const gameId = params.id as string;
 
   const [game, setGame] = useState<LegendGame | null>(null);
   const [loading, setLoading] = useState(true);
