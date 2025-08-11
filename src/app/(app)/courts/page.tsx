@@ -89,7 +89,6 @@ export default function CourtsMapPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
-  const [mapInitialized, setMapInitialized] = useState(false);
   
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -107,10 +106,7 @@ export default function CourtsMapPage() {
   }, [user]);
 
   const handleSearch = useCallback(() => {
-    if (!mapInstanceRef.current || !placesServiceRef.current) {
-        console.log("Search aborted: Map or Places Service not ready.");
-        return;
-    }
+    if (!mapInstanceRef.current || !placesServiceRef.current) return;
     
     setIsFetching(true);
     setFetchError(null);
@@ -121,7 +117,7 @@ export default function CourtsMapPage() {
       return;
     }
 
-    const keywords = selectedSports.length > 0 ? selectedSports.map(s => `${s} court`).join(' | ') : 'sports court';
+    const keywords = selectedSports.length > 0 ? selectedSports.map(s => `${s} court`).join(' OR ') : 'sports court';
     const request: google.maps.places.PlaceSearchRequest = {
       location: currentCenter,
       radius: radius * 1000,
@@ -168,39 +164,38 @@ export default function CourtsMapPage() {
         }
     });
   }
+
+  useEffect(() => {
+    if (!apiKey) {
+      setFetchError("Google Maps API key is missing.");
+      return;
+    }
   
-  useEffect(() => {
-    if (!apiKey || !mapRef.current || mapInitialized) return;
-
     const loader = new Loader({ apiKey, version: 'weekly', libraries: ['places', 'geocoding'] });
-    
-    loader.load().then(async () => {
-      const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-      
-      const map = new Map(mapRef.current!, {
-        center: { lat: 51.5072, lng: -0.1276 },
-        zoom: 12,
-        disableDefaultUI: true,
-        gestureHandling: 'greedy',
-        mapId: 'rackt_map',
-      });
-      mapInstanceRef.current = map;
-      placesServiceRef.current = new google.maps.places.PlacesService(map);
-      setMapInitialized(true);
-    }).catch(e => {
-        console.error("Failed to load Google Maps", e);
-        setFetchError("Failed to load Google Maps. Please check your API key and network connection.");
-    });
-  }, [apiKey, mapInitialized]);
-
-  useEffect(() => {
-      if (mapInitialized && !locationLoading && (latitude && longitude)) {
-          mapInstanceRef.current!.setCenter({ lat: latitude, lng: longitude });
-          mapInstanceRef.current!.setZoom(12);
+  
+    loader.load().then(() => {
+      if (mapRef.current && !mapInstanceRef.current) {
+        const map = new google.maps.Map(mapRef.current, {
+          center: { lat: 51.5072, lng: -0.1276 }, // Default center
+          zoom: 12,
+          disableDefaultUI: true,
+          gestureHandling: 'greedy',
+          mapId: 'rackt_map',
+        });
+        mapInstanceRef.current = map;
+        placesServiceRef.current = new google.maps.places.PlacesService(map);
+  
+        // Once map is ready, if location is available, use it.
+        if (latitude && longitude) {
+          map.setCenter({ lat: latitude, lng: longitude });
           handleSearch();
+        }
       }
-  }, [mapInitialized, locationLoading, latitude, longitude, handleSearch]);
-
+    }).catch(e => {
+      console.error("Failed to load Google Maps", e);
+      setFetchError("Failed to load Google Maps. Please check your API key and network connection.");
+    });
+  }, [apiKey, latitude, longitude, handleSearch]);
 
   useEffect(() => {
     markers.forEach(marker => marker.setMap(null));
@@ -287,7 +282,7 @@ export default function CourtsMapPage() {
                 </Button>
             )}
 
-            {isFilterPanelOpen && mapInitialized && (
+            {isFilterPanelOpen && mapInstanceRef.current && (
                 <FilterPanel 
                     radius={radius}
                     setRadius={setRadius}

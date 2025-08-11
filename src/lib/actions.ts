@@ -4,7 +4,9 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
-import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
+import { adminDb } from '@/lib/firebase/admin';
+import { doc, getDoc, Timestamp, runTransaction, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove, getDocs, collectionGroup, documentId } from 'firebase/firestore';
+
 import { 
     reportPendingMatch,
     confirmMatchResult,
@@ -43,6 +45,7 @@ import {
     getPracticeSessionsForUser,
     createReport,
     createUserDocument,
+    deleteUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -77,8 +80,6 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
-import { adminDb } from '@/lib/firebase/admin';
-import { doc, collection, setDoc, Timestamp, getDocs, query, where, runTransaction } from 'firebase/firestore';
 import { generateBracket } from '@/lib/tournament-utils';
 
 // Action to report a match
@@ -337,6 +338,16 @@ export async function createTournamentAction(values: z.infer<typeof createTourna
         return { success: false, message: error.message || 'Failed to create tournament.' };
     }
 }
+
+export async function getTournamentsForUserAction(userId: string) {
+    const q = query(
+      collection(db, 'tournaments'),
+      where('participantIds', 'array-contains', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => d.data() as Tournament);
+  }
 
 export async function getTournamentByIdAction(tournamentId: string): Promise<Tournament | null> {
     return getTournamentById(tournamentId);
@@ -920,13 +931,3 @@ export async function createUserDocumentAction(user: {
     await createUserDocument(user);
   }
 }
-
-export async function getTournamentsForUserAction(userId: string) {
-    const q = query(
-      collection(db, 'tournaments'),
-      where('participantIds', 'array-contains', userId),
-      orderBy('createdAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => d.data() as Tournament);
-  }
