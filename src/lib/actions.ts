@@ -57,7 +57,7 @@ import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
 import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import type { Sport, User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport, Court, createFriendGroupSchema } from '@/lib/types';
+import type { Sport, User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport, Court, createFriendGroupSchema, RallyGameInput } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
@@ -519,7 +519,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
         });
         
         revalidatePath('/games');
-        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
+        return { success: true, message: 'Rally Game started!', redirect: `/games/rally?id=${gameId}` };
     } catch (error: any) {
         console.error("Error creating rally game:", error);
         throw new Error(error.message || 'Failed to start Rally Game.');
@@ -579,7 +579,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         transaction.update(gameRef, { ...updatePayload, updatedAt: Timestamp.now().toMillis() });
       });
   
-      revalidatePath(`/games/rally/${gameId}`);
+      revalidatePath(`/games/rally?id=${gameId}`);
     } catch (error: any) {
         console.error('Error playing rally turn:', error);
         throw new Error(error.message || 'Failed to play turn.');
