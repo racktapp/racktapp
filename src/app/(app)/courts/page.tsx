@@ -107,7 +107,11 @@ export default function CourtsMapPage() {
   }, [user]);
 
   const handleSearch = useCallback(() => {
-    if (!mapInstanceRef.current || !placesServiceRef.current) return;
+    if (!mapInstanceRef.current || !placesServiceRef.current) {
+        console.log("Search aborted: Map or Places Service not ready.");
+        return;
+    }
+    
     setIsFetching(true);
     setFetchError(null);
     
@@ -165,7 +169,6 @@ export default function CourtsMapPage() {
     });
   }
   
-  // Master useEffect to control initialization flow
   useEffect(() => {
     if (!apiKey || !mapRef.current || mapInitialized) return;
 
@@ -190,7 +193,6 @@ export default function CourtsMapPage() {
     });
   }, [apiKey, mapInitialized]);
 
-  // Effect to handle initial search once everything is ready
   useEffect(() => {
       if (mapInitialized && !locationLoading && (latitude && longitude)) {
           mapInstanceRef.current!.setCenter({ lat: latitude, lng: longitude });
