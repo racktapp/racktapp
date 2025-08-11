@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, OAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, AppleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,7 @@ export default function SignupPage() {
     },
   });
 
-   const handleProviderSignIn = async (provider: GoogleAuthProvider | OAuthProvider) => {
+   const handleProviderSignIn = async (provider: GoogleAuthProvider | AppleAuthProvider) => {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -96,7 +96,7 @@ export default function SignupPage() {
     setIsAppleLoading(true);
     // IMPORTANT: Apple Sign-In must be enabled in the Firebase console for this to work.
     // Go to Authentication -> Sign-in method -> Add new provider -> Apple.
-    const provider = new OAuthProvider('apple.com');
+    const provider = new AppleAuthProvider();
     provider.addScope('email');
     provider.addScope('name');
     await handleProviderSignIn(provider);
@@ -150,7 +150,7 @@ export default function SignupPage() {
                 Continue with Google
             </Button>
             <Button variant="outline" className="w-full" onClick={handleAppleSignIn} disabled={isLoading || isGoogleLoading || isAppleLoading}>
-                {isAppleLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Image src="/AppleLogo.png" alt="Apple Logo" width={20} height={20} className="mr-2" />}
+                {isAppleLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <Image src="/AppleLogo.png" alt="Apple Logo" width={20} height={20} className="mr-2" unoptimized />}
                 Continue with Apple
             </Button>
             
