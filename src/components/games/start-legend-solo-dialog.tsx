@@ -108,5 +108,3 @@ export function StartLegendSoloDialog({ children }: StartLegendSoloDialogProps) 
     </Dialog>
   );
 }
-
-    

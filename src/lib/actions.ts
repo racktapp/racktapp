@@ -50,7 +50,8 @@ import {
     findCourts,
     createUserDocument,
     createFriendGroup,
-    getFriendGroups as getFriendGroupsFromDb
+    getFriendGroups as getFriendGroupsFromDb,
+    createLegendGameInDb
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -327,7 +328,7 @@ export async function getOrCreateChatAction(friendId: string, currentUserId: str
     try {
       const chatId = await getOrCreateChat(currentUserId, friendId);
       revalidatePath('/chat');
-      return { success: true, message: 'Chat ready.', redirect: `/chat/${chatId}` };
+      return { success: true, message: 'Chat ready.', redirect: `/chat?id=${chatId}` };
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to get or create chat.' };
     }
@@ -374,7 +375,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         const gameId = await createLegendGameInDb(currentUserId, friendId, sport, initialRoundData);
 
         revalidatePath('/games');
-        return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
+        return { success: true, message: 'Game started!', redirect: `/games/legend?id=${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
         return { success: false, message: error.message || 'Could not start the game. Please try again.' };
@@ -900,4 +901,43 @@ export async function createUserDocumentAction(user: {
   if (!userDoc.exists()) {
     await createUserDocument(user);
   }
+}
+
+// Private helper flow
+async function startNextRallyPointFlow(gameId: string) {
+    await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, "rallyGames", gameId);
+        const gameDoc = await transaction.get(gameRef);
+        if (!gameDoc.exists()) throw new Error("Game not found during next point start");
+
+        const game = gameDoc.data() as RallyGame;
+        const nextServerId = game.currentPoint.returningPlayer;
+        const nextReturnerId = game.currentPoint.servingPlayer;
+
+        const serverDoc = await getDoc(doc(db, 'users', nextServerId));
+        const returnerDoc = await getDoc(doc(db, 'users', nextReturnerId));
+        const nextServerRank = serverDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
+        const nextReturnerRank = returnerDoc.data()?.sports?.[game.sport]?.racktRank ?? 1200;
+
+        const aiResponse = await playRallyPoint({
+            sport: game.sport,
+            servingPlayerRank: nextServerRank,
+            returningPlayerRank: nextReturnerRank,
+        });
+
+        if (!aiResponse.serveOptions) throw new Error("AI failed to generate serve options for next point.");
+
+        const newCurrentPoint: RallyGame['currentPoint'] = {
+            servingPlayer: nextServerId,
+            returningPlayer: nextReturnerId,
+            serveOptions: aiResponse.serveOptions,
+        };
+
+        transaction.update(gameRef, {
+            turn: 'serving',
+            currentPlayerId: nextServerId,
+            currentPoint: newCurrentPoint,
+            updatedAt: Timestamp.now().toMillis()
+        });
+    });
 }
