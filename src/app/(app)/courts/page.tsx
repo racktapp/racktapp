@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { LocationGate } from '@/components/location-gate';
-import { findCourtsAction } from '@/lib/actions';
+import { findCourtsAction, getFriendsAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -15,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { MapIcon, LocateFixed, X, Swords, SlidersHorizontal, ArrowRight, Search } from 'lucide-react';
-import { type Court, type Sport } from '@/lib/types';
+import { type Court, type Sport, type User } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import Image from 'next/image';
 import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
@@ -89,6 +90,7 @@ export default function CourtsMapPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
+  const [friends, setFriends] = useState<User[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   
   const [center, setCenter] = useState({ lat: 51.5072, lng: -0.1276 }); // Default to London
@@ -97,6 +99,12 @@ export default function CourtsMapPage() {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  useEffect(() => {
+    if (user) {
+      getFriendsAction(user.uid).then(setFriends);
+    }
+  }, [user]);
 
   const handleSearch = useCallback(async () => {
     if (!map) return;

@@ -1,4 +1,5 @@
 
+
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -29,7 +30,7 @@ import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, Op
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
-import { adminDb } from './admin-config';
+import { adminDb } from './admin';
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
@@ -345,8 +346,8 @@ export async function getSentFriendRequests(userId: string): Promise<FriendReque
 
 export async function acceptFriendRequest(requestId: string, fromId: string, toId: string) {
   await runTransaction(db, async (t) => {
-    t.update(doc(db, 'users', fromId), { friendIds: arrayUnion(toId) });
-    t.update(doc(db, 'users', toId), { friendIds: arrayUnion(fromId) });
+    t.set(doc(db, 'users', fromId, 'friends', toId), { status: 'accepted', since: Timestamp.now() });
+    t.set(doc(db, 'users', toId, 'friends', fromId), { status: 'accepted', since: Timestamp.now() });
     t.delete(doc(db, 'friendRequests', requestId));
   });
 }
@@ -497,34 +498,6 @@ export async function challengeFromOpen(openChallenge: OpenChallenge, challenger
         matchDateTime: Timestamp.now().toMillis(), wager: "A friendly match",
         participantsData: {}, // This will be populated in createDirectChallenge
     });
-}
-
-export async function createTournamentInDb(values: z.infer<typeof createTournamentSchema>, organizer: User) {
-    const participantIds = [organizer.uid, ...values.participantIds];
-    if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
-
-    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
-    const participantsData = userDocs.docs.map(doc => doc.data() as User);
-    if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
-
-    const newTournamentRef = doc(collection(db, 'tournaments'));
-    await setDoc(newTournamentRef, {
-        id: newTournamentRef.id, name: values.name, sport: values.sport,
-        organizerId: organizer.uid, participantIds: participantIds,
-        participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
-        status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
-    } as Omit<Tournament, 'winnerId'>);
-}
-
-export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
-    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
-}
-
-export async function getTournamentById(id: string): Promise<Tournament | null> {
-    const docSnap = await getDoc(doc(db, 'tournaments', id));
-    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
 }
 
 export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
@@ -699,14 +672,6 @@ export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 
     await deleteDoc(gameRef);
 }
 
-export async function deleteUserDocument(userId: string) {
-    if (!userId) throw new Error("User ID is required.");
-    // This function only deletes the Firestore document.
-    // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
-    const userRef = doc(db, 'users', userId);
-    await deleteDoc(userRef);
-}
-
 // Practice Log Functions
 
 export async function logPracticeSession(
@@ -791,57 +756,71 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
 
 // Courts Functions
 export async function findCourts(
-  latitude: number,
-  longitude: number,
-  radiusKm: number,
-  sports: Sport[]
-): Promise<Court[]> {
+    latitude: number,
+    longitude: number,
+    radiusKm: number,
+    sports: Sport[]
+  ): Promise<Court[]> {
     const radiusInM = radiusKm * 1000;
-    
-    const selectedSports = sports.length > 0 ? sports : ['court'];
-    const searchPromises = selectedSports.map(sport => {
-        const query = `${sport} court`;
-        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radiusInM}&keyword=${encodeURIComponent(query)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-        return fetch(url).then(res => res.json());
-    });
-    
-    try {
-        const results = await Promise.all(searchPromises);
-        const allPlaces: any[] = [];
-        const seenPlaceIds = new Set<string>();
-
-        for (let i = 0; i < results.length; i++) {
-            const result = results[i];
-            const sport = selectedSports[i];
-            if (result.status === 'OK') {
-                for (const place of result.results) {
-                    if (!seenPlaceIds.has(place.place_id)) {
-                        seenPlaceIds.add(place.place_id);
-                         const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,url,geometry,vicinity&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
-                         allPlaces.push(fetch(placeDetailsUrl).then(res => res.json()).then(detailResult => ({...detailResult.result, sport})));
-                    }
-                }
-            } else if (result.status !== 'ZERO_RESULTS') {
-                console.error(`Google Places API Error for sport "${sport}":`, result.status, result.error_message || '');
-            }
-        }
-        
-        const detailedPlaces = await Promise.all(allPlaces);
-
-        return detailedPlaces.map(place => ({
-            id: place.place_id,
-            name: place.name,
+  
+    // Use a broader search term and then filter
+    const searchPromises = sports.length > 0 ? 
+      sports.map(sport => `"${sport} court"`) :
+      ['"tennis court"', '"padel court"', '"pickleball court"', '"badminton court"'];
+  
+    const request = {
+      location: new google.maps.LatLng(latitude, longitude),
+      radius: radiusInM,
+      keyword: searchPromises.join(' OR '), // Use OR to get a mix of results
+    };
+  
+    // We need a dummy div to use the PlacesService
+    const service = new google.maps.places.PlacesService(document.createElement('div'));
+  
+    return new Promise((resolve, reject) => {
+      service.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          const courts: Court[] = results.map(place => ({
+            id: place.place_id!,
+            name: place.name!,
             location: {
-                latitude: place.geometry.location.lat,
-                longitude: place.geometry.location.lng,
+              latitude: place.geometry!.location!.lat(),
+              longitude: place.geometry!.location!.lng(),
             },
+            supportedSports: sports.length > 0 ? sports : [], // Cannot reliably determine from API
             address: place.vicinity,
-            url: place.url,
-            supportedSports: [place.sport], 
-        }));
+            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+          }));
+          resolve(courts);
+        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          resolve([]);
+        } else {
+          console.error("Google Places API Error:", status);
+          reject(new Error(`Failed to fetch courts: ${status}`));
+        }
+      });
+    });
+  }
+  
+  export async function createTournamentInDb(values: z.infer<typeof createTournamentSchema>, organizer: User) {
+    const participantIds = [organizer.uid, ...values.participantIds];
+    if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
 
-    } catch (error) {
-        console.error("Failed to fetch courts from Google Maps API:", error);
-        return [];
-    }
+    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+    const participantsData = userDocs.docs.map(doc => doc.data() as User);
+    if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
+
+    const newTournamentRef = doc(collection(adminDb, 'tournaments'));
+    await setDoc(newTournamentRef, {
+        id: newTournamentRef.id, name: values.name, sport: values.sport,
+        organizerId: organizer.uid, participantIds: participantIds,
+        participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
+        status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
+    } as Omit<Tournament, 'winnerId'>);
+}
+
+export async function deleteUserDocument(userId: string) {
+    if (!userId) throw new Error("User ID is required.");
+    const userRef = doc(adminDb, 'users', userId);
+    await deleteDoc(userRef);
 }

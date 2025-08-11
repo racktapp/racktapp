@@ -1,5 +1,10 @@
 
+
+'use server';
+
 import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
+import { db, storage } from '@/lib/firebase/config';
 import {
     reportPendingMatch,
     confirmMatchResult,
@@ -19,8 +24,6 @@ import {
     getOpenChallenges,
     updateChallengeStatus,
     challengeFromOpen,
-    createTournamentInDb,
-    getTournamentsForUser,
     getTournamentById,
     reportTournamentWinner,
     getOrCreateChat,
@@ -39,7 +42,6 @@ import {
     deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    deleteUserDocument,
     findCourts,
     createUserDocument,
     createLegendGameInDb
@@ -77,12 +79,9 @@ import { setHours, setMinutes } from 'date-fns';
 import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
-import { db } from './firebase/config';
-import { doc, runTransaction, Timestamp, getDoc, collection } from 'firebase/firestore';
-
-// Stub revalidatePath for static export build
-function revalidatePath(_path: string, _type?: string) {}
-
+import { adminDb } from '@/lib/firebase/admin';
+import { doc, collection, setDoc, Timestamp, getDocs, query, where } from 'firebase/firestore';
+import { generateBracket } from '@/lib/tournament-utils';
 
 // Action to report a match
 export async function handleReportMatchAction(
@@ -319,7 +318,21 @@ export async function deleteOpenChallengeAction(challengeId: string, userId: str
 // --- Tournament Actions ---
 export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
     try {
-        await createTournamentInDb(values, organizer);
+        const participantIds = [organizer.uid, ...values.participantIds];
+        if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
+
+        const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+        const participantsData = userDocs.docs.map(doc => doc.data() as User);
+        if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
+
+        const newTournamentRef = doc(collection(adminDb, 'tournaments'));
+        await setDoc(newTournamentRef, {
+            id: newTournamentRef.id, name: values.name, sport: values.sport,
+            organizerId: organizer.uid, participantIds: participantIds,
+            participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
+            status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
+        } as Omit<Tournament, 'winnerId'>);
+        
         revalidatePath('/tournaments');
         return { success: true };
     } catch (error: any) {
@@ -929,4 +942,19 @@ export async function createUserDocumentAction(user: {
   if (!userDoc.exists()) {
     await createUserDocument(user);
   }
+}
+
+export async function getTournamentsForUser(userId: string) {
+  const q = query(
+    collection(db, 'tournaments'),
+    where('participantIds', 'array-contains', userId),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => d.data() as Tournament);
+}
+
+export async function deleteUserDocument(userId: string) {
+    const userRef = doc(adminDb, 'users', userId);
+    await adminDb.recursiveDelete(userRef);
 }
