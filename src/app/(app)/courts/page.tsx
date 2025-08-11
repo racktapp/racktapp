@@ -19,6 +19,8 @@ import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
+import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
+import { getFriendsAction } from '@/lib/actions';
 
 const FilterPanel = ({
   radius,
@@ -79,6 +81,7 @@ export default function CourtsMapPage() {
   const { latitude, longitude, error: locationError, loading: locationLoading, enableLocation, manualLocation, setManualLocation } = useUserLocation();
   const { user } = useAuth();
   
+  const [friends, setFriends] = useState<User[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -96,13 +99,19 @@ export default function CourtsMapPage() {
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+  useEffect(() => {
+    if (user) {
+      getFriendsAction(user.uid).then(setFriends);
+    }
+  }, [user]);
+
   const findCourts = useCallback(async (lat: number, lng: number, radiusKm: number, sports: Sport[]): Promise<Court[]> => {
     if (!map) return [];
-  
+    
     const service = new google.maps.places.PlacesService(map);
     const radiusInM = radiusKm * 1000;
-  
-    // Combine selected sports into a single keyword search for efficiency.
+    
+    // Use a broad search term
     const searchKeywords = sports.length > 0 ? sports.map(s => `${s} court`).join(' | ') : 'sports court';
   
     const request: google.maps.places.PlaceSearchRequest = {
@@ -114,20 +123,22 @@ export default function CourtsMapPage() {
     return new Promise((resolve, reject) => {
       service.nearbySearch(request, (results, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          const formattedCourts: Court[] = results.map(place => ({
-            id: place.place_id!,
-            name: place.name!,
-            location: {
-              latitude: place.geometry!.location!.lat(),
-              longitude: place.geometry!.location!.lng(),
-            },
-            supportedSports: sports, // Assume the searched sports are supported
-            address: place.vicinity,
-            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+          const formattedCourts: Court[] = results
+            .filter(place => place.place_id && place.name && place.geometry?.location)
+            .map(place => ({
+              id: place.place_id!,
+              name: place.name!,
+              location: {
+                latitude: place.geometry!.location!.lat(),
+                longitude: place.geometry!.location!.lng(),
+              },
+              supportedSports: sports,
+              address: place.vicinity,
+              url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
           }));
           resolve(formattedCourts);
         } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          resolve([]); // No results found is not an error
+          resolve([]);
         } else {
           console.error("Google Places API Error:", status);
           reject(new Error(`Failed to fetch courts. Status: ${status}`));
@@ -142,7 +153,10 @@ export default function CourtsMapPage() {
     setIsFetching(true);
     setFetchError(null);
     const currentCenter = map.getCenter();
-    if (!currentCenter) return;
+    if (!currentCenter) {
+      setIsFetching(false);
+      return;
+    }
     
     try {
         const results = await findCourts(currentCenter.lat(), currentCenter.lng(), radius, selectedSports);
@@ -155,8 +169,8 @@ export default function CourtsMapPage() {
     }
   }, [map, radius, selectedSports, findCourts]);
 
-  const handleManualSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleManualSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!manualCity || !map) return;
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ address: manualCity }, (results, status) => {
@@ -217,7 +231,10 @@ export default function CourtsMapPage() {
 
         marker.addListener('click', () => {
             if (infoWindowRef.current) infoWindowRef.current.close();
-            const infoWindowContent = `<div class="p-2 space-y-2 max-w-xs font-sans"><h3 class="font-bold">${court.name}</h3>${court.address ? `<p class="text-sm text-gray-500">${court.address}</p>` : ''}<div class="flex items-center gap-2">${court.supportedSports.map(sport => `<img src="${SPORT_ICONS[sport]}" alt="${sport}" width="20" height="20" title="${sport}" />`).join('')}</div><div class="flex gap-2 items-center mt-2">${user ? `<a href="/challenges" class="text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-md text-sm px-3 py-1.5 text-center inline-flex items-center">Challenge</a>` : ''}${court.url ? `<a href="${court.url}" target="_blank" rel="noopener noreferrer" class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 font-medium rounded-md text-sm px-3 py-1.5 text-center inline-flex items-center">View on Maps</a>` : ''}</div></div>`;
+            const challengeButtonHtml = user ? `<a href="/challenges" id="challenge-btn-${court.id}" class="text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-md text-sm px-3 py-1.5 text-center inline-flex items-center">Challenge</a>` : '';
+            const mapsButtonHtml = court.url ? `<a href="${court.url}" target="_blank" rel="noopener noreferrer" class="text-gray-900 bg-white border border-gray-300 hover:bg-gray-100 font-medium rounded-md text-sm px-3 py-1.5 text-center inline-flex items-center">View on Maps</a>` : '';
+            
+            const infoWindowContent = `<div class="p-2 space-y-2 max-w-xs font-sans"><h3 class="font-bold">${court.name}</h3>${court.address ? `<p class="text-sm text-gray-500">${court.address}</p>` : ''}<div class="flex items-center gap-2">${court.supportedSports.map(sport => `<img src="${SPORT_ICONS[sport]}" alt="${sport}" width="20" height="20" title="${sport}" />`).join('')}</div><div class="flex gap-2 items-center mt-2">${challengeButtonHtml}${mapsButtonHtml}</div></div>`;
             const infoWindow = new google.maps.InfoWindow({ content: infoWindowContent });
             infoWindow.open(map, marker);
             infoWindowRef.current = infoWindow;
@@ -246,7 +263,7 @@ export default function CourtsMapPage() {
         <LocationGate
           title="Enable location to find nearby courts."
           onEnable={enableLocation}
-          onManual={setManualLocation}
+          onManual={() => setManualLocation(true)}
         />
       </div>
     );
@@ -313,3 +330,5 @@ export default function CourtsMapPage() {
     </div>
   );
 }
+
+    

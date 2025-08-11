@@ -4,7 +4,8 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
-import {
+import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
+import { 
     reportPendingMatch,
     confirmMatchResult,
     declineMatchResult,
@@ -41,7 +42,8 @@ import {
     deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    createUserDocument
+    createUserDocument,
+    getTournamentsForUser
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -77,7 +79,7 @@ import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { adminDb } from '@/lib/firebase/admin';
-import { doc, collection, setDoc, Timestamp, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { doc, collection, setDoc, Timestamp, getDocs, query, where, runTransaction } from 'firebase/firestore';
 import { generateBracket } from '@/lib/tournament-utils';
 
 // Action to report a match
@@ -315,7 +317,21 @@ export async function deleteOpenChallengeAction(challengeId: string, userId: str
 // --- Tournament Actions ---
 export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
     try {
-        await createTournamentInDb(values, organizer);
+        const participantIds = [organizer.uid, ...values.participantIds];
+        if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
+
+        const userDocs = await getDocs(query(collection(adminDb, 'users'), where('uid', 'in', participantIds)));
+        const participantsData = userDocs.docs.map(doc => doc.data() as User);
+        if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
+
+        const newTournamentRef = doc(collection(adminDb, 'tournaments'));
+        await setDoc(newTournamentRef, {
+            id: newTournamentRef.id, name: values.name, sport: values.sport,
+            organizerId: organizer.uid, participantIds: participantIds,
+            participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
+            status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
+        } as Omit<Tournament, 'winnerId'>);
+        
         revalidatePath('/tournaments');
         return { success: true };
     } catch (error: any) {
@@ -340,24 +356,6 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
         return { success: false, message: error.message || 'Failed to report winner.' };
     }
 }
-
-export async function createTournamentInDb(values: z.infer<typeof createTournamentSchema>, organizer: User) {
-    const participantIds = [organizer.uid, ...values.participantIds];
-    if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
-
-    const userDocs = await getDocs(query(collection(adminDb, 'users'), where('uid', 'in', participantIds)));
-    const participantsData = userDocs.docs.map(doc => doc.data() as User);
-    if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
-
-    const newTournamentRef = doc(collection(adminDb, 'tournaments'));
-    await setDoc(newTournamentRef, {
-        id: newTournamentRef.id, name: values.name, sport: values.sport,
-        organizerId: organizer.uid, participantIds: participantIds,
-        participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
-        status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
-    } as Omit<Tournament, 'winnerId'>);
-}
-
 
 // --- Chat Actions ---
 
@@ -811,9 +809,6 @@ export async function deleteUserAccountAction(userId: string) {
 
 export async function deleteUserDocument(userId: string) {
     const userRef = doc(adminDb, 'users', userId);
-    // This requires the Admin SDK, so it must be run in a secure server environment.
-    // The recursiveDelete is a beta feature of the Admin SDK extensions.
-    // A more standard approach would be to list and delete subcollections manually.
     await adminDb.recursiveDelete(userRef);
 }
 
@@ -936,7 +931,7 @@ export async function createUserDocumentAction(user: {
   }
 }
 
-export async function getTournamentsForUser(userId: string) {
+export async function getTournamentsForUserAction(userId: string) {
   const q = query(
     collection(db, 'tournaments'),
     where('participantIds', 'array-contains', userId),
@@ -945,3 +940,5 @@ export async function getTournamentsForUser(userId: string) {
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => d.data() as Tournament);
 }
+
+    
