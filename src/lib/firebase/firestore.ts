@@ -413,7 +413,10 @@ export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' 
 
 export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id' | 'createdAt'>) {
     const ref = doc(collection(db, 'openChallenges'));
-    const hash = geofire.geohashForLocation([challengeData.latitude!, challengeData.longitude!]);
+    const hash = (challengeData.latitude && challengeData.longitude) 
+        ? geofire.geohashForLocation([challengeData.latitude, challengeData.longitude])
+        : null;
+
     await setDoc(ref, { 
         ...challengeData, 
         geohash: hash,
@@ -439,6 +442,18 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     const snapshot = await getDocs(q);
     const challenges = snapshot.docs.map(d => d.data() as Challenge);
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function distanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 export async function getOpenChallenges(
@@ -472,13 +487,18 @@ export async function getOpenChallenges(
 
     const snapshots = await Promise.all(promises);
     const matchingDocs: OpenChallenge[] = [];
+    const seenIds = new Set<string>();
+
     for (const snap of snapshots) {
         for (const doc of snap.docs) {
+            if (seenIds.has(doc.id)) continue;
+            
             const challenge = convertTimestamps(doc.data() as OpenChallenge);
             if (challenge.latitude != null && challenge.longitude != null) {
-                const distanceInKm = geofire.distanceBetween([challenge.latitude, challenge.longitude], center);
-                if (distanceInKm <= radiusKm) {
+                const distanceInKmVal = geofire.distanceBetween([challenge.latitude, challenge.longitude], center);
+                if (distanceInKmVal <= radiusKm) {
                     matchingDocs.push(challenge);
+                    seenIds.add(doc.id);
                 }
             }
         }
@@ -534,7 +554,10 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     await setDoc(newChatRef, {
         id: newChatRef.id, participantIds: [userId1, userId2],
-        participantsData: { [userId1]: { username: user1.username, avatarUrl: user1.avatarUrl || null }, [userId2]: { username: user2.username, avatarUrl: user2.avatarUrl || null } },
+        participantsData: { 
+            [userId1]: { uid: user1.uid, username: user1.username, avatarUrl: user1.avatarUrl || null }, 
+            [userId2]: { uid: user2.uid, username: user2.username, avatarUrl: user2.avatarUrl || null } 
+        },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
     } as Omit<Chat, 'lastMessage'>);
     return newChatRef.id;
@@ -579,7 +602,10 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
         newGame = {
             id: gameRef.id, mode: 'friend', sport,
             participantIds: [currentUserId, friendId],
-            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid }, [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl, uid: friend.uid } },
+            participantsData: { 
+                [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid }, 
+                [friendId]: { username: friend.username, avatarUrl: friend.avatarUrl || null, uid: friend.uid } 
+            },
             score: { [currentUserId]: 0, [friendId]: 0 },
             currentPlayerId: Math.random() < 0.5 ? currentUserId : friendId,
             turnState: 'playing', status: 'ongoing',
@@ -590,7 +616,9 @@ export async function createLegendGameInDb(currentUserId: string, friendId: stri
         newGame = {
             id: gameRef.id, mode: 'solo', sport,
             participantIds: [currentUserId],
-            participantsData: { [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl, uid: user.uid } },
+            participantsData: { 
+                [currentUserId]: { username: user.username, avatarUrl: user.avatarUrl || null, uid: user.uid } 
+            },
             score: { [currentUserId]: 0 },
             currentPlayerId: currentUserId,
             turnState: 'playing', status: 'ongoing',
