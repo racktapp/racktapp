@@ -189,7 +189,7 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
                                     <RiskIcon className="h-4 w-4" />
                                     <span>{option.name}</span>
                                 </div>
-                                <p className="text-sm text-muted-foreground font-normal">{option.description}</p>
+                                <p className="text-sm text-muted-foreground font-normal whitespace-normal">{option.description}</p>
                             </Button>
                         );
                     })}
