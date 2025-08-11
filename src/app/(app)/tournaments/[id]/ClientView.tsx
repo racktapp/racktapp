@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { getTournamentByIdAction } from '@/lib/actions';
@@ -15,22 +15,20 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
 
-export default function TournamentPage() {
+export default function TournamentClientView({ tournamentId }: { tournamentId: string }) {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
-
+  
   const { user } = useAuth();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchTournament = useCallback(async () => {
-    if (!id) return;
+    if (!tournamentId) return;
     setLoading(true);
-    const tournamentData = await getTournamentByIdAction(id);
+    const tournamentData = await getTournamentByIdAction(tournamentId);
     setTournament(tournamentData);
     setLoading(false);
-  }, [id]);
+  }, [tournamentId]);
 
   useEffect(() => {
     fetchTournament();
