@@ -56,17 +56,15 @@ const servePrompt = ai.definePrompt({
     name: 'rallyGameServePrompt',
     input: { schema: z.object({ sport: z.enum(SPORTS), servingPlayerRank: z.number(), returningPlayerRank: z.number() }) },
     output: { schema: z.object({ serveOptions: z.array(ServeChoiceSchema).length(3) }) },
-    prompt: `You are a {{{sport}}} strategy AI. Your task is to generate three distinct and creative serve options for a player.
-    
-    The serving player has a rank of **{{{servingPlayerRank}}}**.
-    The returning player has a rank of **{{{returningPlayerRank}}}**.
+    prompt: `You are a {{{sport}}} strategy AI. Your task is to generate three distinct and creative **serve** options for a player.
 
-    A higher rank means a more skilled player. The options should reflect this; a higher-ranked player might get more advantageous or complex options.
-
-    You MUST return a valid JSON object with a 'serveOptions' field, which is an array of exactly 3 serve option objects.
-    Each serve option must have a \`name\`, a \`description\`, a \`risk\` level ('low', 'medium', 'high'), and a \`reward\` level ('low', 'medium', 'high').
+**RULES:**
+1.  The options MUST be realistic serves for the sport of {{{sport}}} (e.g., "Kick Serve", "Slice Serve Out Wide", "Flat Serve Down the T").
+2.  The \`description\` for each serve MUST be a short, single phrase (e.g., "High-bouncing and heavy spin," "Pulls opponent off the court," "A powerful, direct serve."). It must not be a long sentence.
+3.  The serving player has a rank of **{{{servingPlayerRank}}}**. The returning player has a rank of **{{{returningPlayerRank}}}**. A higher rank means a more skilled player. The options should reflect this; a higher-ranked player might get more advantageous or complex options.
+4.  You MUST return a valid JSON object with a 'serveOptions' field, which is an array of exactly 3 serve option objects. Each serve option must have a \`name\`, a \`description\`, a \`risk\` level ('low', 'medium', 'high'), and a \`reward\` level ('low', 'medium', 'high').
     
-    Your entire response must be a single, valid JSON object that strictly adheres to the output schema.
+Your entire response must be a single, valid JSON object that strictly adheres to the output schema.
     `,
 });
 
@@ -80,9 +78,9 @@ const returnPrompt = ai.definePrompt({
     - **Description:** {{{serveChoice.description}}}
 
     Your task is to generate three distinct and logical return options for the returning player (Rank: {{{returningPlayerRank}}}).
-    - The options must be logical counters to the specific serve. A defensive return against a strong serve, an aggressive return against a weak one, etc.
+    - The options must be logical counters to the specific serve.
     - A higher-ranked returning player should get slightly better tactical options.
-    - Be creative. Options could be "Chip and Charge", "Deep Lob Return", "Block it back low", "Rip a cross-court winner".
+    - The \`description\` for each return MUST be a short, single phrase.
 
     You MUST return a valid JSON object with a 'returnOptions' field, which is an array of exactly 3 return option objects.
     Each return option must have a \`name\` and a \`description\`.
