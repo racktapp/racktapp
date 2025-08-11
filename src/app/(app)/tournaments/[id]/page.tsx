@@ -1,10 +1,10 @@
 
 import ClientView from "./ClientView";
 
-export const dynamicParams = true;
+export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return [];
+  return [{ id: 'placeholder' }];
 }
 
 export default function Page({ params }: { params: { id: string } }) {
