@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, ReactNode, Suspense } from 'react';
@@ -37,7 +38,7 @@ import { cn } from '@/lib/utils';
 const UserCard = ({ user, children, className, ...props }: { user: Partial<User>, children: ReactNode, className?: string, [key: string]: any }) => (
     <Card className={cn(className)} {...props}>
         <CardContent className="p-4 flex items-center justify-between gap-4">
-            <Link href={`/profile/${user.uid}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+            <Link href={`/profile?id=${user.uid}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                 <UserAvatar user={user as User} className="h-12 w-12" />
                 <div>
                     <p className="font-semibold">@{user.username}</p>

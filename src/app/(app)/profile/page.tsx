@@ -1,28 +1,28 @@
-
 'use client';
-import { useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import ProfileClientView from './ClientView';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
-export default function ProfileRedirectPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+function ProfilePageContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
-  useEffect(() => {
-    if (loading) {
-      return; // Do nothing while loading
-    }
-    if (user) {
-      router.replace(`/profile/${user.uid}`);
-    } else {
-      router.replace('/login');
-    }
-  }, [user, loading, router]);
+  if (!id) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+        <p>No profile ID provided.</p>
+      </div>
+    );
+  }
 
-  return (
-    <div className="flex h-screen w-screen items-center justify-center bg-background">
-      <LoadingSpinner className="h-12 w-12" />
-    </div>
-  );
+  return <ProfileClientView id={id} />;
+}
+
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={<div className="flex h-full w-full items-center justify-center"><LoadingSpinner className="h-8 w-8" /></div>}>
+            <ProfilePageContent />
+        </Suspense>
+    )
 }
