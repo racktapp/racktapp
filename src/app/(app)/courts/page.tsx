@@ -90,7 +90,7 @@ export default function CourtsMapPage() {
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   
   const [radius, setRadius] = useState(5);
@@ -197,9 +197,8 @@ export default function CourtsMapPage() {
     });
   }, [apiKey, latitude, longitude, handleSearch]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    markers.forEach(marker => marker.setMap(null));
+    markersRef.current.forEach(marker => marker.setMap(null));
     const newMarkers: google.maps.Marker[] = [];
 
     if (mapInstanceRef.current && courts.length > 0) {
@@ -222,7 +221,7 @@ export default function CourtsMapPage() {
         });
         newMarkers.push(marker);
       });
-      setMarkers(newMarkers);
+      markersRef.current = newMarkers;
     }
 
     return () => {
