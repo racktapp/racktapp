@@ -1,10 +1,8 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { auth, db } from '@/lib/firebase/config';
-import { doc, updateDoc } from 'firebase/firestore';
 
 interface LocationState {
   latitude: number | null;
@@ -18,98 +16,51 @@ export function useUserLocation() {
     latitude: null,
     longitude: null,
     error: null,
-    loading: false,
+    loading: true, // Start as true to indicate initial check
   });
 
-  const saveUserLocation = async (lat: number, lng: number) => {
-    const user = auth.currentUser;
-    if (!user) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        latitude: lat,
-        longitude: lng,
-      });
-    } catch (e) {
-      console.error('Failed to save user location', e);
-    }
-  };
+  const enableLocation = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
 
-  const enableLocation = async () => {
-    setState((prev) => ({ ...prev, loading: true }));
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        const perm = await Geolocation.checkPermissions();
-        if (perm.location !== 'granted' && perm.coarseLocation !== 'granted') {
-          await Geolocation.requestPermissions();
-        }
-        const pos = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 10000,
-        });
-        await saveUserLocation(pos.coords.latitude, pos.coords.longitude);
-        setState({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          error: null,
-          loading: false,
-        });
-      } else if (navigator.geolocation) {
-        await new Promise<void>((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (position: GeolocationPosition) => {
-              saveUserLocation(position.coords.latitude, position.coords.longitude);
-              setState({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                error: null,
-                loading: false,
-              });
-              resolve();
-            },
-            (error: GeolocationPositionError) => {
-              setState({
-                latitude: null,
-                longitude: null,
-                error: error.message,
-                loading: false,
-              });
-              resolve();
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-          );
-        });
-      } else {
-        setState({
-          latitude: null,
-          longitude: null,
-          error: 'Geolocation is not supported by your browser.',
-          loading: false,
-        });
-      }
-    } catch (e: any) {
+    if (!navigator.geolocation) {
       setState({
         latitude: null,
         longitude: null,
-        error: e.message ?? String(e),
+        error: 'Geolocation is not supported by your browser.',
+        loading: false,
+      });
+      return;
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        });
+      });
+
+      setState({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        error: null,
+        loading: false,
+      });
+    } catch (error: any) {
+      setState({
+        latitude: null,
+        longitude: null,
+        error: error.message || 'Failed to get location.',
         loading: false,
       });
     }
-  };
-  
-  // Use useEffect to fetch location on initial load if permissions are already granted.
+  }, []);
+
+  // On initial mount, we don't automatically ask for location to respect user privacy.
+  // We just set loading to false. The user must click a button to trigger `enableLocation`.
   useEffect(() => {
-    async function checkAndFetchLocation() {
-      if (Capacitor.isNativePlatform()) {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        const perm = await Geolocation.checkPermissions();
-        if (perm.location === 'granted' || perm.coarseLocation === 'granted') {
-          enableLocation();
-        }
-      }
-    }
-    checkAndFetchLocation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setState(prev => ({ ...prev, loading: false }));
   }, []);
 
   return { ...state, enableLocation };
