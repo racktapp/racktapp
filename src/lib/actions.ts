@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -44,7 +45,8 @@ import {
     deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    createUserDocument
+    createUserDocument,
+    createLegendGameInDb
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
