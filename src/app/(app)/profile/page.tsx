@@ -1,20 +1,28 @@
-'use client';
 
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase/config';
+'use client';
+import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function ProfileRedirectPage() {
-  const [user, loading] = useAuthState(auth);
+  const { user, loading } = useAuth();
   const router = useRouter();
 
-  if (!loading && !user) {
-    router.replace('/login');
-    return null;
-  }
+  useEffect(() => {
+    if (loading) {
+      return; // Do nothing while loading
+    }
+    if (user) {
+      router.replace(`/profile/${user.uid}`);
+    } else {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
 
-  if (loading || !user) return <div className="p-4">Loading…</div>;
-
-  router.replace(`/profile/${user.uid}`);
-  return null;
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-background">
+      <LoadingSpinner className="h-12 w-12" />
+    </div>
+  );
 }
