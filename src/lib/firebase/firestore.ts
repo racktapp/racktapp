@@ -34,7 +34,7 @@ import { z } from 'zod';
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
     for (const key in obj) {
-        if (obj[key] instanceof Timestamp) {
+        if ((obj[key] as any) instanceof Timestamp) {
             obj[key] = obj[key].toMillis() as any;
         } else if (typeof obj[key] === 'object' && obj[key] !== null) {
             convertTimestamps(obj[key]);
@@ -505,6 +505,70 @@ export async function challengeFromOpen(openChallenge: OpenChallenge, challenger
     });
 }
 
+export async function createTournamentInDb(values: z.infer<typeof createTournamentSchema>, organizer: User) {
+    const participantIds = [organizer.uid, ...values.participantIds];
+    if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
+
+    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+    const participantsData = userDocs.docs.map(doc => doc.data() as User);
+    if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
+
+    const newTournamentRef = doc(collection(db, 'tournaments'));
+    await setDoc(newTournamentRef, {
+        id: newTournamentRef.id, name: values.name, sport: values.sport,
+        organizerId: organizer.uid, participantIds: participantIds,
+        participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
+        status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
+    } as Omit<Tournament, 'winnerId'>);
+}
+
+export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
+    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
+}
+
+export async function getTournamentById(id: string): Promise<Tournament | null> {
+    const docSnap = await getDoc(doc(db, 'tournaments', id));
+    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
+}
+
+export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
+    await runTransaction(db, async (t) => {
+        const tournamentRef = doc(db, 'tournaments', tournamentId);
+        const tournamentDoc = await t.get(tournamentRef);
+        if (!tournamentDoc.exists()) throw new Error("Tournament not found.");
+
+        const tournament = tournamentDoc.data() as Tournament;
+        const { bracket } = tournament;
+        let matchFound = false;
+
+        for (let i = 0; i < bracket.length; i++) {
+            const matchIdx = bracket[i].matches.findIndex(m => m.id === matchId);
+            if (matchIdx !== -1) {
+                matchFound = true;
+                const match = bracket[i].matches[matchIdx];
+                if (match.winnerId) throw new Error("Match already has a winner.");
+                match.winnerId = winnerId;
+
+                const nextRoundIndex = i + 1;
+                if (nextRoundIndex < bracket.length) {
+                    const nextMatchIndex = Math.floor(matchIdx / 2);
+                    const nextMatch = bracket[nextRoundIndex].matches[nextMatchIndex];
+                    if (matchIdx % 2 === 0) nextMatch.player1Id = winnerId;
+                    else nextMatch.player2Id = winnerId;
+                } else {
+                    tournament.status = 'complete';
+                    tournament.winnerId = winnerId;
+                }
+                break;
+            }
+        }
+        if (!matchFound) throw new Error("Match not found in bracket.");
+        t.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
+    });
+}
+
 export async function getOrCreateChat(userId1: string, userId2: string): Promise<string> {
     const q = query(collection(db, 'chats'), where('participantIds', 'array-contains', userId1));
     const snapshot = await getDocs(q);
@@ -766,12 +830,18 @@ export async function findCourts(
     });
   }
 
-  export async function getTournamentById(id: string): Promise<Tournament | null> {
+  export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
+    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
+}
+
+export async function getTournamentById(id: string): Promise<Tournament | null> {
     const docSnap = await getDoc(doc(db, 'tournaments', id));
     return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
-  }
-  
-  export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
+}
+
+export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
     await runTransaction(db, async (t) => {
         const tournamentRef = doc(db, 'tournaments', tournamentId);
         const tournamentDoc = await t.get(tournamentRef);

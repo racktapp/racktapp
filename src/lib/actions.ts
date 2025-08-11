@@ -57,7 +57,7 @@ import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
 import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
 import type { Sport, User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
-import { playRallyPoint, RallyGameInput } from '@/ai/flows/rally-game-flow';
+import { playRallyPoint, RallyGameInput, startNextRallyPointAction as startNextRallyPointFlow } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 
@@ -368,6 +368,8 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
+        if (!initialRoundData) throw new Error("Failed to generate the first round.");
+
         const gameId = await createLegendGameInDb(currentUserId, friendId, sport, initialRoundData);
 
         revalidatePath('/games');
@@ -446,6 +448,7 @@ export async function startNextLegendRoundAction(gameId: string) {
         if (game.turnState !== 'round_over') return { success: true }; // Another user already started it.
 
         const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
+        if (!nextRoundData) throw new Error("Failed to generate the next round.");
 
         await runTransaction(db, async (transaction) => {
             const gameRef = doc(db, 'legendGames', gameId);
