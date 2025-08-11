@@ -1,9 +1,8 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
 import { auth, db } from '@/lib/firebase/config';
 import { doc, updateDoc } from 'firebase/firestore';
 
@@ -39,6 +38,7 @@ export function useUserLocation() {
     setState((prev) => ({ ...prev, loading: true }));
     try {
       if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import('@capacitor/geolocation');
         const perm = await Geolocation.checkPermissions();
         if (perm.location !== 'granted' && perm.coarseLocation !== 'granted') {
           await Geolocation.requestPermissions();
@@ -96,6 +96,21 @@ export function useUserLocation() {
       });
     }
   };
+  
+  // Use useEffect to fetch location on initial load if permissions are already granted.
+  useEffect(() => {
+    async function checkAndFetchLocation() {
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const perm = await Geolocation.checkPermissions();
+        if (perm.location === 'granted' || perm.coarseLocation === 'granted') {
+          enableLocation();
+        }
+      }
+    }
+    checkAndFetchLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return { ...state, enableLocation };
 }
