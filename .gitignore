@@ -45,3 +45,9 @@ next-env.d.ts
 /rackt/android/local.properties
 # You may want to commit capacitor.config.json if you want to share your configuration.
 # capacitor.config.json
+
+# Android gradle wrapper binary
+android/gradle/wrapper/gradle-wrapper.jar
+
+# Android generated resources
+android/app/src/main/res/**/*.png
