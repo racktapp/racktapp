@@ -36,7 +36,7 @@ import {
     getPendingMatchesForUser,
     getHeadToHeadMatches,
     getLeaderboard,
-    updateUserProfile,
+    updateUserProfileInDb,
     getFriendshipStatus,
     deleteGame,
     getGameFromDb,
@@ -779,7 +779,7 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-      await updateUserProfile(userId, values);
+      await updateUserProfileInDb(userId, values);
       
       revalidatePath('/settings');
       revalidatePath(`/profile?id=${userId}`);
@@ -792,7 +792,7 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        await updateUserProfile(userId, { avatarUrl: newAvatarUrl });
+        await updateUserProfileInDb(userId, { avatarUrl: newAvatarUrl });
 
         revalidatePath('/settings');
         revalidatePath(`/profile?id=${userId}`);
