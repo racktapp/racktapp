@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 import { z } from 'zod';
 import { SPORTS, type Sport as SportType } from './constants';
@@ -446,4 +445,3 @@ export const createFriendGroupSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters.").max(30, "Name must be 30 characters or less."),
     memberIds: z.array(z.string()).min(1, "You must select at least 1 friend."),
 });
-

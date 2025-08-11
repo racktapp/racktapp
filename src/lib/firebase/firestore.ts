@@ -1,4 +1,3 @@
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -21,11 +20,10 @@ import {
   Transaction,
   GeoPoint,
   collectionGroup,
-  documentId,
 } from 'firebase/firestore';
 import * as geofire from 'geofire-common';
 import { db } from './config';
-import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
+import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court, FriendGroup, createFriendGroupSchema } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
@@ -527,47 +525,6 @@ export async function getTournamentsForUser(userId: string): Promise<Tournament[
     return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
 }
 
-export async function getTournamentById(id: string): Promise<Tournament | null> {
-    const docSnap = await getDoc(doc(db, 'tournaments', id));
-    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
-}
-
-export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
-    await runTransaction(db, async (t) => {
-        const tournamentRef = doc(db, 'tournaments', tournamentId);
-        const tournamentDoc = await t.get(tournamentRef);
-        if (!tournamentDoc.exists()) throw new Error("Tournament not found.");
-
-        const tournament = tournamentDoc.data() as Tournament;
-        const { bracket } = tournament;
-        let matchFound = false;
-
-        for (let i = 0; i < bracket.length; i++) {
-            const matchIdx = bracket[i].matches.findIndex(m => m.id === matchId);
-            if (matchIdx !== -1) {
-                matchFound = true;
-                const match = bracket[i].matches[matchIdx];
-                if (match.winnerId) throw new Error("Match already has a winner.");
-                match.winnerId = winnerId;
-
-                const nextRoundIndex = i + 1;
-                if (nextRoundIndex < bracket.length) {
-                    const nextMatchIndex = Math.floor(matchIdx / 2);
-                    const nextMatch = bracket[nextRoundIndex].matches[nextMatchIndex];
-                    if (matchIdx % 2 === 0) nextMatch.player1Id = winnerId;
-                    else nextMatch.player2Id = winnerId;
-                } else {
-                    tournament.status = 'complete';
-                    tournament.winnerId = winnerId;
-                }
-                break;
-            }
-        }
-        if (!matchFound) throw new Error("Match not found in bracket.");
-        t.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
-    });
-}
-
 export async function getOrCreateChat(userId1: string, userId2: string): Promise<string> {
     const q = query(collection(db, 'chats'), where('participantIds', 'array-contains', userId1));
     const snapshot = await getDocs(q);
@@ -685,10 +642,29 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
     return matches.sort((a, b) => a.date - b.date).map(m => convertTimestamps(m));
 }
 
-export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    const q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
+export async function getLeaderboard(sport: Sport, limitNum: number = 100, userIds?: string[] | null): Promise<User[]> {
+    let q;
+    if (userIds && userIds.length > 0) {
+        // We can only do 'in' queries for up to 30 items at a time.
+        // For this app, we'll assume friend groups are smaller than 30.
+        if (userIds.length > 30) {
+            userIds = userIds.slice(0, 30);
+        }
+        q = query(collection(db, 'users'), where('uid', 'in', userIds));
+    } else {
+        q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(limitNum));
+    }
+
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as User).filter(user => user.sports?.[sport]);
+    
+    const users = snapshot.docs
+        .map(doc => doc.data() as User)
+        .filter(user => user.sports?.[sport]); // Ensure the user has played the sport
+
+    // Sort by rank, because 'in' queries don't support ordering by a different field.
+    users.sort((a, b) => (b.sports?.[sport]?.racktRank ?? 0) - (a.sports?.[sport]?.racktRank ?? 0));
+    
+    return users;
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
@@ -835,4 +811,64 @@ export async function deleteUserDocument(userId: string) {
     // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
     const userRef = doc(db, 'users', userId);
     await deleteDoc(userRef);
+}
+
+// Friend Group Functions
+export async function createFriendGroup(values: z.infer<typeof createFriendGroupSchema>, creatorId: string) {
+    const groupRef = doc(collection(db, 'friendGroups'));
+    const newGroup: FriendGroup = {
+        id: groupRef.id,
+        name: values.name,
+        creatorId: creatorId,
+        memberIds: [creatorId, ...values.memberIds],
+        createdAt: Timestamp.now().toMillis(),
+    };
+    await setDoc(groupRef, newGroup);
+}
+
+export async function getFriendGroups(userId: string) {
+    const q = query(collection(db, 'friendGroups'), where('memberIds', 'array-contains', userId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => d.data() as FriendGroup);
+}
+
+export async function getTournamentById(id: string): Promise<Tournament | null> {
+    const docSnap = await getDoc(doc(db, 'tournaments', id));
+    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
+}
+
+export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
+    await runTransaction(db, async (t) => {
+        const tournamentRef = doc(db, 'tournaments', tournamentId);
+        const tournamentDoc = await t.get(tournamentRef);
+        if (!tournamentDoc.exists()) throw new Error("Tournament not found.");
+
+        const tournament = tournamentDoc.data() as Tournament;
+        const { bracket } = tournament;
+        let matchFound = false;
+
+        for (let i = 0; i < bracket.length; i++) {
+            const matchIdx = bracket[i].matches.findIndex(m => m.id === matchId);
+            if (matchIdx !== -1) {
+                matchFound = true;
+                const match = bracket[i].matches[matchIdx];
+                if (match.winnerId) throw new Error("Match already has a winner.");
+                match.winnerId = winnerId;
+
+                const nextRoundIndex = i + 1;
+                if (nextRoundIndex < bracket.length) {
+                    const nextMatchIndex = Math.floor(matchIdx / 2);
+                    const nextMatch = bracket[nextRoundIndex].matches[nextMatchIndex];
+                    if (matchIdx % 2 === 0) nextMatch.player1Id = winnerId;
+                    else nextMatch.player2Id = winnerId;
+                } else {
+                    tournament.status = 'complete';
+                    tournament.winnerId = winnerId;
+                }
+                break;
+            }
+        }
+        if (!matchFound) throw new Error("Match not found in bracket.");
+        t.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
+    });
 }
