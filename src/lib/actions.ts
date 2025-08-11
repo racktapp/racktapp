@@ -3,8 +3,8 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { db, storage } from '@/lib/firebase/config';
 import { adminDb } from '@/lib/firebase/admin';
+import { db } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove, getDocs, collectionGroup, documentId } from 'firebase/firestore';
 
 import { 
@@ -44,8 +44,7 @@ import {
     deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    createUserDocument,
-    deleteUserDocument
+    createUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -81,6 +80,7 @@ import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { generateBracket } from '@/lib/tournament-utils';
+
 
 // Action to report a match
 export async function handleReportMatchAction(
@@ -801,6 +801,12 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
         console.error("Error updating avatar in action:", error);
         return { success: false, message: error.message || 'An unexpected error occurred.' };
     }
+}
+
+async function deleteUserDocument(userId: string) {
+    if (!userId) throw new Error("User ID is required.");
+    // This function uses the Admin SDK, so it can only be called from a server environment.
+    await adminDb.collection('users').doc(userId).delete();
 }
 
 export async function deleteUserAccountAction(userId: string) {
