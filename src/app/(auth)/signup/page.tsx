@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, OAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +23,12 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
+
+const AppleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12.01,2.05c-1.73-0.01-3.6,0.84-4.78,2.02c-1.7,1.72-2.9,4.24-2.8,6.86c0.03,2.05,0.96,4.26,2.23,5.65 c0.8,0.87,1.7,1.4,2.83,1.43c0.05,0,0.1,0,0.15,0c1.13,0,2.03-0.55,2.83-1.42c1.23-1.34,2.14-3.48,2.2-5.55 c0.02-2.31-0.96-4.59-2.52-6.19C14.49,2.57,13.21,2.05,12.01,2.05z M10.86,0.02c1.52-0.01,2.9,0.53,3.89,1.5 c-1.12,0.67-2.02,2-2.12,3.46c-0.03,1.6,0.81,3.14,2.05,3.95c-0.13,0.06-0.26,0.11-0.38,0.17c-1.4,0.72-3.13,0.36-4.23-0.8 C8.96,7.2,8.44,5.43,8.5,3.67C8.56,2.38,9.52,1.03,10.86,0.02z" />
+    </svg>
+);
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" {...props}>
@@ -52,6 +57,7 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,9 +68,7 @@ export default function SignupPage() {
     },
   });
 
-  async function handleGoogleSignIn() {
-    setIsGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
+   const handleProviderSignIn = async (provider: GoogleAuthProvider | OAuthProvider) => {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -74,6 +78,7 @@ export default function SignupPage() {
         email: user.email!,
         username: user.displayName || 'New User',
         emailVerified: user.emailVerified,
+        avatarUrl: user.photoURL,
       });
 
       router.push('/dashboard');
@@ -83,9 +88,22 @@ export default function SignupPage() {
         title: 'Sign Up Failed',
         description: getAuthErrorMessage(error.code),
       });
-    } finally {
-      setIsGoogleLoading(false);
     }
+  };
+
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    await handleProviderSignIn(new GoogleAuthProvider());
+    setIsGoogleLoading(false);
+  }
+
+  async function handleAppleSignIn() {
+    setIsAppleLoading(true);
+    const provider = new OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    await handleProviderSignIn(provider);
+    setIsAppleLoading(false);
   }
 
 
@@ -130,9 +148,13 @@ export default function SignupPage() {
         </div>
 
         <div className="mt-8 space-y-4">
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading || isAppleLoading}>
                  {isGoogleLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
                 Continue with Google
+            </Button>
+            <Button variant="outline" className="w-full" onClick={handleAppleSignIn} disabled={isLoading || isGoogleLoading || isAppleLoading}>
+                {isAppleLoading ? <LoadingSpinner className="mr-2 h-4 w-4" /> : <AppleIcon className="mr-2 h-5 w-5" />}
+                Continue with Apple
             </Button>
             
             <div className="relative my-4">
@@ -187,7 +209,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isAppleLoading}>
                 {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Sign Up
               </Button>
