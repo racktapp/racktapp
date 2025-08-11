@@ -43,8 +43,7 @@ import {
     getPracticeSessionsForUser,
     createReport,
     findCourts,
-    createUserDocument,
-    createLegendGameInDb
+    createUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -318,21 +317,7 @@ export async function deleteOpenChallengeAction(challengeId: string, userId: str
 // --- Tournament Actions ---
 export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
     try {
-        const participantIds = [organizer.uid, ...values.participantIds];
-        if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
-
-        const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
-        const participantsData = userDocs.docs.map(doc => doc.data() as User);
-        if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
-
-        const newTournamentRef = doc(collection(adminDb, 'tournaments'));
-        await setDoc(newTournamentRef, {
-            id: newTournamentRef.id, name: values.name, sport: values.sport,
-            organizerId: organizer.uid, participantIds: participantIds,
-            participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
-            status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
-        } as Omit<Tournament, 'winnerId'>);
-        
+        await createTournamentInDb(values, organizer);
         revalidatePath('/tournaments');
         return { success: true };
     } catch (error: any) {
@@ -356,6 +341,23 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to report winner.' };
     }
+}
+
+export async function createTournamentInDb(values: z.infer<typeof createTournamentSchema>, organizer: User) {
+    const participantIds = [organizer.uid, ...values.participantIds];
+    if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
+
+    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+    const participantsData = userDocs.docs.map(doc => doc.data() as User);
+    if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
+
+    const newTournamentRef = doc(collection(adminDb, 'tournaments'));
+    await setDoc(newTournamentRef, {
+        id: newTournamentRef.id, name: values.name, sport: values.sport,
+        organizerId: organizer.uid, participantIds: participantIds,
+        participantsData: participantsData.map(p => ({ uid: p.uid, username: p.username, avatarUrl: p.avatarUrl || null })),
+        status: 'ongoing', bracket: generateBracket(participantsData), createdAt: Timestamp.now().toMillis(),
+    } as Omit<Tournament, 'winnerId'>);
 }
 
 
@@ -809,6 +811,11 @@ export async function deleteUserAccountAction(userId: string) {
     }
 }
 
+export async function deleteUserDocument(userId: string) {
+    const userRef = doc(adminDb, 'users', userId);
+    await adminDb.recursiveDelete(userRef);
+}
+
 
 // --- Profile Page Action ---
 const calculateLongestStreak = (matches: Match[], targetPlayerId: string): number => {
@@ -952,9 +959,4 @@ export async function getTournamentsForUser(userId: string) {
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => d.data() as Tournament);
-}
-
-export async function deleteUserDocument(userId: string) {
-    const userRef = doc(adminDb, 'users', userId);
-    await adminDb.recursiveDelete(userRef);
 }
