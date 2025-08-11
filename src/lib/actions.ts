@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -35,7 +36,7 @@ import {
     getPendingMatchesForUser,
     getHeadToHeadMatches,
     getLeaderboard,
-    updateUserProfileInDb,
+    updateUserProfile,
     getFriendshipStatus,
     deleteGame,
     getGameFromDb,
@@ -778,7 +779,7 @@ export async function getLeaderboardAction(sport: Sport): Promise<User[]> {
 // --- Settings Actions ---
 export async function updateUserProfileAction(values: z.infer<typeof profileSettingsSchema>, userId: string) {
     try {
-      await updateUserProfileInDb(userId, values);
+      await updateUserProfile(userId, values);
       
       revalidatePath('/settings');
       revalidatePath(`/profile?id=${userId}`);
@@ -791,7 +792,7 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
 
 export async function updateUserAvatarAction(userId: string, newAvatarUrl: string) {
     try {
-        await updateUserProfileInDb(userId, { avatarUrl: newAvatarUrl });
+        await updateUserProfile(userId, { avatarUrl: newAvatarUrl });
 
         revalidatePath('/settings');
         revalidatePath(`/profile?id=${userId}`);

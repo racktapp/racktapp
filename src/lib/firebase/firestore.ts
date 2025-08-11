@@ -120,16 +120,14 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
+export async function updateUserProfileInDb(
+  userId: string,
+  data: Partial<z.infer<typeof profileSettingsSchema>> & { avatarUrl?: string | null }
+) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
-
-    const updateData: any = {
-        username: data.username,
-        preferredSports: data.preferredSports,
-    }
-    await updateDoc(doc(db, 'users', userId), updateData);
+    await updateDoc(doc(db, 'users', userId), data);
 }
 
 async function generateUniqueUsername(baseUsername: string): Promise<string> {
