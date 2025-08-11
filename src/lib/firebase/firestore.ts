@@ -1,5 +1,4 @@
 
-
 import { nanoid } from 'nanoid';
 import {
   collection,
@@ -830,49 +829,10 @@ export async function findCourts(
     });
   }
 
-  export async function getTournamentsForUser(userId: string): Promise<Tournament[]> {
-    const q = query(collection(db, 'tournaments'), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => convertTimestamps(doc.data() as Tournament));
-}
-
-export async function getTournamentById(id: string): Promise<Tournament | null> {
-    const docSnap = await getDoc(doc(db, 'tournaments', id));
-    return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
-}
-
-export async function reportTournamentWinner(tournamentId: string, matchId: string, winnerId: string) {
-    await runTransaction(db, async (t) => {
-        const tournamentRef = doc(db, 'tournaments', tournamentId);
-        const tournamentDoc = await t.get(tournamentRef);
-        if (!tournamentDoc.exists()) throw new Error("Tournament not found.");
-
-        const tournament = tournamentDoc.data() as Tournament;
-        const { bracket } = tournament;
-        let matchFound = false;
-
-        for (let i = 0; i < bracket.length; i++) {
-            const matchIdx = bracket[i].matches.findIndex(m => m.id === matchId);
-            if (matchIdx !== -1) {
-                matchFound = true;
-                const match = bracket[i].matches[matchIdx];
-                if (match.winnerId) throw new Error("Match already has a winner.");
-                match.winnerId = winnerId;
-
-                const nextRoundIndex = i + 1;
-                if (nextRoundIndex < bracket.length) {
-                    const nextMatchIndex = Math.floor(matchIdx / 2);
-                    const nextMatch = bracket[nextRoundIndex].matches[nextMatchIndex];
-                    if (matchIdx % 2 === 0) nextMatch.player1Id = winnerId;
-                    else nextMatch.player2Id = winnerId;
-                } else {
-                    tournament.status = 'complete';
-                    tournament.winnerId = winnerId;
-                }
-                break;
-            }
-        }
-        if (!matchFound) throw new Error("Match not found in bracket.");
-        t.update(tournamentRef, { bracket, status: tournament.status, winnerId: tournament.winnerId });
-    });
+export async function deleteUserDocument(userId: string) {
+    if (!userId) throw new Error("User ID is required.");
+    // This function only deletes the Firestore document.
+    // Deleting the Firebase Auth user requires the Admin SDK and a secure environment.
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(userRef);
 }
