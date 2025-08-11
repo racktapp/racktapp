@@ -5,9 +5,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { useSport } from '@/components/providers/sport-provider';
-import { getLeaderboardAction } from '@/lib/actions';
-import { User, SportStats, Sport } from '@/lib/types';
-import { Trophy, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { getLeaderboardAction, getFriendGroupsAction, getFriendsAction } from '@/lib/actions';
+import { User, SportStats, Sport, FriendGroup } from '@/lib/types';
+import { Trophy, ArrowUp, ArrowDown, Minus, UserPlus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserAvatar } from '@/components/user-avatar';
@@ -18,6 +18,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Image from 'next/image';
 import { SPORT_ICONS } from '@/lib/constants';
 import { FirestoreIndexAlert } from '@/components/firestore-index-alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { CreateFriendGroupDialog } from '@/components/leaderboard/create-friend-group-dialog';
 
 
 const getRankDisplay = (rank: number) => {
@@ -39,32 +42,57 @@ export default function LeaderboardPage() {
   const { toast } = useToast();
 
   const [leaderboard, setLeaderboard] = useState<User[]>([]);
+  const [friends, setFriends] = useState<User[]>([]);
+  const [friendGroups, setFriendGroups] = useState<FriendGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string>('global');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLeaderboard = useCallback(async () => {
+  const fetchFriendGroups = useCallback(async () => {
+    if (!user) return;
+    const groups = await getFriendGroupsAction(user.uid);
+    setFriendGroups(groups);
+  }, [user]);
+
+  const fetchLeaderboardData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
     setError(null);
     try {
-        const users = await getLeaderboardAction(sport);
+        const groupMemberIds = selectedGroup === 'global' ? null : friendGroups.find(g => g.id === selectedGroup)?.memberIds;
+        const users = await getLeaderboardAction(sport, 10, groupMemberIds);
         setLeaderboard(users || []);
     } catch (error: any) {
         setError(error.message || 'An unexpected error occurred.');
     }
-    
     setIsLoading(false);
-  }, [user, sport]);
+  }, [user, sport, selectedGroup, friendGroups]);
+  
+  useEffect(() => {
+    if (user) {
+        getFriendsAction(user.uid).then(setFriends);
+        fetchFriendGroups();
+    }
+  }, [user, fetchFriendGroups]);
 
   useEffect(() => {
     if (!authLoading && user) {
-        fetchLeaderboard();
+        fetchLeaderboardData();
     }
-  }, [fetchLeaderboard, authLoading, user]);
+  }, [fetchLeaderboardData, authLoading, user]);
+
+  const pageDescription = useMemo(() => {
+    if (selectedGroup === 'global') {
+      return "The top 10 ranked players in the world.";
+    }
+    const group = friendGroups.find(g => g.id === selectedGroup);
+    return group ? `Leaderboard for your group: ${group.name}` : 'See how you stack up against the competition.';
+  }, [selectedGroup, friendGroups]);
+
 
   const rankedUsers = useMemo(() => {
     return leaderboard
-      .filter(player => player.sports?.[sport]) // Ensure player has stats for the sport
+      .filter(player => player.sports?.[sport]) 
       .map((player, index) => {
         const sportStats = player.sports?.[sport] as SportStats;
         const totalGames = sportStats.wins + sportStats.losses;
@@ -120,7 +148,7 @@ export default function LeaderboardPage() {
                 <TableRow key={player.uid} className={cn(player.uid === user.uid && 'bg-primary/10')}>
                   <TableCell className="text-center">{getRankDisplay(player.rank)}</TableCell>
                   <TableCell>
-                    <Link href={`/profile/${player.uid}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                    <Link href={`/profile?id=${player.uid}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                       <UserAvatar user={player} className="h-10 w-10" />
                       <div>
                         <p className="font-semibold">@{player.username}</p>
@@ -156,13 +184,33 @@ export default function LeaderboardPage() {
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
       <PageHeader
-        title={
-            <div className="flex items-center gap-3">
-                <span>{sport} Leaderboard</span>
-                <Image src={SPORT_ICONS[sport as Sport]} alt={sport} width={32} height={32} unoptimized />
+        title="Leaderboards"
+        description={pageDescription}
+        actions={
+            <div className="flex items-center gap-2">
+                <CreateFriendGroupDialog
+                    user={user}
+                    friends={friends}
+                    onGroupCreated={fetchFriendGroups}
+                >
+                    <Button variant="outline">
+                        <UserPlus className="mr-2" />
+                        Create Group
+                    </Button>
+                </CreateFriendGroupDialog>
+                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-auto min-w-[180px]">
+                        <SelectValue placeholder="Select leaderboard" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="global">Global Top 10</SelectItem>
+                        {friendGroups.map(group => (
+                            <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
         }
-        description={`See how you stack up against the competition.`}
       />
       {renderContent()}
     </div>
