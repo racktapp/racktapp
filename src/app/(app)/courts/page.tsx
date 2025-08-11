@@ -271,7 +271,7 @@ export default function CourtsMapPage() {
                   <AlertTitle>Location Error</AlertTitle>
                   <AlertDescription>{locationError}</AlertDescription>
                 </Alert>
-            )}
+             )}
              {fetchError && (
                  <Alert variant="destructive" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-auto">
                     <AlertTitle>Search Error</AlertTitle>
