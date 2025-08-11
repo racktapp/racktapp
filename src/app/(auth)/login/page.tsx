@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmailAndPassword, GoogleAuthProvider, AppleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, OAuthProvider, signInWithPopup } from 'firebase/auth';
 import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
@@ -62,7 +62,7 @@ export default function LoginPage() {
     },
   });
 
-  const handleProviderSignIn = async (provider: GoogleAuthProvider | AppleAuthProvider) => {
+  const handleProviderSignIn = async (provider: GoogleAuthProvider | OAuthProvider) => {
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -95,7 +95,7 @@ export default function LoginPage() {
     setIsAppleLoading(true);
     // IMPORTANT: Apple Sign-In must be enabled in the Firebase console for this to work.
     // Go to Authentication -> Sign-in method -> Add new provider -> Apple.
-    const provider = new AppleAuthProvider();
+    const provider = new OAuthProvider('apple.com');
     provider.addScope('email');
     provider.addScope('name');
     await handleProviderSignIn(provider);
