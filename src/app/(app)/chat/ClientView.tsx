@@ -29,7 +29,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSpinner } from '../../components/ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { doc } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 
