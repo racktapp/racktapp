@@ -28,12 +28,13 @@ import * as geofire from 'geofire-common';
 import { db } from './config';
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
+import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
     for (const key in obj) {
-        if ((obj[key] as any) instanceof Timestamp) {
+        if (obj[key] instanceof Timestamp) {
             obj[key] = obj[key].toMillis() as any;
         } else if (typeof obj[key] === 'object' && obj[key] !== null) {
             convertTimestamps(obj[key]);
@@ -43,50 +44,73 @@ function convertTimestamps<T extends Record<string, any>>(obj: T): T {
 }
 
 
-// Fetches a user's accepted friends from Firestore
+// Fetches a user's friends from Firestore
 export async function getFriends(userId: string): Promise<User[]> {
-    const friendsRef = collection(db, 'users', userId, 'friends');
-    const q = query(friendsRef, where('status', '==', 'accepted'));
-    const snapshot = await getDocs(q);
-    const friendIds = snapshot.docs.map((d) => d.id);
-    if (friendIds.length === 0) return [];
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
 
-    const friends: User[] = [];
-    const chunkSize = 30; // Firestore 'in' queries are limited to 30 items.
-    for (let i = 0; i < friendIds.length; i += chunkSize) {
-        const chunk = friendIds.slice(i, i + chunkSize);
-        if (chunk.length > 0) {
-            const usersQ = query(collection(db, 'users'), where('uid', 'in', chunk));
-            const usersSnap = await getDocs(usersQ);
-            usersSnap.forEach((doc) => friends.push(doc.data() as User));
-        }
+    if (!userDoc.exists()) {
+      return [];
     }
 
-    return friends;
+    const userData = userDoc.data() as User;
+    const friendIds = userData.friendIds;
+
+    if (!friendIds || friendIds.length === 0) {
+      return [];
+    }
+
+    const friendsData: User[] = [];
+    const chunkSize = 30;
+    for (let i = 0; i < friendIds.length; i += chunkSize) {
+      const chunk = friendIds.slice(i, i + chunkSize);
+      if (chunk.length > 0) {
+        const friendsQuery = query(collection(db, 'users'), where('uid', 'in', chunk));
+        const querySnapshot = await getDocs(friendsQuery);
+        querySnapshot.forEach((doc) => {
+          friendsData.push(doc.data() as User);
+        });
+      }
+    }
+    
+    return friendsData;
+  } catch (error) {
+    console.error("Error fetching friends:", error);
+    return [];
+  }
 }
 
 export async function getAllUsers(currentUserId: string): Promise<User[]> {
-  const usersRef = collection(db, 'users');
-  const q = query(usersRef, where('uid', '!=', currentUserId));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => doc.data() as User);
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('uid', '!=', currentUserId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as User);
+  } catch (error) {
+    console.error("Error fetching all users:", error);
+    return [];
+  }
 }
 
 export async function searchUsers(usernameQuery: string, currentUserId: string): Promise<User[]> {
-    const lowerCaseQuery = usernameQuery.toLowerCase().trim();
-    if (!lowerCaseQuery) return [];
+    try {
+        const lowerCaseQuery = usernameQuery.toLowerCase().trim();
+        if (!lowerCaseQuery) return [];
 
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, 
-        where('username', '>=', lowerCaseQuery),
-        where('username', '<=', lowerCaseQuery + '\uf8ff')
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs
-        .map(doc => doc.data() as User)
-        .filter(user => user.uid !== currentUserId);
+        const usersRef = collection(db, 'users');
+        const querySnapshot = await getDocs(usersRef);
+        
+        return querySnapshot.docs
+            .map(doc => doc.data() as User)
+            .filter(user => 
+                user.username.toLowerCase().includes(lowerCaseQuery) && 
+                user.uid !== currentUserId
+            );
+    } catch (error) {
+        console.error("Error searching users:", error);
+        throw new Error("Failed to search for users.");
+    }
 }
 
 async function isUsernameUnique(username: string, userId: string): Promise<boolean> {
@@ -96,14 +120,16 @@ async function isUsernameUnique(username: string, userId: string): Promise<boole
   return snapshot.docs[0].data().uid === userId;
 }
 
-export async function updateUserProfileInDb(
-  userId: string,
-  data: Partial<z.infer<typeof profileSettingsSchema>> & { avatarUrl?: string | null }
-) {
+export async function updateUserProfile(userId: string, data: z.infer<typeof profileSettingsSchema>) {
     if (data.username && !(await isUsernameUnique(data.username, userId))) {
         throw new Error("Username is already taken.");
     }
-    await updateDoc(doc(db, 'users', userId), data);
+
+    const updateData: any = {
+        username: data.username,
+        preferredSports: data.preferredSports,
+    }
+    await updateDoc(doc(db, 'users', userId), updateData);
 }
 
 async function generateUniqueUsername(baseUsername: string): Promise<string> {
@@ -246,7 +272,7 @@ export async function confirmMatchResult(matchId: string, userId: string) {
         const getKFactor = (playerStats: SportStats) => ((playerStats.wins || 0) + (playerStats.losses || 0) < 30 ? 40 : 20);
         const getMatchKFactor = (pIds: string[]) => pIds.reduce((sum, pId) => {
             const player = players.find(pl => pl.uid === pId);
-            return sum + getKFactor(player?.sports?.[match.sport] ?? { racktRank: 0, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
+            return sum + getKFactor(player?.sports?.[match.sport] ?? { racktRank: 1200, wins: 0, losses: 0, streak: 0, achievements: [], matchHistory: [], eloHistory: [] });
         }, 0) / pIds.length;
         const matchKFactor = getMatchKFactor(allPlayerIds);
 
@@ -316,7 +342,9 @@ export async function getPendingMatchesForUser(userId: string): Promise<Match[]>
 }
 
 export async function sendFriendRequest(fromUser: User, toUser: User) {
-  if (toUser.friendIds?.includes(fromUser.uid)) throw new Error("You are already friends.");
+  if (toUser.friendIds?.includes(fromUser.uid) || fromUser.friendIds?.includes(toUser.uid)) {
+    throw new Error("You are already friends.");
+  }
   
   const q1 = query(collection(db, 'friendRequests'), where('fromId', '==', fromUser.uid), where('toId', '==', toUser.uid));
   const q2 = query(collection(db, 'friendRequests'), where('fromId', '==', toUser.uid), where('toId', '==', fromUser.uid));
@@ -346,8 +374,8 @@ export async function getSentFriendRequests(userId: string): Promise<FriendReque
 
 export async function acceptFriendRequest(requestId: string, fromId: string, toId: string) {
   await runTransaction(db, async (t) => {
-    t.set(doc(db, 'users', fromId, 'friends', toId), { status: 'accepted', since: Timestamp.now() });
-    t.set(doc(db, 'users', toId, 'friends', fromId), { status: 'accepted', since: Timestamp.now() });
+    t.update(doc(db, 'users', fromId), { friendIds: arrayUnion(toId) });
+    t.update(doc(db, 'users', toId), { friendIds: arrayUnion(fromId) });
     t.delete(doc(db, 'friendRequests', requestId));
   });
 }
@@ -358,35 +386,23 @@ export async function deleteFriendRequest(requestId: string) {
 
 export async function removeFriend(userId: string, friendId: string) {
   await runTransaction(db, async (t) => {
-    t.delete(doc(db, 'users', userId, 'friends', friendId));
-    t.delete(doc(db, 'users', friendId, 'friends', userId));
+    t.update(doc(db, 'users', userId), { friendIds: arrayRemove(friendId) });
+    t.update(doc(db, 'users', friendId), { friendIds: arrayRemove(userId) });
   });
 }
 
 export async function getFriendshipStatus(currentUserId: string, profileUserId: string) {
-    const friendDoc = await getDoc(doc(db, 'users', currentUserId, 'friends', profileUserId));
-    if (friendDoc.exists() && friendDoc.data()?.status === 'accepted') {
-        return { status: 'friends' };
-    }
+    const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
+    if (currentUserDoc.data()?.friendIds?.includes(profileUserId)) return { status: 'friends' };
 
-    const qSent = query(
-        collection(db, 'friendRequests'),
-        where('fromId', '==', currentUserId),
-        where('toId', '==', profileUserId),
-        where('status', '==', 'pending')
-    );
+    const qSent = query(collection(db, 'friendRequests'), where('fromId', '==', currentUserId), where('toId', '==', profileUserId), where('status', '==', 'pending'));
     const sentSnapshot = await getDocs(qSent);
     if (!sentSnapshot.empty) return { status: 'request_sent', requestId: sentSnapshot.docs[0].id };
-
-    const qReceived = query(
-        collection(db, 'friendRequests'),
-        where('fromId', '==', profileUserId),
-        where('toId', '==', currentUserId),
-        where('status', '==', 'pending')
-    );
+    
+    const qReceived = query(collection(db, 'friendRequests'), where('fromId', '==', profileUserId), where('toId', '==', currentUserId), where('status', '==', 'pending'));
     const receivedSnapshot = await getDocs(qReceived);
     if (!receivedSnapshot.empty) return { status: 'request_received', requestId: receivedSnapshot.docs[0].id };
-
+    
     return { status: 'not_friends' };
 }
 
@@ -413,13 +429,8 @@ export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' 
 
 export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id' | 'createdAt'>) {
     const ref = doc(collection(db, 'openChallenges'));
-    const hash = (challengeData.latitude && challengeData.longitude) 
-        ? geofire.geohashForLocation([challengeData.latitude, challengeData.longitude])
-        : null;
-
     await setDoc(ref, { 
         ...challengeData, 
-        geohash: hash,
         id: ref.id, 
         createdAt: Timestamp.now().toMillis(),
      });
@@ -444,67 +455,25 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-function distanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 export async function getOpenChallenges(
     sport: Sport,
     latitude?: number,
     longitude?: number,
     radiusKm: number = 25
 ): Promise<OpenChallenge[]> {
-    if (latitude === undefined || longitude === undefined) {
-        // Fallback for when location is not available
-        const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
+    const snapshot = await getDocs(q);
+    let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+    
+    if (latitude !== undefined && longitude !== undefined) {
+        challenges = challenges.filter(c => {
+            if (c.latitude == null || c.longitude == null) return false; // Exclude challenges without coordinates
+            const distanceInKmVal = geofire.distanceBetween([c.latitude, c.longitude], [latitude, longitude]);
+            return distanceInKmVal <= radiusKm;
+        });
     }
 
-    const center: [number, number] = [latitude, longitude];
-    const radiusInM = radiusKm * 1000;
-
-    const bounds = geofire.geohashQueryBounds(center, radiusInM);
-    const promises = [];
-    for (const b of bounds) {
-        const q = query(
-            collection(db, 'openChallenges'),
-            where('sport', '==', sport),
-            orderBy('geohash'),
-            where('geohash', '>=', b[0]),
-            where('geohash', '<=', b[1])
-        );
-        promises.push(getDocs(q));
-    }
-
-    const snapshots = await Promise.all(promises);
-    const matchingDocs: OpenChallenge[] = [];
-    const seenIds = new Set<string>();
-
-    for (const snap of snapshots) {
-        for (const doc of snap.docs) {
-            if (seenIds.has(doc.id)) continue;
-            
-            const challenge = convertTimestamps(doc.data() as OpenChallenge);
-            if (challenge.latitude != null && challenge.longitude != null) {
-                const distanceInKmVal = geofire.distanceBetween([challenge.latitude, challenge.longitude], center);
-                if (distanceInKmVal <= radiusKm) {
-                    matchingDocs.push(challenge);
-                    seenIds.add(doc.id);
-                }
-            }
-        }
-    }
-
-    return matchingDocs.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
+    return challenges;
 }
 
 
@@ -750,6 +719,54 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   };
   await setDoc(reportRef, newReport);
 }
+
+// Courts Functions
+export async function findCourts(
+    latitude: number,
+    longitude: number,
+    radiusKm: number,
+    sports: Sport[]
+  ): Promise<Court[]> {
+    const radiusInM = radiusKm * 1000;
+  
+    // Use a broader search term and then filter
+    const searchPromises = sports.length > 0 ? 
+      sports.map(sport => `"${sport} court"`) :
+      ['"tennis court"', '"padel court"', '"pickleball court"', '"badminton court"'];
+  
+    // We need a dummy div to use the PlacesService
+    const service = new google.maps.places.PlacesService(document.createElement('div'));
+  
+    const request = {
+        location: new google.maps.LatLng(latitude, longitude),
+        radius: radiusInM,
+        keyword: searchPromises.join(' OR '),
+    };
+
+    return new Promise((resolve, reject) => {
+      service.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          const courts: Court[] = results.map(place => ({
+            id: place.place_id!,
+            name: place.name!,
+            location: {
+              latitude: place.geometry!.location!.lat(),
+              longitude: place.geometry!.location!.lng(),
+            },
+            supportedSports: sports.length > 0 ? sports : [], // Cannot reliably determine from API
+            address: place.vicinity,
+            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+          }));
+          resolve(courts);
+        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          resolve([]);
+        } else {
+          console.error("Google Places API Error:", status);
+          reject(new Error(`Failed to fetch courts: ${status}`));
+        }
+      });
+    });
+  }
 
   export async function getTournamentById(id: string): Promise<Tournament | null> {
     const docSnap = await getDoc(doc(db, 'tournaments', id));
