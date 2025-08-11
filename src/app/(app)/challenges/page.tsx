@@ -97,8 +97,8 @@ export default function ChallengesPage() {
         <LocationGate
           title="Enable location to see nearby challenges."
           onEnable={enableLocation}
-          onManual={() => setManualLocation(true)}
-          onSkip={() => setManualLocation(true)}
+          onManual={setManualLocation}
+          onSkip={setManualLocation}
         />
       </div>
     );

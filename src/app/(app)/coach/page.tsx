@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Upload, Video, CheckCircle, Lightbulb, TriangleAlert } from 'lucide-react';
 import { analyzeSwingAction } from '@/lib/actions';
-import { SwingAnalysisOutput } from '@/ai/flows/swing-analysis-flow';
+import type { SwingAnalysisOutput } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';

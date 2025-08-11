@@ -65,5 +65,5 @@ export default function ClientView({ gameId }: { gameId: string }) {
     );
   }
 
-  return <RallyGameView game={game} currentUser={user} />;
+  return <RallyGameView game={game} currentUser={user!} />;
 }

@@ -1,1 +1,10 @@
-// This file is no longer needed and will be removed.
+"use client";
+
+interface ClientViewProps {
+  chatId: string;
+}
+
+export default function ClientView({ chatId }: ClientViewProps) {
+  return <div>{`Chat ${chatId}`}</div>;
+}
+
