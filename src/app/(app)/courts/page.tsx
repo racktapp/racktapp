@@ -18,9 +18,8 @@ import { type Court, type Sport, type User } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/use-auth';
-import Link from 'next/link';
-import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
 import { getFriendsAction } from '@/lib/actions';
+import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
 
 const FilterPanel = ({
   radius,
@@ -89,10 +88,10 @@ export default function CourtsMapPage() {
   
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   
-  const [center, setCenter] = useState({ lat: 51.5072, lng: -0.1276 }); // Default to London
   const [radius, setRadius] = useState(5);
   const [selectedSports, setSelectedSports] = useState<Sport[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(true);
@@ -105,25 +104,28 @@ export default function CourtsMapPage() {
     }
   }, [user]);
 
-  const findCourts = useCallback(async (lat: number, lng: number, radiusKm: number, sports: Sport[]): Promise<Court[]> => {
-    if (!map) return [];
-    
-    const service = new google.maps.places.PlacesService(map);
-    const radiusInM = radiusKm * 1000;
-    
-    // Use a broad search term
-    const searchKeywords = sports.length > 0 ? sports.map(s => `${s} court`).join(' | ') : 'sports court';
-  
+  const handleSearch = useCallback(async () => {
+    if (!map || !placesServiceRef.current) return;
+    setIsFetching(true);
+    setFetchError(null);
+    const currentCenter = map.getCenter();
+    if (!currentCenter) {
+      setIsFetching(false);
+      return;
+    }
+
+    const keywords = selectedSports.length > 0 ? selectedSports.map(s => `${s} court`).join(' | ') : 'sports court';
     const request: google.maps.places.PlaceSearchRequest = {
-      location: new google.maps.LatLng(lat, lng),
-      radius: radiusInM,
-      keyword: searchKeywords,
+      location: currentCenter,
+      radius: radius * 1000,
+      keyword: keywords,
     };
   
-    return new Promise((resolve, reject) => {
-      service.nearbySearch(request, (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          const formattedCourts: Court[] = results
+    placesServiceRef.current.nearbySearch(request, (results, status) => {
+      setIsFetching(false);
+      setIsFilterPanelOpen(false);
+      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+        const formattedCourts: Court[] = results
             .filter(place => place.place_id && place.name && place.geometry?.location)
             .map(place => ({
               id: place.place_id!,
@@ -132,42 +134,18 @@ export default function CourtsMapPage() {
                 latitude: place.geometry!.location!.lat(),
                 longitude: place.geometry!.location!.lng(),
               },
-              supportedSports: sports,
+              supportedSports: selectedSports,
               address: place.vicinity,
               url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
           }));
-          resolve(formattedCourts);
-        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          resolve([]);
-        } else {
-          console.error("Google Places API Error:", status);
-          reject(new Error(`Failed to fetch courts. Status: ${status}`));
-        }
-      });
+          setCourts(formattedCourts);
+      } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+        setCourts([]);
+      } else {
+        setFetchError(`Failed to fetch courts. Status: ${status}`);
+      }
     });
-  }, [map]);
-
-
-  const handleSearch = useCallback(async () => {
-    if (!map) return;
-    setIsFetching(true);
-    setFetchError(null);
-    const currentCenter = map.getCenter();
-    if (!currentCenter) {
-      setIsFetching(false);
-      return;
-    }
-    
-    try {
-        const results = await findCourts(currentCenter.lat(), currentCenter.lng(), radius, selectedSports);
-        setCourts(results);
-    } catch (e: any) {
-        setFetchError(e.message || "Failed to fetch courts.");
-    } finally {
-        setIsFetching(false);
-        setIsFilterPanelOpen(false);
-    }
-  }, [map, radius, selectedSports, findCourts]);
+  }, [map, radius, selectedSports]);
 
   const handleManualSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -185,17 +163,6 @@ export default function CourtsMapPage() {
   }
 
   useEffect(() => {
-    if (latitude && longitude && map) {
-      const newCenter = { lat: latitude, lng: longitude };
-      setCenter(newCenter);
-      map.setCenter(newCenter);
-      map.setZoom(12);
-      handleSearch();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latitude, longitude, map]);
-
-  useEffect(() => {
     if (apiKey && mapRef.current && !map) {
       const loader = new Loader({
         apiKey,
@@ -206,16 +173,26 @@ export default function CourtsMapPage() {
       loader.load().then(async () => {
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
         const newMap = new Map(mapRef.current!, {
-          center,
+          center: { lat: 51.5072, lng: -0.1276 }, // Default center
           zoom: 12,
           disableDefaultUI: true,
           gestureHandling: 'greedy',
           mapId: 'rackt_map',
         });
         setMap(newMap);
+        placesServiceRef.current = new google.maps.places.PlacesService(newMap);
       });
     }
-  }, [apiKey, map, center]);
+  }, [apiKey, map]);
+  
+  useEffect(() => {
+    if (map && (latitude && longitude)) {
+        map.setCenter({ lat: latitude, lng: longitude });
+        map.setZoom(12);
+        handleSearch();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latitude, longitude, map]);
 
   useEffect(() => {
     markers.forEach(marker => marker.setMap(null));
@@ -309,7 +286,7 @@ export default function CourtsMapPage() {
                     isFetching={isFetching}
                 />
             )}
-            {courts.length === 0 && !isFetching && !manualLocation && (
+            {courts.length === 0 && !isFetching && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background p-3 rounded-lg shadow-lg text-sm text-muted-foreground">
                     No courts found. Try expanding the radius.
                 </div>
