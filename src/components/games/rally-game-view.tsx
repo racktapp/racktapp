@@ -2,11 +2,11 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { RallyGame, User } from '@/lib/types';
-import { playRallyTurnAction } from '@/lib/actions';
+import { playRallyTurnAction, startNextRallyPointAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Swords, Shield, Zap, Users } from 'lucide-react';
+import { Swords, Shield, Zap, Users, ArrowRight } from 'lucide-react';
 import { UserAvatar } from '../user-avatar';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -53,29 +53,32 @@ export function RallyGameView({ game, currentUser }: RallyGameViewProps) {
 
   const opponentId = game.participantIds.find(id => id !== currentUser.uid)!;
   const opponent = game.participantsData[opponentId];
-
   const pointHistoryLength = game.pointHistory.length;
   const prevPointHistoryLength = useRef(pointHistoryLength);
   
-  // This effect runs when a point is completed and displays the result for 4 seconds.
+  // Effect to handle the end of a point and trigger the start of the next one
   useEffect(() => {
-    if (pointHistoryLength > prevPointHistoryLength.current) {
+    if (game.turn === 'point_over' && pointHistoryLength > prevPointHistoryLength.current) {
         const lastPoint = game.pointHistory[pointHistoryLength - 1];
         if (lastPoint) {
             const winnerName = game.participantsData[lastPoint.winner]?.username ?? 'Somebody';
             setPointResult({ narrative: lastPoint.narrative, winnerName: `${winnerName} won the point!` });
-            
-            const timer = setTimeout(() => {
-                setPointResult(null);
-            }, 4000);
-            
             prevPointHistoryLength.current = pointHistoryLength;
-            return () => clearTimeout(timer);
+            
+            // Designate one player to trigger the next round action to prevent race conditions
+            if (game.currentPlayerId === currentUser.uid) {
+                const timer = setTimeout(() => {
+                    startNextRallyPointAction(game.id);
+                }, 4000); // 4-second delay before starting next point
+                return () => clearTimeout(timer);
+            }
         }
+    } else if (game.turn !== 'point_over') {
+        setPointResult(null); // Clear result when new turn starts
     }
-  }, [pointHistoryLength, game.pointHistory, game.participantsData]);
+  }, [game.turn, pointHistoryLength, game.pointHistory, game.participantsData, game.id, game.currentPlayerId, currentUser.uid]);
 
-  // This effect animates the progress bar when a point result is being shown.
+  // Effect to animate the progress bar when a point result is being shown
   useEffect(() => {
     if (pointResult) {
         setProgress(0);
