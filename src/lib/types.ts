@@ -332,6 +332,15 @@ export interface Court {
   url?: string;
 }
 
+export interface FriendGroup {
+    id: string;
+    name: string;
+    creatorId: string;
+    memberIds: string[];
+    createdAt: number;
+}
+
+
 // --- Zod Schemas ---
 
 export const reportMatchSchema = z.object({
@@ -432,3 +441,9 @@ export const AvatarConfigSchema = z.object({
   shirtColor: z.string().regex(/^#[0-9a-f]{6}$/i, 'Invalid hex color'),
 });
 export type AvatarConfig = z.infer<typeof AvatarConfigSchema>;
+
+export const createFriendGroupSchema = z.object({
+    name: z.string().min(3, "Name must be at least 3 characters.").max(30, "Name must be 30 characters or less."),
+    memberIds: z.array(z.string()).min(1, "You must select at least 1 friend."),
+});
+
