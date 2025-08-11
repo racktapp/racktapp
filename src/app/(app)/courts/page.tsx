@@ -96,50 +96,44 @@ export default function CourtsMapPage() {
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  const findCourts = useCallback(async (
-    lat: number,
-    lng: number,
-    radiusKm: number,
-    sports: Sport[]
-  ): Promise<Court[]> => {
-      if (!map) return [];
-      const service = new google.maps.places.PlacesService(map);
-      const radiusInM = radiusKm * 1000;
+  const findCourts = useCallback(async (lat: number, lng: number, radiusKm: number, sports: Sport[]): Promise<Court[]> => {
+    if (!map) return [];
   
-      const searchKeywords = sports.length > 0 ? sports : ['tennis', 'padel', 'pickleball', 'badminton'];
-      
-      const requests = searchKeywords.map(keyword => {
-          const request: google.maps.places.PlaceSearchRequest = {
-            location: new google.maps.LatLng(lat, lng),
-            radius: radiusInM,
-            keyword: `${keyword} court`,
-          };
-          return new Promise<google.maps.places.PlaceResult[]>((resolve, reject) => {
-              service.nearbySearch(request, (results, status) => {
-                  if (status === google.maps.places.PlacesServiceStatus.OK || status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-                      resolve(results || []);
-                  } else {
-                      reject(new Error(`PlacesService failed with status: ${status}`));
-                  }
-              });
-          });
-      });
-      
-      const results = await Promise.all(requests);
-      const allPlaces = results.flat();
-      const uniquePlaces = Array.from(new Map(allPlaces.map(p => [p.place_id, p])).values());
-
-      return uniquePlaces.map(place => ({
-          id: place.place_id!,
-          name: place.name!,
-          location: {
+    const service = new google.maps.places.PlacesService(map);
+    const radiusInM = radiusKm * 1000;
+  
+    // Combine selected sports into a single keyword search for efficiency.
+    const searchKeywords = sports.length > 0 ? sports.map(s => `${s} court`).join(' | ') : 'sports court';
+  
+    const request: google.maps.places.PlaceSearchRequest = {
+      location: new google.maps.LatLng(lat, lng),
+      radius: radiusInM,
+      keyword: searchKeywords,
+    };
+  
+    return new Promise((resolve, reject) => {
+      service.nearbySearch(request, (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          const formattedCourts: Court[] = results.map(place => ({
+            id: place.place_id!,
+            name: place.name!,
+            location: {
               latitude: place.geometry!.location!.lat(),
               longitude: place.geometry!.location!.lng(),
-          },
-          supportedSports: sports,
-          address: place.vicinity,
-          url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
-      }));
+            },
+            supportedSports: sports, // Assume the searched sports are supported
+            address: place.vicinity,
+            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+          }));
+          resolve(formattedCourts);
+        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          resolve([]); // No results found is not an error
+        } else {
+          console.error("Google Places API Error:", status);
+          reject(new Error(`Failed to fetch courts. Status: ${status}`));
+        }
+      });
+    });
   }, [map]);
 
 
