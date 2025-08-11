@@ -170,6 +170,21 @@ export interface UserReport {
 }
 
 
+export type SwingAnalysisInput = {
+  videoDataUri: string;
+  sport: string;
+  shotType: string;
+};
+
+export type SwingAnalysisOutput = {
+  isCorrectShotType: boolean;
+  detectedShotType?: string;
+  summary: string;
+  preparation: { positive: string; improvement: string };
+  execution: { positive: string; improvement: string };
+  followThrough: { positive: string; improvement: string };
+};
+
 // --- Game Type Definitions ---
 
 export type GameStatus = 'ongoing' | 'complete' | 'initializing' | 'error';

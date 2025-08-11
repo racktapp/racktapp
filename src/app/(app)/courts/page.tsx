@@ -197,6 +197,7 @@ export default function CourtsMapPage() {
     });
   }, [apiKey, latitude, longitude, handleSearch]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     markers.forEach(marker => marker.setMap(null));
     const newMarkers: google.maps.Marker[] = [];
@@ -246,7 +247,7 @@ export default function CourtsMapPage() {
         <LocationGate
           title="Enable location to find nearby courts."
           onEnable={enableLocation}
-          onManual={() => setManualLocation(true)}
+          onManual={setManualLocation}
         />
       </div>
     );

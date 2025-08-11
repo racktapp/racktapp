@@ -1,3 +1,5 @@
+import 'server-only';
+
 export type MatchRecapInput = {
   player1Name: string;
   player2Name: string;

@@ -53,14 +53,10 @@ import {
     getFriendGroups as getFriendGroupsFromDb,
     createLegendGameInDb
 } from '@/lib/firebase/firestore';
-import { getMatchRecap } from '@/ai/flows/match-recap';
-import { predictMatchOutcome } from '@/ai/flows/predict-match';
-import { analyzeSwing } from '@/ai/flows/swing-analysis-flow';
-import type { SwingAnalysisInput } from '@/ai/flows/swing-analysis-flow';
-import type { Sport, User, reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, profileSettingsSchema, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, practiceSessionSchema, reportUserSchema, UserReport, Court, createFriendGroupSchema, RallyGameInput } from '@/lib/types';
+import type { SwingAnalysisInput } from '@/lib/types';
+import type { Sport, User, Challenge, OpenChallenge, Tournament, Chat, Message, Match, PredictMatchOutput, LegendGame, LegendGameRound, RallyGame, RallyGamePoint, UserReport, Court, RallyGameInput } from '@/lib/types';
+import { reportMatchSchema, challengeSchema, openChallengeSchema, createTournamentSchema, profileSettingsSchema, practiceSessionSchema, reportUserSchema, createFriendGroupSchema } from '@/lib/types';
 import { setHours, setMinutes } from 'date-fns';
-import { playRallyPoint } from '@/ai/flows/rally-game-flow';
-import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 
 
@@ -99,15 +95,15 @@ export async function handleReportMatchAction(
 
 // Action to get match recap
 export async function handleRecapAction(match: Match, currentUserId: string) {
-    const player1Name = match.participantsData[match.teams.team1.playerIds[0]].username;
-    const player2Name = match.participantsData[match.teams.team2.playerIds[0]].username;
-    
-    return await getMatchRecap({
-        player1Name,
-        player2Name,
-        score: match.score,
-        sport: match.sport,
-    });
+  const player1Name = match.participantsData[match.teams.team1.playerIds[0]].username;
+  const player2Name = match.participantsData[match.teams.team2.playerIds[0]].username;
+  const { getMatchRecap } = await import('@/server/ai/flows/match-recap');
+  return await getMatchRecap({
+    player1Name,
+    player2Name,
+    score: match.score,
+    sport: match.sport,
+  });
 }
 
 // Action to search for users
@@ -197,7 +193,7 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
             location: values.location,
             wager: values.wager,
             matchDateTime: matchDateTime,
-        });
+        } as any);
         revalidatePath('/challenges');
         return { success: true, message: "Challenge sent successfully!" };
     } catch (error: any) {
@@ -369,6 +365,7 @@ export async function reportUserAction(data: z.infer<typeof reportUserSchema>) {
 
 export async function createLegendGameAction(friendId: string | null, sport: Sport, currentUserId: string) {
     try {
+        const { getLegendGameRound } = await import('@/server/ai/flows/guess-the-legend-flow');
         const initialRoundData = await getLegendGameRound({ sport, usedPlayers: [] });
         if (!initialRoundData) throw new Error("Failed to generate the first round.");
 
@@ -449,6 +446,7 @@ export async function startNextLegendRoundAction(gameId: string) {
         if (game.status !== 'ongoing') return { success: true }; // Game already ended
         if (game.turnState !== 'round_over') return { success: true }; // Another user already started it.
 
+        const { getLegendGameRound } = await import('@/server/ai/flows/guess-the-legend-flow');
         const nextRoundData = await getLegendGameRound({ sport: game.sport, usedPlayers: game.usedPlayers || [] });
         if (!nextRoundData) throw new Error("Failed to generate the next round.");
 
@@ -494,7 +492,8 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
         const user = userDoc.data() as User;
         const friend = friendDoc.data() as User;
 
-        const initialAiResponse = await playRallyPoint({ 
+        const { playRallyPoint } = await import('@/server/ai/flows/rally-game-flow');
+        const initialAiResponse = await playRallyPoint({
             sport: sport,
             servingPlayerRank: user.sports?.[sport]?.racktRank ?? 1200,
             returningPlayerRank: friend.sports?.[sport]?.racktRank ?? 1200,
@@ -528,6 +527,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
 
 export async function playRallyTurnAction(gameId: string, choice: any, currentUserId: string) {
     try {
+      const { playRallyPoint } = await import('@/server/ai/flows/rally-game-flow');
       const game = await getGameFromDb<RallyGame>(gameId, 'rallyGames');
       if (!game) throw new Error('Game not found.');
   
@@ -662,6 +662,7 @@ export async function declineMatchResultAction(matchId: string, userId: string) 
 
 // --- AI Coach Actions ---
 export async function analyzeSwingAction(input: SwingAnalysisInput, userId: string) {
+    const { analyzeSwing } = await import('@/server/ai/flows/swing-analysis-flow');
     return analyzeSwing(input);
 }
 
@@ -706,6 +707,7 @@ export async function predictFriendMatchAction(currentUserId: string, friendId: 
         sport,
     };
 
+    const { predictMatchOutcome } = await import('@/server/ai/flows/predict-match');
     return await predictMatchOutcome(predictionInput);
 }
 
@@ -905,6 +907,7 @@ export async function createUserDocumentAction(user: {
 
 // Private helper flow
 async function startNextRallyPointFlow(gameId: string) {
+    const { playRallyPoint } = await import('@/server/ai/flows/rally-game-flow');
     await runTransaction(db, async (transaction) => {
         const gameRef = doc(db, "rallyGames", gameId);
         const gameDoc = await transaction.get(gameRef);

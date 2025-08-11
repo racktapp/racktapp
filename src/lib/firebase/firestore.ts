@@ -542,9 +542,9 @@ export async function getOrCreateChat(userId1: string, userId2: string): Promise
     const now = Timestamp.now().toMillis();
     await setDoc(newChatRef, {
         id: newChatRef.id, participantIds: [userId1, userId2],
-        participantsData: { 
-            [userId1]: { uid: user1.uid, username: user1.username, avatarUrl: user1.avatarUrl || null }, 
-            [userId2]: { uid: user2.uid, username: user2.username, avatarUrl: user2.avatarUrl || null } 
+        participantsData: {
+            [userId1]: { username: user1.username, avatarUrl: user1.avatarUrl || null },
+            [userId2]: { username: user2.username, avatarUrl: user2.avatarUrl || null }
         },
         updatedAt: now, lastRead: { [userId1]: now, [userId2]: now }
     } as Omit<Chat, 'lastMessage'>);
