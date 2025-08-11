@@ -1,25 +1,22 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { LocationGate } from '@/components/location-gate';
-import { findCourtsAction, getFriendsAction } from '@/lib/actions';
 import { PageHeader } from '@/components/page-header';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapIcon, LocateFixed, X, Swords, SlidersHorizontal, ArrowRight, Search } from 'lucide-react';
+import { SlidersHorizontal, Search } from 'lucide-react';
 import { type Court, type Sport, type User } from '@/lib/types';
 import { SPORTS, SPORT_ICONS } from '@/lib/constants';
 import Image from 'next/image';
-import { CreateOpenChallengeDialog } from '@/components/challenges/create-open-challenge-dialog';
 import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 
@@ -90,7 +87,6 @@ export default function CourtsMapPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
-  const [friends, setFriends] = useState<User[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   
   const [center, setCenter] = useState({ lat: 51.5072, lng: -0.1276 }); // Default to London
@@ -100,11 +96,52 @@ export default function CourtsMapPage() {
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  useEffect(() => {
-    if (user) {
-      getFriendsAction(user.uid).then(setFriends);
-    }
-  }, [user]);
+  const findCourts = useCallback(async (
+    lat: number,
+    lng: number,
+    radiusKm: number,
+    sports: Sport[]
+  ): Promise<Court[]> => {
+      if (!map) return [];
+      const service = new google.maps.places.PlacesService(map);
+      const radiusInM = radiusKm * 1000;
+  
+      const searchKeywords = sports.length > 0 ? sports : ['tennis', 'padel', 'pickleball', 'badminton'];
+      
+      const requests = searchKeywords.map(keyword => {
+          const request: google.maps.places.PlaceSearchRequest = {
+            location: new google.maps.LatLng(lat, lng),
+            radius: radiusInM,
+            keyword: `${keyword} court`,
+          };
+          return new Promise<google.maps.places.PlaceResult[]>((resolve, reject) => {
+              service.nearbySearch(request, (results, status) => {
+                  if (status === google.maps.places.PlacesServiceStatus.OK || status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+                      resolve(results || []);
+                  } else {
+                      reject(new Error(`PlacesService failed with status: ${status}`));
+                  }
+              });
+          });
+      });
+      
+      const results = await Promise.all(requests);
+      const allPlaces = results.flat();
+      const uniquePlaces = Array.from(new Map(allPlaces.map(p => [p.place_id, p])).values());
+
+      return uniquePlaces.map(place => ({
+          id: place.place_id!,
+          name: place.name!,
+          location: {
+              latitude: place.geometry!.location!.lat(),
+              longitude: place.geometry!.location!.lng(),
+          },
+          supportedSports: sports,
+          address: place.vicinity,
+          url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+      }));
+  }, [map]);
+
 
   const handleSearch = useCallback(async () => {
     if (!map) return;
@@ -114,7 +151,7 @@ export default function CourtsMapPage() {
     if (!currentCenter) return;
     
     try {
-        const results = await findCourtsAction(currentCenter.lat(), currentCenter.lng(), radius, selectedSports);
+        const results = await findCourts(currentCenter.lat(), currentCenter.lng(), radius, selectedSports);
         setCourts(results);
     } catch (e: any) {
         setFetchError(e.message || "Failed to fetch courts.");
@@ -122,7 +159,7 @@ export default function CourtsMapPage() {
         setIsFetching(false);
         setIsFilterPanelOpen(false);
     }
-  }, [map, radius, selectedSports]);
+  }, [map, radius, selectedSports, findCourts]);
 
   const handleManualSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();

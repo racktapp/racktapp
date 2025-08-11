@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -42,7 +41,6 @@ import {
     deletePracticeSession,
     getPracticeSessionsForUser,
     createReport,
-    findCourts,
     createUserDocument
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
@@ -79,7 +77,7 @@ import { playRallyPoint } from '@/ai/flows/rally-game-flow';
 import { getLegendGameRound } from '@/ai/flows/guess-the-legend-flow';
 import { calculateRivalryAchievements } from '@/lib/achievements';
 import { adminDb } from '@/lib/firebase/admin';
-import { doc, collection, setDoc, Timestamp, getDocs, query, where } from 'firebase/firestore';
+import { doc, collection, setDoc, Timestamp, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { generateBracket } from '@/lib/tournament-utils';
 
 // Action to report a match
@@ -325,7 +323,7 @@ export async function createTournamentAction(values: z.infer<typeof createTourna
     }
 }
 
-export async function getTournamentsForUserAction(userId: string): Promise<Tournament[]> {
+export async function getTournamentsForUserAction(userId: string) {
     return getTournamentsForUser(userId);
 }
 
@@ -347,7 +345,7 @@ export async function createTournamentInDb(values: z.infer<typeof createTourname
     const participantIds = [organizer.uid, ...values.participantIds];
     if (new Set(participantIds).size !== participantIds.length) throw new Error("Duplicate participants are not allowed.");
 
-    const userDocs = await getDocs(query(collection(db, 'users'), where('uid', 'in', participantIds)));
+    const userDocs = await getDocs(query(collection(adminDb, 'users'), where('uid', 'in', participantIds)));
     const participantsData = userDocs.docs.map(doc => doc.data() as User);
     if (participantsData.length !== participantIds.length) throw new Error("Could not find all participant data.");
 
@@ -813,6 +811,9 @@ export async function deleteUserAccountAction(userId: string) {
 
 export async function deleteUserDocument(userId: string) {
     const userRef = doc(adminDb, 'users', userId);
+    // This requires the Admin SDK, so it must be run in a secure server environment.
+    // The recursiveDelete is a beta feature of the Admin SDK extensions.
+    // A more standard approach would be to list and delete subcollections manually.
     await adminDb.recursiveDelete(userRef);
 }
 
@@ -919,22 +920,6 @@ export async function deletePracticeSessionAction(sessionId: string, userId: str
     }
 }
 
-
-// --- Courts Actions ---
-export async function findCourtsAction(
-  latitude: number,
-  longitude: number,
-  radiusKm: number,
-  sports: Sport[]
-): Promise<Court[]> {
-  try {
-    const results = await findCourts(latitude, longitude, radiusKm, sports);
-    return results;
-  } catch (error) {
-    console.error("Error in findCourtsAction:", error);
-    return [];
-  }
-}
 
 export async function createUserDocumentAction(user: {
   uid: string;

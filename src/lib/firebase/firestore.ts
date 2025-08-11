@@ -717,54 +717,6 @@ export async function createReport(data: z.infer<typeof reportUserSchema>) {
   await setDoc(reportRef, newReport);
 }
 
-// Courts Functions
-export async function findCourts(
-    latitude: number,
-    longitude: number,
-    radiusKm: number,
-    sports: Sport[]
-  ): Promise<Court[]> {
-    const radiusInM = radiusKm * 1000;
-  
-    // Use a broader search term and then filter
-    const searchPromises = sports.length > 0 ? 
-      sports.map(sport => `"${sport} court"`) :
-      ['"tennis court"', '"padel court"', '"pickleball court"', '"badminton court"'];
-  
-    // We need a dummy div to use the PlacesService
-    const service = new google.maps.places.PlacesService(document.createElement('div'));
-  
-    const request = {
-        location: new google.maps.LatLng(latitude, longitude),
-        radius: radiusInM,
-        keyword: searchPromises.join(' OR '),
-    };
-
-    return new Promise((resolve, reject) => {
-      service.nearbySearch(request, (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          const courts: Court[] = results.map(place => ({
-            id: place.place_id!,
-            name: place.name!,
-            location: {
-              latitude: place.geometry!.location!.lat(),
-              longitude: place.geometry!.location!.lng(),
-            },
-            supportedSports: sports.length > 0 ? sports : [], // Cannot reliably determine from API
-            address: place.vicinity,
-            url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
-          }));
-          resolve(courts);
-        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          resolve([]);
-        } else {
-          console.error("Google Places API Error:", status);
-          reject(new Error(`Failed to fetch courts: ${status}`));
-        }
-      });
-    });
-  }
-
   export async function getTournamentById(id: string): Promise<Tournament | null> {
     const docSnap = await getDoc(doc(db, 'tournaments', id));
     return docSnap.exists() ? convertTimestamps(docSnap.data() as Tournament) : null;
