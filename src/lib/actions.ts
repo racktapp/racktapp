@@ -43,7 +43,6 @@ import {
     getPracticeSessionsForUser,
     createReport,
     createUserDocument,
-    getTournamentsForUser
 } from '@/lib/firebase/firestore';
 import { getMatchRecap } from '@/ai/flows/match-recap';
 import { predictMatchOutcome } from '@/ai/flows/predict-match';
@@ -337,10 +336,6 @@ export async function createTournamentAction(values: z.infer<typeof createTourna
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to create tournament.' };
     }
-}
-
-export async function getTournamentsForUserAction(userId: string) {
-    return getTournamentsForUser(userId);
 }
 
 export async function getTournamentByIdAction(tournamentId: string): Promise<Tournament | null> {
@@ -807,11 +802,6 @@ export async function deleteUserAccountAction(userId: string) {
     }
 }
 
-export async function deleteUserDocument(userId: string) {
-    const userRef = doc(adminDb, 'users', userId);
-    await adminDb.recursiveDelete(userRef);
-}
-
 
 // --- Profile Page Action ---
 const calculateLongestStreak = (matches: Match[], targetPlayerId: string): number => {
@@ -932,13 +922,11 @@ export async function createUserDocumentAction(user: {
 }
 
 export async function getTournamentsForUserAction(userId: string) {
-  const q = query(
-    collection(db, 'tournaments'),
-    where('participantIds', 'array-contains', userId),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => d.data() as Tournament);
-}
-
-    
+    const q = query(
+      collection(db, 'tournaments'),
+      where('participantIds', 'array-contains', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => d.data() as Tournament);
+  }
