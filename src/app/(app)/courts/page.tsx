@@ -87,8 +87,10 @@ export default function CourtsMapPage() {
   const [manualCity, setManualCity] = useState('');
   
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const [mapInitialized, setMapInitialized] = useState(false);
+  
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   
@@ -104,11 +106,12 @@ export default function CourtsMapPage() {
     }
   }, [user]);
 
-  const handleSearch = useCallback(async () => {
-    if (!map || !placesServiceRef.current) return;
+  const handleSearch = useCallback(() => {
+    if (!mapInstanceRef.current || !placesServiceRef.current) return;
     setIsFetching(true);
     setFetchError(null);
-    const currentCenter = map.getCenter();
+    
+    const currentCenter = mapInstanceRef.current.getCenter();
     if (!currentCenter) {
       setIsFetching(false);
       return;
@@ -145,64 +148,67 @@ export default function CourtsMapPage() {
         setFetchError(`Failed to fetch courts. Status: ${status}`);
       }
     });
-  }, [map, radius, selectedSports]);
+  }, [radius, selectedSports]);
 
   const handleManualSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!manualCity || !map) return;
+    if (!manualCity || !mapInstanceRef.current) return;
     const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ address: manualCity }, (results, status) => {
         if (status === 'OK' && results && results[0]) {
-            map.setCenter(results[0].geometry.location);
-            map.setZoom(12);
+            mapInstanceRef.current!.setCenter(results[0].geometry.location);
+            mapInstanceRef.current!.setZoom(12);
             handleSearch();
         } else {
             setFetchError(`Could not find location: ${manualCity}`);
         }
     });
   }
-
-  useEffect(() => {
-    if (apiKey && mapRef.current && !map) {
-      const loader = new Loader({
-        apiKey,
-        version: 'weekly',
-        libraries: ['places', 'geocoding'],
-      });
-
-      loader.load().then(async () => {
-        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-        const newMap = new Map(mapRef.current!, {
-          center: { lat: 51.5072, lng: -0.1276 }, // Default center
-          zoom: 12,
-          disableDefaultUI: true,
-          gestureHandling: 'greedy',
-          mapId: 'rackt_map',
-        });
-        setMap(newMap);
-        placesServiceRef.current = new google.maps.places.PlacesService(newMap);
-      });
-    }
-  }, [apiKey, map]);
   
+  // Master useEffect to control initialization flow
   useEffect(() => {
-    if (map && (latitude && longitude)) {
-        map.setCenter({ lat: latitude, lng: longitude });
-        map.setZoom(12);
-        handleSearch();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latitude, longitude, map]);
+    if (!apiKey || !mapRef.current || mapInitialized) return;
+
+    const loader = new Loader({ apiKey, version: 'weekly', libraries: ['places', 'geocoding'] });
+    
+    loader.load().then(async () => {
+      const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+      
+      const map = new Map(mapRef.current!, {
+        center: { lat: 51.5072, lng: -0.1276 },
+        zoom: 12,
+        disableDefaultUI: true,
+        gestureHandling: 'greedy',
+        mapId: 'rackt_map',
+      });
+      mapInstanceRef.current = map;
+      placesServiceRef.current = new google.maps.places.PlacesService(map);
+      setMapInitialized(true);
+    }).catch(e => {
+        console.error("Failed to load Google Maps", e);
+        setFetchError("Failed to load Google Maps. Please check your API key and network connection.");
+    });
+  }, [apiKey, mapInitialized]);
+
+  // Effect to handle initial search once everything is ready
+  useEffect(() => {
+      if (mapInitialized && !locationLoading && (latitude && longitude)) {
+          mapInstanceRef.current!.setCenter({ lat: latitude, lng: longitude });
+          mapInstanceRef.current!.setZoom(12);
+          handleSearch();
+      }
+  }, [mapInitialized, locationLoading, latitude, longitude, handleSearch]);
+
 
   useEffect(() => {
     markers.forEach(marker => marker.setMap(null));
-    setMarkers([]);
+    const newMarkers: google.maps.Marker[] = [];
 
-    if (map && courts.length > 0) {
-      const newMarkers = courts.map(court => {
+    if (mapInstanceRef.current && courts.length > 0) {
+      courts.forEach(court => {
         const marker = new google.maps.Marker({
           position: { lat: court.location.latitude, lng: court.location.longitude },
-          map: map,
+          map: mapInstanceRef.current,
           title: court.name,
         });
 
@@ -213,18 +219,21 @@ export default function CourtsMapPage() {
             
             const infoWindowContent = `<div class="p-2 space-y-2 max-w-xs font-sans"><h3 class="font-bold">${court.name}</h3>${court.address ? `<p class="text-sm text-gray-500">${court.address}</p>` : ''}<div class="flex items-center gap-2">${court.supportedSports.map(sport => `<img src="${SPORT_ICONS[sport]}" alt="${sport}" width="20" height="20" title="${sport}" />`).join('')}</div><div class="flex gap-2 items-center mt-2">${challengeButtonHtml}${mapsButtonHtml}</div></div>`;
             const infoWindow = new google.maps.InfoWindow({ content: infoWindowContent });
-            infoWindow.open(map, marker);
+            infoWindow.open(mapInstanceRef.current, marker);
             infoWindowRef.current = infoWindow;
         });
-        return marker;
+        newMarkers.push(marker);
       });
       setMarkers(newMarkers);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, courts, user]);
+
+    return () => {
+        newMarkers.forEach(m => m.setMap(null));
+    }
+  }, [courts, user]);
 
 
-  if (locationLoading) {
+  if (locationLoading && !manualLocation) {
     return (
         <div className="flex h-full w-full flex-col items-center justify-center p-4">
             <LoadingSpinner className="h-8 w-8" />
@@ -260,7 +269,7 @@ export default function CourtsMapPage() {
                 <div ref={mapRef} className="w-full h-full" />
             )}
             
-            {manualLocation && courts.length === 0 && (
+            {manualLocation && courts.length === 0 && !isFetching && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-lg z-10">
                     <form onSubmit={handleManualSearch} className="flex gap-2 items-center bg-background p-2 rounded-lg shadow-lg">
                         <Input value={manualCity} onChange={e => setManualCity(e.target.value)} placeholder="Enter a city or address..." />
@@ -276,7 +285,7 @@ export default function CourtsMapPage() {
                 </Button>
             )}
 
-            {isFilterPanelOpen && map && (
+            {isFilterPanelOpen && mapInitialized && (
                 <FilterPanel 
                     radius={radius}
                     setRadius={setRadius}
@@ -307,5 +316,3 @@ export default function CourtsMapPage() {
     </div>
   );
 }
-
-    
