@@ -52,12 +52,14 @@ export async function getFriends(userId: string): Promise<User[]> {
     if (friendIds.length === 0) return [];
 
     const friends: User[] = [];
-    const chunkSize = 10;
+    const chunkSize = 30; // Firestore 'in' queries are limited to 30 items.
     for (let i = 0; i < friendIds.length; i += chunkSize) {
         const chunk = friendIds.slice(i, i + chunkSize);
-        const usersQ = query(collection(db, 'users'), where(documentId(), 'in', chunk));
-        const usersSnap = await getDocs(usersQ);
-        usersSnap.forEach((doc) => friends.push(doc.data() as User));
+        if (chunk.length > 0) {
+            const usersQ = query(collection(db, 'users'), where('uid', 'in', chunk));
+            const usersSnap = await getDocs(usersQ);
+            usersSnap.forEach((doc) => friends.push(doc.data() as User));
+        }
     }
 
     return friends;
@@ -411,8 +413,10 @@ export async function createDirectChallenge(challengeData: Omit<Challenge, 'id' 
 
 export async function createOpenChallenge(challengeData: Omit<OpenChallenge, 'id' | 'createdAt'>) {
     const ref = doc(collection(db, 'openChallenges'));
+    const hash = geofire.geohashForLocation([challengeData.latitude!, challengeData.longitude!]);
     await setDoc(ref, { 
         ...challengeData, 
+        geohash: hash,
         id: ref.id, 
         createdAt: Timestamp.now().toMillis(),
      });
@@ -437,34 +441,50 @@ export async function getSentChallenges(userId: string): Promise<Challenge[]> {
     return challenges.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-function distanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 export async function getOpenChallenges(
     sport: Sport,
     latitude?: number,
     longitude?: number,
     radiusKm: number = 25
 ): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
-    const snapshot = await getDocs(q);
-    let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
-    if (latitude !== undefined && longitude !== undefined) {
-        challenges = challenges.filter(c => {
-            if (c.latitude == null || c.longitude == null) return false;
-            return distanceInKm(latitude, longitude, c.latitude, c.longitude) <= radiusKm;
-        });
+    if (latitude === undefined || longitude === undefined) {
+        // Fallback for when location is not available
+        const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
     }
-    return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
+
+    const center: [number, number] = [latitude, longitude];
+    const radiusInM = radiusKm * 1000;
+
+    const bounds = geofire.geohashQueryBounds(center, radiusInM);
+    const promises = [];
+    for (const b of bounds) {
+        const q = query(
+            collection(db, 'openChallenges'),
+            where('sport', '==', sport),
+            orderBy('geohash'),
+            where('geohash', '>=', b[0]),
+            where('geohash', '<=', b[1])
+        );
+        promises.push(getDocs(q));
+    }
+
+    const snapshots = await Promise.all(promises);
+    const matchingDocs: OpenChallenge[] = [];
+    for (const snap of snapshots) {
+        for (const doc of snap.docs) {
+            const challenge = convertTimestamps(doc.data() as OpenChallenge);
+            if (challenge.latitude != null && challenge.longitude != null) {
+                const distanceInKm = geofire.distanceBetween([challenge.latitude, challenge.longitude], center);
+                if (distanceInKm <= radiusKm) {
+                    matchingDocs.push(challenge);
+                }
+            }
+        }
+    }
+
+    return matchingDocs.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
 }
 
 
@@ -608,23 +628,9 @@ export async function getHeadToHeadMatches(userId1: string, userId2: string, spo
 }
 
 export async function getLeaderboard(sport: Sport): Promise<User[]> {
-    // This approach fetches all users and sorts them in memory.
-    // It's less efficient for very large user bases but avoids needing a composite index.
-    const usersCollection = collection(db, 'users');
-    const snapshot = await getDocs(usersCollection);
-
-    const users = snapshot.docs
-        .map(doc => doc.data() as User)
-        .filter(user => user.sports?.[sport]); // Ensure the user has played the sport
-
-    // Sort by racktRank for the given sport in descending order
-    users.sort((a, b) => {
-        const rankA = a.sports?.[sport]?.racktRank ?? 0;
-        const rankB = b.sports?.[sport]?.racktRank ?? 0;
-        return rankB - rankA;
-    });
-
-    return users.slice(0, 100); // Return the top 100
+    const q = query(collection(db, 'users'), orderBy(`sports.${sport}.racktRank`, 'desc'), limit(100));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as User).filter(user => user.sports?.[sport]);
 }
 
 export async function deleteGame(gameId: string, collectionName: 'rallyGames' | 'legendGames', userId: string) {
