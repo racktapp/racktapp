@@ -2,7 +2,7 @@
 'use client';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import ClientView from "./ClientView";
+import ClientView from "./[id]/ClientView";
 
 function LegendGamePageContent() {
     const searchParams = useSearchParams();

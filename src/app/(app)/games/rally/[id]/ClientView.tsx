@@ -16,10 +16,8 @@ export default function ClientView({ gameId }: { gameId: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!gameId || !user || gameId === 'placeholder') {
-      if (gameId !== 'placeholder') {
-          setLoading(false);
-      }
+    if (!gameId || !user) {
+      setLoading(false);
       return;
     }
 
@@ -53,7 +51,7 @@ export default function ClientView({ gameId }: { gameId: string }) {
   }
   
   if (!game) {
-    if (gameId === 'placeholder' || loading) {
+    if (loading) {
          return (
           <div className="flex h-full flex-col items-center justify-center p-4">
             <LoadingSpinner className="h-8 w-8" />

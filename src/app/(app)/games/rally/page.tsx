@@ -1,7 +1,7 @@
 
 'use client';
 
-import ClientView from './ClientView';
+import ClientView from './[id]/ClientView';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 

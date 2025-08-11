@@ -14,7 +14,7 @@ import { CreateTournamentDialog } from '@/components/tournaments/create-tourname
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
-import ClientView from './ClientView';
+import ClientView from './[id]/ClientView';
 
 function TournamentListItem({ tournament, className, ...props }: { tournament: Tournament, className?: string, [key:string]: any }) {
     return (

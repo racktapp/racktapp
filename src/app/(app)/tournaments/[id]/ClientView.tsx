@@ -23,10 +23,8 @@ export default function ClientView({ tournamentId }: { tournamentId: string }) {
   const [loading, setLoading] = useState(true);
 
   const fetchTournament = useCallback(async () => {
-    if (!tournamentId || tournamentId === 'placeholder') {
-        if (tournamentId !== 'placeholder') {
-            setLoading(false);
-        }
+    if (!tournamentId) {
+        setLoading(false);
         return;
     }
     setLoading(true);
@@ -48,7 +46,7 @@ export default function ClientView({ tournamentId }: { tournamentId: string }) {
   }
 
   if (!tournament) {
-     if (tournamentId === 'placeholder' || loading) {
+     if (loading) {
          return (
           <div className="flex h-full flex-col items-center justify-center p-4">
             <LoadingSpinner className="h-8 w-8" />
