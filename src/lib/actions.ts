@@ -141,7 +141,7 @@ export async function addFriendAction(fromUser: User, toUser: User) {
     try {
         await sendFriendRequest(fromUser, toUser);
         revalidatePath('/friends');
-        revalidatePath(`/profile/${toUser.uid}`);
+        revalidatePath(`/profile?id=${toUser.uid}`);
         return { success: true, message: "Friend request sent." };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to send friend request." };
@@ -166,7 +166,7 @@ export async function acceptFriendRequestAction(requestId: string, fromId: strin
     try {
         await acceptFriendRequest(requestId, fromId, toId);
         revalidatePath('/friends');
-        revalidatePath(`/profile/${fromId}`);
+        revalidatePath(`/profile?id=${fromId}`);
         return { success: true, message: "Friend request accepted." };
     } catch (error: any) {
         return { success: false, message: "Failed to accept friend request." };
@@ -177,7 +177,7 @@ export async function declineOrCancelFriendRequestAction(requestId: string, prof
     try {
         await deleteFriendRequest(requestId);
         revalidatePath('/friends');
-        if (profileIdToRevalidate) revalidatePath(`/profile/${profileIdToRevalidate}`);
+        if (profileIdToRevalidate) revalidatePath(`/profile?id=${profileIdToRevalidate}`);
         return { success: true, message: "Request removed." };
     } catch (error: any) {
         return { success: false, message: "Failed to remove friend request." };
@@ -188,7 +188,7 @@ export async function removeFriendAction(currentUserId: string, friendId: string
     try {
         await removeFriend(currentUserId, friendId);
         revalidatePath('/friends');
-        revalidatePath(`/profile/${friendId}`);
+        revalidatePath(`/profile?id=${friendId}`);
         return { success: true, message: "Friend removed." };
     } catch (error: any) {
         return { success: false, message: "Failed to remove friend." };
@@ -358,7 +358,7 @@ export async function getTournamentByIdAction(tournamentId: string): Promise<Tou
 export async function reportWinnerAction(tournamentId: string, matchId: string, winnerId: string) {
     try {
         await reportTournamentWinner(tournamentId, matchId, winnerId);
-        revalidatePath(`/tournaments/${tournamentId}`);
+        revalidatePath(`/tournaments?id=${tournamentId}`);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to report winner.' };
@@ -371,7 +371,7 @@ export async function getOrCreateChatAction(friendId: string, currentUserId: str
     try {
       const chatId = await getOrCreateChat(currentUserId, friendId);
       revalidatePath('/chat');
-      return { success: true, message: 'Chat ready.', redirect: `/chat/${chatId}` };
+      return { success: true, message: 'Chat ready.', redirect: `/chat?id=${chatId}` };
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to get or create chat.' };
     }
@@ -416,7 +416,7 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
         const gameId = await createLegendGameInDb(currentUserId, friendId, sport, initialRoundData);
 
         revalidatePath('/games');
-        return { success: true, message: 'Game started!', redirect: `/games/legend/${gameId}` };
+        return { success: true, message: 'Game started!', redirect: `/games/legend?id=${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
         return { success: false, message: error.message || 'Could not start the game. Please try again.' };
@@ -476,7 +476,7 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             game.updatedAt = Timestamp.now().toMillis();
             transaction.set(gameRef, game);
         });
-        revalidatePath(`/games/legend/${gameId}`);
+        revalidatePath(`/games/legend?id=${gameId}`);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to submit answer.' };
@@ -514,7 +514,7 @@ export async function startNextLegendRoundAction(gameId: string) {
             transaction.set(gameRef, liveGame);
         });
         
-        revalidatePath(`/games/legend/${gameId}`);
+        revalidatePath(`/games/legend?id=${gameId}`);
         return { success: true };
     } catch (error: any) {
         console.error("Error starting next round:", error);
@@ -559,7 +559,7 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
         });
         
         revalidatePath('/games');
-        return { success: true, message: 'Rally Game started!', redirect: `/games/rally/${gameId}` };
+        return { success: true, message: 'Rally Game started!', redirect: `/games/rally?id=${gameId}` };
     } catch (error: any) {
         console.error("Error creating rally game:", error);
         throw new Error(error.message || 'Failed to start Rally Game.');
@@ -662,7 +662,7 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         transaction.update(gameRef, { ...updatePayload, updatedAt: Timestamp.now().toMillis() });
       });
   
-      revalidatePath(`/games/rally/${gameId}`);
+      revalidatePath(`/games/rally?id=${gameId}`);
     } catch (error: any) {
         console.error('Error playing rally turn:', error);
         throw new Error(error.message || 'Failed to play turn.');
@@ -782,7 +782,7 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
       await updateUserProfileInDb(userId, values);
       
       revalidatePath('/settings');
-      revalidatePath(`/profile/${userId}`);
+      revalidatePath(`/profile?id=${userId}`);
       revalidatePath('/(app)', 'layout');
       return { success: true, message: 'Profile updated successfully.' };
     } catch (error: any) {
@@ -795,7 +795,7 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
         await updateUserProfileInDb(userId, { avatarUrl: newAvatarUrl });
 
         revalidatePath('/settings');
-        revalidatePath(`/profile/${userId}`);
+        revalidatePath(`/profile?id=${userId}`);
         revalidatePath('/(app)', 'layout');
 
         return { success: true, message: 'Profile picture updated.' };

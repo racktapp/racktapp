@@ -1,11 +1,21 @@
+
 'use client';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
 import { ChatList } from '@/components/chat/chat-list';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import ClientView from './ClientView';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function ChatsPage() {
+function ChatPageContent() {
     const { user } = useAuth();
+    const searchParams = useSearchParams();
+    const chatId = searchParams.get('id');
+    
+    if (chatId) {
+        return <ClientView id={chatId} />;
+    }
     
     if (!user) {
         return (
@@ -24,4 +34,12 @@ export default function ChatsPage() {
             <ChatList currentUserId={user.uid} />
         </div>
     );
+}
+
+export default function ChatsPage() {
+    return (
+        <Suspense fallback={<div className="flex h-full items-center justify-center"><LoadingSpinner className="h-8 w-8"/></div>}>
+            <ChatPageContent />
+        </Suspense>
+    )
 }
