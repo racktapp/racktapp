@@ -35,11 +35,18 @@ interface GameListItemProps {
 }
 
 function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const opponentId = game.participantIds.find(id => id !== currentUserId);
   const opponent = opponentId ? game.participantsData[opponentId] : null;
   const isMyTurn = game.currentPlayerId === currentUserId;
   const gameStatus = game.status;
+  
   const linkHref = gameType === 'Rally' ? `/games/rally?id=${game.id}` : `/games/legend?id=${game.id}`;
+  
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -58,11 +65,9 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
     const result = await deleteGameAction(game.id, gameType, currentUserId);
     if (result.success) {
       toast({ title: 'Game Deleted', description: 'The game has been removed.' });
-      // The parent listener will remove this from the UI, and the dialog will be gone.
     } else {
       toast({ variant: 'destructive', title: 'Error', description: result.message });
     }
-    // Always reset the loading state to prevent the UI from getting stuck.
     setIsDeleting(false);
   };
   
@@ -84,7 +89,7 @@ function GameListItem({ game, gameType, currentUserId }: GameListItemProps) {
   return (
     <Card className="transition-colors group">
       <CardContent className="p-0 flex items-center justify-between">
-        <Link href={linkHref} className="flex-1 p-4 flex items-center gap-4 overflow-hidden rounded-l-md group-hover:bg-muted/50">
+        <Link href={isClient ? linkHref : '#'} className="flex-1 p-4 flex items-center gap-4 overflow-hidden rounded-l-md group-hover:bg-muted/50">
           {opponent ? <UserAvatar user={opponent as User} className="h-10 w-10" /> : <div className="bg-primary/10 p-2 rounded-full"><Bot className="h-6 w-6 text-primary" /></div>}
           <div className="flex-1 overflow-hidden">
             <div className="flex justify-between items-start">
