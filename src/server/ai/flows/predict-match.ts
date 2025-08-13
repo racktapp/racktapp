@@ -1,4 +1,5 @@
-import 'server-only';
+
+'use client';
 
 export type PredictMatchInput = any;
 

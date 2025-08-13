@@ -1,4 +1,5 @@
-import 'server-only';
+
+'use client';
 
 import type { Sport } from '@/lib/types';
 
