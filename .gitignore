@@ -35,14 +35,23 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Capacitor
-/rackt/android/app/build/
-/rackt/android/app/.cxx/
-/rackt/android/build/
-/rackt/android/.gradle/
-/rackt/android/.idea/
-/rackt/android/gradle/
-/rackt/android/local.properties
+# Android/Capacitor build outputs
+android/app/build/
+android/app/.cxx/
+android/app/capacitor.build.gradle
+android/app/src/main/assets/
+android/app/src/main/res/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/debug.keystore
+
+# Firebase functions
+functions/node_modules/
+functions/package-lock.json
+android/capacitor-cordova-android-plugins/
+android/capacitor.settings.gradle
 # You may want to commit capacitor.config.json if you want to share your configuration.
 # capacitor.config.json
 

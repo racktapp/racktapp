@@ -1,0 +1,16 @@
+{
+  "project_info": {
+    "project_id": "demo",
+    "project_number": "1234567890"
+  },
+  "client": [{
+    "client_info": {
+      "mobilesdk_app_id": "1:1234567890:android:abcdef",
+      "android_client_info": {
+        "package_name": "com.taivas.rackt"
+      }
+    },
+    "api_key": [{ "current_key": "fake" }]
+  }],
+  "configuration_version": "1"
+}

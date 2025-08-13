@@ -4,11 +4,7 @@ rootProject.name = 'android'
 include ':app'
 
 include ':capacitor-android'
-project(':capacitor-android').projectDir = file('../node_modules/@capacitor/android')
+project(':capacitor-android').projectDir = file('../node_modules/@capacitor/android/capacitor')
 
-include ':capacitor-cordova-android-plugins'
-project(':capacitor-cordova-android-plugins').projectDir = file('../node_modules/@capacitor/cordova-android-plugins')
-
-// This hook wires in any Cordova plugins you may be using
-apply from: 'capacitor.settings.gradle'
+// This project does not use Cordova plugins
 

@@ -1,4 +1,5 @@
-import 'server-only';
+
+'use client';
 
 import type { SwingAnalysisInput, SwingAnalysisOutput } from '@/lib/types';
 

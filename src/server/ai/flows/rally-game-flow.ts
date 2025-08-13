@@ -1,4 +1,5 @@
-import 'server-only';
+
+'use client';
 
 import type { RallyGameInput, RallyGameOutput, ServeChoice, ReturnChoice } from '@/lib/types';
 

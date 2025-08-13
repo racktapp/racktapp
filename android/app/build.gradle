@@ -2,26 +2,30 @@ apply plugin: 'com.android.application'
 
 android {
     namespace "com.taivas.rackt"
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.taivas.rackt"
         minSdk 22
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
-        release {
-            // If you have a keystore.properties file, it'll be applied automatically here
+        debug {
+            storeFile file(System.getProperty('user.home') + '/.android/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            // Use the standard debug keystore for reproducible unsigned builds
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -41,8 +45,6 @@ dependencies {
 
     // Capacitor core runtime
     implementation project(':capacitor-android')
-    // Any Cordova plugins you’ve added
-    implementation project(':capacitor-cordova-android-plugins')
 
     // Firebase Analytics via BOM
     implementation platform('com.google.firebase:firebase-bom:33.2.0')
@@ -53,7 +55,5 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
-// Capacitor's own Gradle wiring
-apply from: 'capacitor.build.gradle'
 // Google services plugin (for Firebase)
 apply plugin: 'com.google.gms.google-services'

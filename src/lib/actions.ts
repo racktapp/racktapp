@@ -1,9 +1,8 @@
 
 
-'use server';
+'use client';
 
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase/config';
 import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
@@ -90,7 +89,6 @@ export async function handleReportMatchAction(
         date: values.date.getTime(),
     });
     
-    revalidatePath('/match-history');
 }
 
 // Action to get match recap
@@ -116,8 +114,6 @@ export async function searchUsersAction(query: string, currentUserId: string): P
 export async function addFriendAction(fromUser: User, toUser: User) {
     try {
         await sendFriendRequest(fromUser, toUser);
-        revalidatePath('/friends');
-        revalidatePath(`/profile/${toUser.uid}`);
         return { success: true, message: "Friend request sent." };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to send friend request." };
@@ -141,8 +137,6 @@ export async function getSentRequestsAction(userId: string): Promise<any[]> {
 export async function acceptFriendRequestAction(requestId: string, fromId: string, toId: string) {
     try {
         await acceptFriendRequest(requestId, fromId, toId);
-        revalidatePath('/friends');
-        revalidatePath(`/profile/${fromId}`);
         return { success: true, message: "Friend request accepted." };
     } catch (error: any) {
         return { success: false, message: "Failed to accept friend request." };
@@ -152,8 +146,6 @@ export async function acceptFriendRequestAction(requestId: string, fromId: strin
 export async function declineOrCancelFriendRequestAction(requestId: string, profileIdToRevalidate?: string) {
     try {
         await deleteFriendRequest(requestId);
-        revalidatePath('/friends');
-        if (profileIdToRevalidate) revalidatePath(`/profile/${profileIdToRevalidate}`);
         return { success: true, message: "Request removed." };
     } catch (error: any) {
         return { success: false, message: "Failed to remove friend request." };
@@ -163,8 +155,6 @@ export async function declineOrCancelFriendRequestAction(requestId: string, prof
 export async function removeFriendAction(currentUserId: string, friendId: string) {
     try {
         await removeFriend(currentUserId, friendId);
-        revalidatePath('/friends');
-        revalidatePath(`/profile/${friendId}`);
         return { success: true, message: "Friend removed." };
     } catch (error: any) {
         return { success: false, message: "Failed to remove friend." };
@@ -194,7 +184,6 @@ export async function createDirectChallengeAction(values: z.infer<typeof challen
             wager: values.wager,
             matchDateTime: matchDateTime,
         } as any);
-        revalidatePath('/challenges');
         return { success: true, message: "Challenge sent successfully!" };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to send challenge." };
@@ -213,7 +202,6 @@ export async function createOpenChallengeAction(values: z.infer<typeof openChall
             longitude: values.longitude,
             note: values.note,
         });
-        revalidatePath('/challenges');
         return { success: true, message: "Open challenge posted!" };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to post open challenge." };
@@ -239,8 +227,6 @@ export async function acceptChallengeAction(challenge: Challenge) {
     try {
         await updateChallengeStatus(challenge.id, 'accepted');
         const chatId = await getOrCreateChat(challenge.fromId, challenge.toId);
-        revalidatePath('/challenges');
-        revalidatePath('/chat');
         return { success: true, message: "Challenge accepted! Starting chat...", chatId };
     } catch (error: any) {
         return { success: false, message: "Failed to accept challenge." };
@@ -250,7 +236,6 @@ export async function acceptChallengeAction(challenge: Challenge) {
 export async function declineChallengeAction(challengeId: string) {
     try {
         await updateChallengeStatus(challengeId, 'declined');
-        revalidatePath('/challenges');
         return { success: true, message: "Challenge declined." };
     } catch (error: any) {
         return { success: false, message: "Failed to decline challenge." };
@@ -260,7 +245,6 @@ export async function declineChallengeAction(challengeId: string) {
 export async function cancelChallengeAction(challengeId: string) {
     try {
         await updateChallengeStatus(challengeId, 'cancelled');
-        revalidatePath('/challenges');
         return { success: true, message: "Challenge cancelled." };
     } catch (error: any) {
         return { success: false, message: "Failed to cancel challenge." };
@@ -270,7 +254,6 @@ export async function cancelChallengeAction(challengeId: string) {
 export async function challengeFromOpenAction(openChallenge: OpenChallenge, challenger: User) {
     try {
         await challengeFromOpen(openChallenge, challenger);
-        revalidatePath('/challenges');
         return { success: true, message: `Challenge sent to @${openChallenge.posterUsername}!` };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to challenge from open post." };
@@ -280,7 +263,6 @@ export async function challengeFromOpenAction(openChallenge: OpenChallenge, chal
 export async function deleteOpenChallengeAction(challengeId: string, userId: string) {
     try {
         await deleteOpenChallenge(challengeId, userId);
-        revalidatePath('/challenges');
         return { success: true, message: "Open challenge deleted." };
     } catch (error: any) {
         return { success: false, message: error.message || "Failed to delete challenge." };
@@ -292,7 +274,6 @@ export async function deleteOpenChallengeAction(challengeId: string, userId: str
 export async function createTournamentAction(values: z.infer<typeof createTournamentSchema>, organizer: User) {
     try {
         await createTournamentInDb(values, organizer);
-        revalidatePath('/tournaments');
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to create tournament.' };
@@ -310,7 +291,6 @@ export async function getTournamentByIdAction(tournamentId: string): Promise<Tou
 export async function reportWinnerAction(tournamentId: string, matchId: string, winnerId: string) {
     try {
         await reportTournamentWinner(tournamentId, matchId, winnerId);
-        revalidatePath(`/tournaments/${tournamentId}`);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to report winner.' };
@@ -323,7 +303,6 @@ export async function reportWinnerAction(tournamentId: string, matchId: string, 
 export async function getOrCreateChatAction(friendId: string, currentUserId: string) {
     try {
       const chatId = await getOrCreateChat(currentUserId, friendId);
-      revalidatePath('/chat');
       return { success: true, message: 'Chat ready.', redirect: `/chat?id=${chatId}` };
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to get or create chat.' };
@@ -371,7 +350,6 @@ export async function createLegendGameAction(friendId: string | null, sport: Spo
 
         const gameId = await createLegendGameInDb(currentUserId, friendId, sport, initialRoundData);
 
-        revalidatePath('/games');
         return { success: true, message: 'Game started!', redirect: `/games/legend?id=${gameId}` };
     } catch (error: any) {
         console.error('Error creating legend game:', error);
@@ -432,7 +410,6 @@ export async function submitLegendAnswerAction(gameId: string, answer: string, c
             game.updatedAt = Timestamp.now().toMillis();
             transaction.set(gameRef, game);
         });
-        revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to submit answer.' };
@@ -472,7 +449,6 @@ export async function startNextLegendRoundAction(gameId: string) {
             transaction.set(gameRef, liveGame);
         });
         
-        revalidatePath(`/games/legend/${gameId}`);
         return { success: true };
     } catch (error: any) {
         console.error("Error starting next round:", error);
@@ -517,7 +493,6 @@ export async function createRallyGameAction(friendId: string, currentUserId: str
             return gameRef.id;
         });
         
-        revalidatePath('/games');
         return { success: true, message: 'Rally Game started!', redirect: `/games/rally?id=${gameId}` };
     } catch (error: any) {
         console.error("Error creating rally game:", error);
@@ -579,7 +554,6 @@ export async function playRallyTurnAction(gameId: string, choice: any, currentUs
         transaction.update(gameRef, { ...updatePayload, updatedAt: Timestamp.now().toMillis() });
       });
   
-      revalidatePath(`/games/rally?id=${gameId}`);
     } catch (error: any) {
         console.error('Error playing rally turn:', error);
         throw new Error(error.message || 'Failed to play turn.');
@@ -599,7 +573,6 @@ export async function startNextRallyPointAction(gameId: string) {
             await startNextRallyPointFlow(gameId);
         }
 
-        revalidatePath(`/games/rally/${gameId}`);
         return { success: true };
     } catch (error: any) {
         console.error('Error starting next rally point:', error);
@@ -611,7 +584,6 @@ export async function startNextRallyPointAction(gameId: string) {
 export async function deleteGameAction(gameId: string, gameType: 'Rally' | 'Legend', currentUserId: string) {
     try {
         await deleteGame(gameId, gameType === 'Rally' ? 'rallyGames' : 'legendGames', currentUserId);
-        revalidatePath('/games');
         return { success: true, message: 'Game deleted successfully.' };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to delete game.' };
@@ -637,9 +609,7 @@ export async function confirmMatchResultAction(matchId: string, userId: string) 
     
     try {
         const result = await confirmMatchResult(matchId, userId);
-        revalidatePath('/match-history');
         if (result.finalized) {
-            revalidatePath('/dashboard');
             return { success: true, message: 'Final confirmation received. Ranks have been updated!' };
         }
         return { success: true, message: 'Result confirmed. Waiting for other players.' };
@@ -653,7 +623,6 @@ export async function declineMatchResultAction(matchId: string, userId: string) 
 
     try {
         await declineMatchResult(matchId, userId);
-        revalidatePath('/match-history');
         return { success: true, message: 'Result declined.' };
     } catch (error: any) {
         return { success: false, message: 'Failed to decline result.' };
@@ -719,7 +688,6 @@ export async function getLeaderboardAction(sport: Sport, limitNum: number = 100,
 export async function createFriendGroupAction(values: z.infer<typeof createFriendGroupSchema>, creatorId: string) {
     try {
         await createFriendGroup(values, creatorId);
-        revalidatePath('/leaderboard');
         return { success: true };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to create group.' };
@@ -736,9 +704,6 @@ export async function updateUserProfileAction(values: z.infer<typeof profileSett
     try {
       await updateUserProfileInDb(userId, values);
       
-      revalidatePath('/settings');
-      revalidatePath(`/profile/${userId}`);
-      revalidatePath('/(app)', 'layout');
       return { success: true, message: 'Profile updated successfully.' };
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to update profile.' };
@@ -749,9 +714,6 @@ export async function updateUserAvatarAction(userId: string, newAvatarUrl: strin
     try {
         await updateUserProfileInDb(userId, { avatarUrl: newAvatarUrl });
 
-        revalidatePath('/settings');
-        revalidatePath(`/profile/${userId}`);
-        revalidatePath('/(app)', 'layout');
 
         return { success: true, message: 'Profile picture updated.' };
     } catch (error: any) {
@@ -845,8 +807,6 @@ export async function logPracticeSessionAction(
 ) {
   try {
     await logPracticeSession(data, userId);
-    revalidatePath('/practice');
-    revalidatePath('/dashboard');
     return { success: true };
   } catch (error: any) {
     return { success: false, message: error.message };
@@ -866,7 +826,6 @@ export async function getPracticeSessionsAction(userId: string, sport: Sport) {
 export async function deletePracticeSessionAction(sessionId: string, userId: string) {
     try {
         await deletePracticeSession(sessionId, userId);
-        revalidatePath('/practice');
         return { success: true, message: 'Practice session deleted.' };
     } catch (error: any) {
         return { success: false, message: error.message || 'Failed to delete session.' };
