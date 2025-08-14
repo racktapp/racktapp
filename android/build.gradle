@@ -4,14 +4,18 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.7.2'
+        // Use a stable Android Gradle Plugin that is compatible with the
+        // Gradle wrapper and available in current Android Studio
+        classpath 'com.android.tools.build:gradle:8.5.0'
         classpath 'com.google.gms:google-services:4.4.1'
     }
 }
 
 ext {
-    compileSdkVersion = 35
-    targetSdkVersion = 35
+    // API level 34 is widely available and supported in the current
+    // Android tooling, ensuring the project can be built out of the box
+    compileSdkVersion = 34
+    targetSdkVersion = 34
     minSdkVersion = 22
 }
 
