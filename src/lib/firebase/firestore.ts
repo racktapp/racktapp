@@ -438,17 +438,25 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 }
 
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('toId', '==', userId), where('status', '==', 'pending'));
+    const q = query(
+        collection(db, 'challenges'),
+        where('toId', '==', userId),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+    );
     const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as Challenge);
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    return snapshot.docs.map(d => d.data() as Challenge);
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('fromId', '==', userId), where('status', '==', 'pending'));
+    const q = query(
+        collection(db, 'challenges'),
+        where('fromId', '==', userId),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+    );
     const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as Challenge);
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    return snapshot.docs.map(d => d.data() as Challenge);
 }
 
 export async function getOpenChallenges(
