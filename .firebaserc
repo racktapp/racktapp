@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "prod": "rackt-the-social-sports-hub",
+    "default": "rackt-the-social-sports-hub"
+  },
+  "targets": {},
+  "etags": {}
+}
