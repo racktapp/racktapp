@@ -27,6 +27,7 @@ import { db } from './config';
 import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, OpenChallenge, ChallengeStatus, Tournament, createTournamentSchema, Chat, Message, RallyGame, LegendGame, LegendGameRound, profileSettingsSchema, LegendGameOutput, RallyGamePoint, ServeChoice, ReturnChoice, PracticeSession, practiceSessionSchema, reportUserSchema, UserReport, Court } from '@/lib/types';
 import { calculateNewElo } from '../elo';
 import { z } from 'zod';
+import { FirebaseError } from 'firebase/app';
 
 
 // Helper to convert Firestore Timestamps to numbers
@@ -423,17 +424,53 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 }
 
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('toId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as Challenge);
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    try {
+        const q = query(
+            collection(db, 'challenges'),
+            where('toId', '==', userId),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => d.data() as Challenge);
+    } catch (e) {
+        if (e instanceof FirebaseError && e.code === 'failed-precondition') {
+            const fallbackQuery = query(
+                collection(db, 'challenges'),
+                where('toId', '==', userId),
+                where('status', '==', 'pending')
+            );
+            const snapshot = await getDocs(fallbackQuery);
+            const challenges = snapshot.docs.map(d => d.data() as Challenge);
+            return challenges.sort((a, b) => b.createdAt - a.createdAt);
+        }
+        throw e;
+    }
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('fromId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as Challenge);
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    try {
+        const q = query(
+            collection(db, 'challenges'),
+            where('fromId', '==', userId),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => d.data() as Challenge);
+    } catch (e) {
+        if (e instanceof FirebaseError && e.code === 'failed-precondition') {
+            const fallbackQuery = query(
+                collection(db, 'challenges'),
+                where('fromId', '==', userId),
+                where('status', '==', 'pending')
+            );
+            const snapshot = await getDocs(fallbackQuery);
+            const challenges = snapshot.docs.map(d => d.data() as Challenge);
+            return challenges.sort((a, b) => b.createdAt - a.createdAt);
+        }
+        throw e;
+    }
 }
 
 function distanceInKm(lat1: number, lon1: number, lat2: number, lon2: number) {

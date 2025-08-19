@@ -28,6 +28,7 @@ import { User, Sport, Match, SportStats, MatchType, FriendRequest, Challenge, Op
 import { calculateNewElo } from '../elo';
 import { generateBracket } from '../tournament-utils';
 import { z } from 'zod';
+import { FirebaseError } from 'firebase/app';
 
 // Helper to convert Firestore Timestamps to numbers
 function convertTimestamps<T extends Record<string, any>>(obj: T): T {
@@ -438,17 +439,53 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 }
 
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('toId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as Challenge);
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    try {
+        const q = query(
+            collection(db, 'challenges'),
+            where('toId', '==', userId),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => d.data() as Challenge);
+    } catch (e) {
+        if (e instanceof FirebaseError && e.code === 'failed-precondition') {
+            const fallbackQuery = query(
+                collection(db, 'challenges'),
+                where('toId', '==', userId),
+                where('status', '==', 'pending')
+            );
+            const snapshot = await getDocs(fallbackQuery);
+            const challenges = snapshot.docs.map(d => d.data() as Challenge);
+            return challenges.sort((a, b) => b.createdAt - a.createdAt);
+        }
+        throw e;
+    }
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(collection(db, 'challenges'), where('fromId', '==', userId), where('status', '==', 'pending'));
-    const snapshot = await getDocs(q);
-    const challenges = snapshot.docs.map(d => d.data() as Challenge);
-    return challenges.sort((a, b) => b.createdAt - a.createdAt);
+    try {
+        const q = query(
+            collection(db, 'challenges'),
+            where('fromId', '==', userId),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => d.data() as Challenge);
+    } catch (e) {
+        if (e instanceof FirebaseError && e.code === 'failed-precondition') {
+            const fallbackQuery = query(
+                collection(db, 'challenges'),
+                where('fromId', '==', userId),
+                where('status', '==', 'pending')
+            );
+            const snapshot = await getDocs(fallbackQuery);
+            const challenges = snapshot.docs.map(d => d.data() as Challenge);
+            return challenges.sort((a, b) => b.createdAt - a.createdAt);
+        }
+        throw e;
+    }
 }
 
 export async function getOpenChallenges(
@@ -457,19 +494,39 @@ export async function getOpenChallenges(
     longitude?: number,
     radiusKm: number = 25
 ): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
-    const snapshot = await getDocs(q);
-    let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
-    
-    if (latitude !== undefined && longitude !== undefined) {
-        challenges = challenges.filter(c => {
-            if (c.latitude == null || c.longitude == null) return false; // Exclude challenges without coordinates
-            const distanceInKmVal = geofire.distanceBetween([c.latitude, c.longitude], [latitude, longitude]);
-            return distanceInKmVal <= radiusKm;
-        });
+    try {
+        const q = query(
+            collection(db, 'openChallenges'),
+            where('sport', '==', sport),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+        const snapshot = await getDocs(q);
+        let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+        if (latitude !== undefined && longitude !== undefined) {
+            challenges = challenges.filter(c => {
+                if (c.latitude == null || c.longitude == null) return false; // Exclude challenges without coordinates
+                const distanceInKmVal = geofire.distanceBetween([c.latitude, c.longitude], [latitude, longitude]);
+                return distanceInKmVal <= radiusKm;
+            });
+        }
+        return challenges;
+    } catch (e) {
+        if (e instanceof FirebaseError && e.code === 'failed-precondition') {
+            const q = query(collection(db, 'openChallenges'), where('sport', '==', sport));
+            const snapshot = await getDocs(q);
+            let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+            if (latitude !== undefined && longitude !== undefined) {
+                challenges = challenges.filter(c => {
+                    if (c.latitude == null || c.longitude == null) return false;
+                    const distanceInKmVal = geofire.distanceBetween([c.latitude, c.longitude], [latitude, longitude]);
+                    return distanceInKmVal <= radiusKm;
+                });
+            }
+            return challenges.sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
+        }
+        throw e;
     }
-
-    return challenges;
 }
 
 
