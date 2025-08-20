@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { db, storage } from '@/lib/firebase/config';
-import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, runTransaction, updateDoc, collection, query, where, orderBy, writeBatch, limit, addDoc, setDoc, deleteDoc, arrayUnion, arrayRemove, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadString, getDownloadURL, uploadBytes, deleteObject, listAll } from 'firebase/storage';
 import { 
     reportPendingMatch,
@@ -30,6 +30,7 @@ import {
     getTournamentById,
     reportTournamentWinner,
     getOrCreateChat,
+    getChatsForUser,
     sendMessage,
     markChatAsRead,
     getConfirmedMatchesForUser,
@@ -729,6 +730,34 @@ export async function deleteUserAccountAction(userId: string) {
     } catch (error: any) {
         console.error("Error deleting user account action:", error);
         return { success: false, message: error.message || 'Failed to delete account. Please re-authenticate and try again.' };
+    }
+}
+
+export async function exportUserDataAction(userId: string) {
+    try {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        if (!userDoc.exists()) {
+            throw new Error('User not found.');
+        }
+
+        const profile = userDoc.data();
+        const [matches, friends, chats] = await Promise.all([
+            getConfirmedMatchesForUser(userId),
+            getFriendsFromFirestore(userId),
+            getChatsForUser(userId)
+        ]);
+
+        const messages: Record<string, Message[]> = {};
+        for (const chat of chats) {
+            const msgsSnap = await getDocs(collection(db, 'chats', chat.id, 'messages'));
+            messages[chat.id] = msgsSnap.docs.map(d => d.data() as Message);
+        }
+
+        return { profile, matches, friends, chats, messages };
+    } catch (error: any) {
+        console.error('Error exporting user data:', error);
+        throw new Error(error.message || 'Failed to export user data.');
     }
 }
 

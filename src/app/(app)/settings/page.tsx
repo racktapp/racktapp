@@ -16,6 +16,7 @@ import { ThemeSwitcher } from '@/components/settings/theme-switcher';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AvatarSelector } from '@/components/settings/avatar-selector';
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
+import { ExportUserData } from '@/components/settings/export-user-data';
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -44,7 +45,8 @@ export default function SettingsPage() {
         <SettingsForm user={user} />
         <AvatarSelector user={user} />
         <ThemeSwitcher />
-        
+        <ExportUserData />
+
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><LogOut /> Log Out</CardTitle>
