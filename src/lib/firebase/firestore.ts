@@ -438,25 +438,48 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 }
 
 export async function getIncomingChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(
+    const baseQuery = query(
         collection(db, 'challenges'),
         where('toId', '==', userId),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
+        where('status', '==', 'pending')
     );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as Challenge);
+    let snapshot;
+    try {
+        const q = query(baseQuery, orderBy('createdAt', 'desc'));
+        snapshot = await getDocs(q);
+    } catch (error: any) {
+        if (error.code === 'failed-precondition') {
+            // Missing index - fallback to unordered query
+            snapshot = await getDocs(baseQuery);
+        } else {
+            throw error;
+        }
+    }
+    return snapshot.docs
+        .map(d => convertTimestamps(d.data() as Challenge))
+        .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getSentChallenges(userId: string): Promise<Challenge[]> {
-    const q = query(
+    const baseQuery = query(
         collection(db, 'challenges'),
         where('fromId', '==', userId),
-        where('status', '==', 'pending'),
-        orderBy('createdAt', 'desc')
+        where('status', '==', 'pending')
     );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as Challenge);
+    let snapshot;
+    try {
+        const q = query(baseQuery, orderBy('createdAt', 'desc'));
+        snapshot = await getDocs(q);
+    } catch (error: any) {
+        if (error.code === 'failed-precondition') {
+            snapshot = await getDocs(baseQuery);
+        } else {
+            throw error;
+        }
+    }
+    return snapshot.docs
+        .map(d => convertTimestamps(d.data() as Challenge))
+        .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getOpenChallenges(
@@ -465,9 +488,22 @@ export async function getOpenChallenges(
     longitude?: number,
     radiusKm: number = 25
 ): Promise<OpenChallenge[]> {
-    const q = query(collection(db, 'openChallenges'), where('sport', '==', sport), orderBy('createdAt', 'desc'), limit(50));
-    const snapshot = await getDocs(q);
+    const baseQuery = query(collection(db, 'openChallenges'), where('sport', '==', sport));
+    let snapshot;
+    try {
+        const q = query(baseQuery, orderBy('createdAt', 'desc'), limit(50));
+        snapshot = await getDocs(q);
+    } catch (error: any) {
+        if (error.code === 'failed-precondition') {
+            // Fallback if composite index is missing
+            snapshot = await getDocs(baseQuery);
+        } else {
+            throw error;
+        }
+    }
     let challenges = snapshot.docs.map(d => convertTimestamps(d.data() as OpenChallenge));
+    challenges.sort((a, b) => b.createdAt - a.createdAt);
+    if (challenges.length > 50) challenges = challenges.slice(0, 50);
     
     if (latitude !== undefined && longitude !== undefined) {
         challenges = challenges.filter(c => {
