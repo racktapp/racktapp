@@ -5,6 +5,7 @@ import { AuthProvider } from '@/components/providers/auth-provider';
 import { SportProvider } from '@/components/providers/sport-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { CookieConsent } from '@/components/cookie-consent';
 
 const APP_NAME = "Rackt";
 const APP_DESCRIPTION = "The Social Sports Hub";
@@ -53,11 +54,12 @@ export default function RootLayout({
             disableTransitionOnChange
         >
           <AuthProvider>
-            <SportProvider>
-              {children}
-              <Toaster />
-            </SportProvider>
-          </AuthProvider>
+              <SportProvider>
+                {children}
+                <Toaster />
+                <CookieConsent />
+              </SportProvider>
+            </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
