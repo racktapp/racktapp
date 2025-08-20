@@ -854,6 +854,7 @@ export async function createUserDocumentAction(user: {
   email: string;
   username: string;
   emailVerified: boolean;
+  termsAccepted?: boolean;
   avatarUrl?: string | null;
 }) {
   const userRef = doc(db, 'users', user.uid);

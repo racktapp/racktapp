@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
 import { auth } from '@/lib/firebase/config';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -20,9 +21,17 @@ import { createUserDocumentAction } from '@/lib/actions';
 import { getAuthErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
-  username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
+  username: z
+    .string()
+    .min(3, { message: 'Username must be at least 3 characters.' })
+    .regex(/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores.'),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  termsAccepted: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: 'You must agree to the Terms and Privacy Policy.',
+    }),
 });
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -60,6 +69,7 @@ export default function SignupPage() {
       username: '',
       email: '',
       password: '',
+      termsAccepted: false,
     },
   });
 
@@ -73,6 +83,7 @@ export default function SignupPage() {
         email: user.email!,
         username: user.displayName || 'New User',
         emailVerified: user.emailVerified,
+        termsAccepted: true,
         avatarUrl: user.photoURL,
       });
 
@@ -114,6 +125,7 @@ export default function SignupPage() {
         email: values.email,
         username: values.username,
         emailVerified: userCredential.user.emailVerified,
+        termsAccepted: values.termsAccepted,
       });
 
       // Update the auth profile *after* creating the doc, to match the (potentially unique) username
@@ -193,7 +205,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <FormField
+            <FormField
                 control={form.control}
                 name="password"
                 render={({ field }) => (
@@ -206,6 +218,30 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="termsAccepted"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex flex-row items-start space-x-2">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        I agree to the{' '}
+                        <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary">
+                          Terms of Service
+                        </Link>{' '}
+                        and{' '}
+                        <Link href="/legal/privacy" className="underline underline-offset-4 hover:text-primary">
+                          Privacy Policy
+                        </Link>
+                      </FormLabel>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading || isAppleLoading}>
                 {isLoading && <LoadingSpinner className="mr-2 h-4 w-4" />}
                 Sign Up
@@ -213,19 +249,7 @@ export default function SignupPage() {
             </form>
           </Form>
         </div>
-        
-        <p className="mt-6 px-8 text-center text-sm text-muted-foreground">
-            By clicking continue, you agree to our{' '}
-            <Link href="/legal/terms" className="underline underline-offset-4 hover:text-primary">
-                Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link href="/legal/privacy" className="underline underline-offset-4 hover:text-primary">
-                Privacy Policy
-            </Link>
-            .
-        </p>
-        
+
         <div className="mt-4 text-center text-sm">
             Already have an account?{' '}
             <Link href="/login" className="underline text-primary">

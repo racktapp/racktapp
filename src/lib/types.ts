@@ -35,6 +35,7 @@ export interface User {
   username: string;
   email: string;
   emailVerified: boolean;
+  termsAccepted?: boolean;
   avatarUrl?: string | null;
   friendIds: string[];
   location?: string;

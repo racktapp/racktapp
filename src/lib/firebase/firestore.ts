@@ -156,6 +156,7 @@ export const createUserDocument = async (user: {
   email: string;
   username: string;
   emailVerified: boolean;
+  termsAccepted?: boolean;
   avatarUrl?: string | null;
 }) => {
   const userRef = doc(db, 'users', user.uid);
@@ -166,6 +167,7 @@ export const createUserDocument = async (user: {
     email: user.email,
     username: finalUsername,
     emailVerified: user.emailVerified,
+    termsAccepted: user.termsAccepted ?? false,
     avatarUrl: user.avatarUrl || null,
     friendIds: [],
     preferredSports: ['Tennis'],
