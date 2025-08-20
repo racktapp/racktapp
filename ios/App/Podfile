@@ -1,0 +1,23 @@
+platform :ios, '13.0'
+use_frameworks!
+
+install! 'cocoapods', :integrate_targets => false
+
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+linkage = ENV['CAPACITOR_LINKAGE'] == 'static' ? :static : nil
+use_frameworks! linkage
+
+abstract_target 'CapacitorPods' do
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'GoogleUserMessagingPlatform'
+  pod 'Google-Mobile-Ads-SDK'
+end
+
+# Add your app targets
+target 'App' do
+  project 'App.xcodeproj'
+  inherit! :search_paths
+  include_capacitor_pods
+end

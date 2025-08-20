@@ -2,4 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.taivas.rackt">
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+  <application android:label="RacktApp">
+    <!-- TODO: Replace with real AdMob App ID -->
+    <meta-data
+      android:name="com.google.android.gms.ads.APPLICATION_ID"
+      android:value="@string/admob_app_id" />
+  </application>
 </manifest>

@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { SportProvider } from '@/components/providers/sport-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { ConsentProvider } from '@/components/providers/consent-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { CookieConsent } from '@/components/cookie-consent';
 
@@ -53,13 +54,15 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
-          <AuthProvider>
-              <SportProvider>
-                {children}
-                <Toaster />
-                <CookieConsent />
-              </SportProvider>
-            </AuthProvider>
+            <AuthProvider>
+                <SportProvider>
+                  <ConsentProvider>
+                    {children}
+                    <Toaster />
+                    <CookieConsent />
+                  </ConsentProvider>
+                </SportProvider>
+              </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

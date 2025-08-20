@@ -3,6 +3,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getAnalytics, setAnalyticsCollectionEnabled, type Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBiqxBLHpN9aH8myDv-ckD8hV3f2SgjIvg",
@@ -19,6 +20,9 @@ const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebas
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
+const analytics: Analytics = getAnalytics(app);
+// Disable analytics collection until consent is granted
+setAnalyticsCollectionEnabled(analytics, false);
 
 // This is a client-side only initialization function for components that need it.
 // The top-level export handles initialization for both client and server.
@@ -28,4 +32,4 @@ export function initializeFirebase() {
     }
 }
 
-export { app, auth, db, storage };
+export { app, auth, db, storage, analytics };
