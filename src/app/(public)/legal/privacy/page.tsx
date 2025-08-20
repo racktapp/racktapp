@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/page-header';
 export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-sm md:prose-base dark:prose-invert max-w-4xl mx-auto">
-      <PageHeader title="Privacy Policy" description="Effective Date: July 9, 2025 | Last Updated: July 9, 2025" />
+      <PageHeader title="Privacy Policy" description="Effective Date: August 20, 2025 | Last Updated: August 20, 2025" />
 
       <p>
         Your privacy is important to us. This Privacy Policy explains how Rackt we collect, uses, and protects your personal information when you use our mobile application (“Rackt” or “the app”).
@@ -48,18 +48,26 @@ export default function PrivacyPolicyPage() {
         <li>Improve the app’s performance and user experience</li>
       </ul>
 
-      <h3>3. Data Sharing</h3>
-      <p>
-        We do not sell, trade, or rent your personal data. Your profile information (e.g., name, username, and stats) is visible to other users to support social and competitive features of the app.
-      </p>
-      <p>We may use trusted third-party services like Firebase to provide authentication, data storage, and analytics. These services process data on our behalf under strict confidentiality and security standards.</p>
-      
-      <h3>4. Security</h3>
+        <h3>3. Data Sharing</h3>
+        <p>
+          We do not sell, trade, or rent your personal data. Your profile information (e.g., name, username, and stats) is visible to other users to support social and competitive features of the app.
+        </p>
+        <p>We may use trusted third-party services like Firebase to provide authentication, data storage, and analytics. These services process data on our behalf under strict confidentiality and security standards.</p>
+
+        <h3>4. Data Retention</h3>
+        <p>
+          We retain your personal data for as long as your account is active or as needed to provide the services. If you delete your account, your personal data is removed from our active systems within 30 days unless a longer retention period is required for legal, contractual, or legitimate business purposes.
+        </p>
+        <p>
+          Video content submitted for AI coaching is automatically deleted 30 days after analysis unless you remove it sooner.
+        </p>
+
+        <h3>5. Security</h3>
       <p>
         We implement appropriate technical and organizational measures to protect your data. However, no internet transmission or electronic storage method is 100% secure. We encourage you to keep your account credentials confidential.
       </p>
 
-      <h3>5. Your Rights</h3>
+        <h3>6. Your Rights</h3>
       <p>You can:</p>
       <ul>
         <li>View and update your account information via your app settings</li>
@@ -67,22 +75,26 @@ export default function PrivacyPolicyPage() {
         <li>If you are located in the European Economic Area (EEA), you may have additional rights under GDPR, including the right to access, correct, or erase your data.</li>
       </ul>
       
-      <h3>6. Children’s Privacy</h3>
+        <h3>7. Children’s Privacy</h3>
       <p>
         Rackt is intended for users aged 13 and older. We do not knowingly collect personal data from children under 13. If we learn that we have collected personal information from a child under 13, we will delete it immediately. Parents or guardians who believe their child has provided us with personal information may contact us at the email below.
       </p>
 
-      <h3>7. Changes to This Policy</h3>
+        <h3>8. Changes to This Policy</h3>
       <p>
         We may update this Privacy Policy from time to time. Any changes will be posted on this page, and we may notify users through the app or by email where appropriate.
       </p>
       
-      <h3>8. Contact Us</h3>
+        <h3>9. Contact Us</h3>
       <p>
         If you have questions or concerns about this Privacy Policy or your personal data, please contact us:
       </p>
       <p>
         📧 Email: <a href="mailto:racktapp@gmail.com">racktapp@gmail.com</a>
+      </p>
+      <p>Data Controller: Rackt App Inc., <a href="mailto:racktapp@gmail.com">racktapp@gmail.com</a></p>
+      <p>
+        Data Protection Officer: Jane Smith, <a href="mailto:dpo@racktapp.com">dpo@racktapp.com</a>
       </p>
     </div>
   );
