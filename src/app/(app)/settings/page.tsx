@@ -11,12 +11,13 @@ import { Separator } from '@/components/ui/separator';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { LogOut, Palette, User as UserIcon, Trash2 } from 'lucide-react';
+import { LogOut, Palette, User as UserIcon, Trash2, Shield } from 'lucide-react';
 import { ThemeSwitcher } from '@/components/settings/theme-switcher';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AvatarSelector } from '@/components/settings/avatar-selector';
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
 import { ExportUserData } from '@/components/settings/export-user-data';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -41,11 +42,23 @@ export default function SettingsPage() {
         title="Settings"
         description="Manage your account, profile, and preferences."
       />
-      <div className="max-w-2xl mx-auto grid gap-8">
-        <SettingsForm user={user} />
-        <AvatarSelector user={user} />
-        <ThemeSwitcher />
-        <ExportUserData />
+        <div className="max-w-2xl mx-auto grid gap-8">
+          <SettingsForm user={user} />
+          <AvatarSelector user={user} />
+          <ThemeSwitcher />
+          <ExportUserData />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Shield /> Privacy & Consent</CardTitle>
+              <CardDescription>Review your privacy choices.</CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href="/settings/privacy-consent">Manage Consent</Link>
+              </Button>
+            </CardFooter>
+          </Card>
 
         <Card>
             <CardHeader>
