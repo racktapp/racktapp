@@ -2,7 +2,7 @@ name: Deploy to Firebase Hosting
 
 on:
   push:
-    branches: [ master ]   # your branch
+    branches: [ master ]
 
 concurrency:
   group: firebase-hosting
@@ -39,3 +39,4 @@ jobs:
 
       - name: Deploy Hosting
         run: npx firebase-tools deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+
