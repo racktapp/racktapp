@@ -34,12 +34,12 @@ jobs:
 
       - name: Install deps & build
         run: |
-          npm ci || npm install
-          npm run build || echo "No build script"
+          npm ci
+          npm run build
 
-      # Optional: fail early if folder missing
       - name: Verify Hosting folder exists
-        run: test -d out || { echo "::error::Expected 'out' folder not found. Check firebase.json 'public' or your build."; exit 1; }
+        run: |
+          test -d out || { echo "::error::Expected 'out' folder not found. Check package.json build or firebase.json"; exit 1; }
 
       - name: Deploy Hosting
         run: npx firebase-tools deploy --only hosting --project "${{ secrets.FIREBASE_PROJECT_ID }}"
