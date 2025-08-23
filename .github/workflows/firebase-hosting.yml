@@ -34,7 +34,7 @@ jobs:
 
       - name: Install deps & build
         run: |
-          npm ci --no-audit --prefer-offline
+          npm ci
           npm run build
 
       - name: Verify Hosting folder exists
