@@ -27,14 +27,18 @@ export function ConsentProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     Consent.getStatus().then((res) => {
       setStatus(res);
-      setAnalyticsCollectionEnabled(analytics, res.analytics === 'granted');
+      if (analytics) {
+        setAnalyticsCollectionEnabled(analytics, res.analytics === 'granted');
+      }
     });
   }, []);
 
   const request = async () => {
     const res = await Consent.request();
     setStatus(res);
-    setAnalyticsCollectionEnabled(analytics, res.analytics === 'granted');
+    if (analytics) {
+      setAnalyticsCollectionEnabled(analytics, res.analytics === 'granted');
+    }
     return res;
   };
 

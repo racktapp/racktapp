@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo -p 9002",
-    "build": "next build && next export -o out",
+    "build": "next build",
     "sync": "npm run build && npx cap sync android && cd android && (test -f gradle/wrapper/gradle-wrapper.jar || gradle wrapper --gradle-version 8.6)",
     "build:aab": "npm run sync && cd android && ./gradlew bundleRelease",
     "start": "next start",
